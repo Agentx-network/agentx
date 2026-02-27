@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 100" font-family="'Segoe UI', Arial, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#0a0015"/>
+      <stop offset="50%" stop-color="#120025"/>
+      <stop offset="100%" stop-color="#0a0015"/>
+    </linearGradient>
+    <linearGradient id="pink" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#FF0092"/>
+      <stop offset="100%" stop-color="#FF55B8"/>
+    </linearGradient>
+    <linearGradient id="purple" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#AE00FF"/>
+      <stop offset="100%" stop-color="#CC66FF"/>
+    </linearGradient>
+    <linearGradient id="green" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#00CC66"/>
+      <stop offset="100%" stop-color="#00FF88"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#0088FF"/>
+      <stop offset="100%" stop-color="#00CCFF"/>
+    </linearGradient>
+    <linearGradient id="border" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#FF009240"/>
+      <stop offset="50%" stop-color="#AE00FF60"/>
+      <stop offset="100%" stop-color="#FF009240"/>
+    </linearGradient>
+    <!-- Animated scan line gradient -->
+    <linearGradient id="scan" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="transparent"/>
+      <stop offset="45%" stop-color="transparent"/>
+      <stop offset="50%" stop-color="#FF009215"/>
+      <stop offset="55%" stop-color="transparent"/>
+      <stop offset="100%" stop-color="transparent"/>
+      <animateTransform attributeName="gradientTransform" type="translate" from="-1 0" to="1 0" dur="4s" repeatCount="indefinite"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="900" height="100" fill="url(#bg)" rx="12"/>
+  <rect x="1" y="1" width="898" height="98" rx="12" fill="none" stroke="url(#border)" stroke-width="1"/>
+
+  <!-- Animated scan overlay -->
+  <rect width="900" height="100" fill="url(#scan)" rx="12"/>
+
+  <!-- Stat 1: RAM — fade in + pulse -->
+  <g opacity="0">
+    <animate attributeName="opacity" from="0" to="1" dur="0.6s" begin="0.2s" fill="freeze"/>
+    <text x="100" y="36" text-anchor="middle" fill="url(#pink)" font-size="26" font-weight="bold">~5 MB</text>
+    <text x="100" y="56" text-anchor="middle" fill="#8866aa" font-size="11" letter-spacing="1">MEMORY</text>
+    <text x="100" y="74" text-anchor="middle" fill="#553366" font-size="9">200x lighter</text>
+    <!-- Pulse glow behind number -->
+    <circle cx="100" cy="32" r="20" fill="#FF009200">
+      <animate attributeName="fill" values="#FF009200;#FF009215;#FF009200" dur="3s" repeatCount="indefinite"/>
+      <animate attributeName="r" values="18;28;18" dur="3s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+
+  <!-- Divider 1 — animated -->
+  <line x1="190" y1="20" x2="190" y2="20" stroke="#AE00FF30">
+    <animate attributeName="y2" from="20" to="80" dur="0.4s" begin="0.4s" fill="freeze"/>
+  </line>
+
+  <!-- Stat 2: Boot -->
+  <g opacity="0">
+    <animate attributeName="opacity" from="0" to="1" dur="0.6s" begin="0.5s" fill="freeze"/>
+    <text x="280" y="36" text-anchor="middle" fill="url(#purple)" font-size="26" font-weight="bold">0.3s</text>
+    <text x="280" y="56" text-anchor="middle" fill="#8866aa" font-size="11" letter-spacing="1">COLD START</text>
+    <text x="280" y="74" text-anchor="middle" fill="#553366" font-size="9">1,600x faster</text>
+    <circle cx="280" cy="32" r="20" fill="#AE00FF00">
+      <animate attributeName="fill" values="#AE00FF00;#AE00FF12;#AE00FF00" dur="3.5s" repeatCount="indefinite"/>
+      <animate attributeName="r" values="18;28;18" dur="3.5s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+
+  <line x1="370" y1="20" x2="370" y2="20" stroke="#FF009220">
+    <animate attributeName="y2" from="20" to="80" dur="0.4s" begin="0.7s" fill="freeze"/>
+  </line>
+
+  <!-- Stat 3: Streaming -->
+  <g opacity="0">
+    <animate attributeName="opacity" from="0" to="1" dur="0.6s" begin="0.8s" fill="freeze"/>
+    <text x="460" y="36" text-anchor="middle" fill="url(#green)" font-size="26" font-weight="bold">STREAM</text>
+    <text x="460" y="56" text-anchor="middle" fill="#8866aa" font-size="11" letter-spacing="1">RESPONSES</text>
+    <text x="460" y="74" text-anchor="middle" fill="#553366" font-size="9">real-time tokens</text>
+    <!-- Streaming dot animation -->
+    <circle cx="420" cy="32" r="2" fill="#00FF88" opacity="0">
+      <animate attributeName="cx" values="420;500" dur="1.5s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0;1;0" dur="1.5s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+
+  <line x1="550" y1="20" x2="550" y2="20" stroke="#AE00FF20">
+    <animate attributeName="y2" from="20" to="80" dur="0.4s" begin="1s" fill="freeze"/>
+  </line>
+
+  <!-- Stat 4: Parallel -->
+  <g opacity="0">
+    <animate attributeName="opacity" from="0" to="1" dur="0.6s" begin="1.1s" fill="freeze"/>
+    <text x="640" y="36" text-anchor="middle" fill="url(#blue)" font-size="26" font-weight="bold">PARALLEL</text>
+    <text x="640" y="56" text-anchor="middle" fill="#8866aa" font-size="11" letter-spacing="1">TOOL EXEC</text>
+    <text x="640" y="74" text-anchor="middle" fill="#553366" font-size="9">concurrent I/O</text>
+    <!-- Parallel bars animation -->
+    <rect x="610" y="68" width="12" height="0" rx="1" fill="#00CCFF20">
+      <animate attributeName="height" values="0;6;0" dur="2s" repeatCount="indefinite"/>
+    </rect>
+    <rect x="625" y="68" width="12" height="0" rx="1" fill="#00CCFF15">
+      <animate attributeName="height" values="0;6;0" dur="2s" begin="0.3s" repeatCount="indefinite"/>
+    </rect>
+    <rect x="640" y="68" width="12" height="0" rx="1" fill="#00CCFF20">
+      <animate attributeName="height" values="0;6;0" dur="2s" begin="0.6s" repeatCount="indefinite"/>
+    </rect>
+    <rect x="655" y="68" width="12" height="0" rx="1" fill="#00CCFF15">
+      <animate attributeName="height" values="0;6;0" dur="2s" begin="0.9s" repeatCount="indefinite"/>
+    </rect>
+  </g>
+
+  <line x1="730" y1="20" x2="730" y2="20" stroke="#FF009220">
+    <animate attributeName="y2" from="20" to="80" dur="0.4s" begin="1.3s" fill="freeze"/>
+  </line>
+
+  <!-- Stat 5: Cost -->
+  <g opacity="0">
+    <animate attributeName="opacity" from="0" to="1" dur="0.6s" begin="1.4s" fill="freeze"/>
+    <text x="820" y="36" text-anchor="middle" fill="url(#pink)" font-size="26" font-weight="bold">$5</text>
+    <text x="820" y="56" text-anchor="middle" fill="#8866aa" font-size="11" letter-spacing="1">HARDWARE</text>
+    <text x="820" y="74" text-anchor="middle" fill="#553366" font-size="9">any Linux board</text>
+    <circle cx="820" cy="32" r="20" fill="#FF009200">
+      <animate attributeName="fill" values="#FF009200;#FF009210;#FF009200" dur="4s" repeatCount="indefinite"/>
+      <animate attributeName="r" values="18;26;18" dur="4s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+</svg>
