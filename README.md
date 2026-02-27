@@ -34,7 +34,7 @@
 
   <br>
 
-  <img src="assets/model.webp" alt="AgentX AI Agent" width="320">
+  <img src="assets/agent-hero.gif" alt="AgentX AI Agent" width="320">
 
   <p><b>Launch, trade, and deploy AI agents that automate tasks and generate value.</b></p>
 
