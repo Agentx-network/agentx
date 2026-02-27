@@ -26,15 +26,15 @@
 
   <br>
 
-  <img src="assets/hero-stats.svg" alt="AgentX Stats" width="720">
+  <img src="assets/hero-stats.gif" alt="AgentX Stats" width="720">
 
   <br>
 
-  <img src="assets/vs-banner.svg" alt="AgentX vs Competition" width="720">
+  <img src="assets/vs-banner.gif" alt="AgentX vs Competition" width="720">
 
   <br>
 
-  <img src="assets/agent-hero.svg" alt="AgentX AI Agent" width="320">
+  <img src="assets/agent-hero.gif" alt="AgentX AI Agent" width="320">
 
   <p><b>Launch, trade, and deploy AI agents that automate tasks and generate value.</b></p>
 
@@ -147,7 +147,7 @@ See the full [Community Roadmap](https://github.com/Agentx-network/agentx/blob/m
 
 <div align="center">
 
-  <img src="assets/compare.svg" alt="AgentX Performance Comparison" width="800">
+  <img src="assets/compare.gif" alt="AgentX Performance Comparison" width="800">
 
 </div>
 
