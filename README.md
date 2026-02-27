@@ -139,7 +139,7 @@ See the full [Community Roadmap](https://github.com/Agentx-network/agentx/blob/m
 
 <div align="center">
 
-  <img src="assets/compare.gif" alt="AgentX Performance Comparison" width="800">
+  <img src="assets/compare.svg" alt="AgentX Performance Comparison" width="800">
 
 </div>
 
