@@ -1,0 +1,185 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 820" font-family="'Segoe UI', Arial, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0a0015"/>
+      <stop offset="50%" stop-color="#0d0020"/>
+      <stop offset="100%" stop-color="#0a0015"/>
+    </linearGradient>
+    <linearGradient id="agentx-grad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#FF0092"/>
+      <stop offset="100%" stop-color="#AE00FF"/>
+    </linearGradient>
+    <linearGradient id="pico-grad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#4a3f8a"/>
+      <stop offset="100%" stop-color="#6b5cb8"/>
+    </linearGradient>
+    <linearGradient id="open-grad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#2a2555"/>
+      <stop offset="100%" stop-color="#3d3670"/>
+    </linearGradient>
+    <linearGradient id="title-grad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#FF0092"/>
+      <stop offset="100%" stop-color="#AE00FF"/>
+    </linearGradient>
+    <linearGradient id="border-grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FF009240"/>
+      <stop offset="50%" stop-color="#AE00FF40"/>
+      <stop offset="100%" stop-color="#FF009240"/>
+    </linearGradient>
+    <linearGradient id="check-grad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#00FF88"/>
+      <stop offset="100%" stop-color="#00CC66"/>
+    </linearGradient>
+    <filter id="neon-glow">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+    <filter id="soft-glow">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="900" height="820" fill="url(#bg)" rx="16"/>
+  <rect x="1" y="1" width="898" height="818" rx="16" fill="none" stroke="url(#border-grad)" stroke-width="1.5"/>
+
+  <!-- Subtle grid -->
+  <g opacity="0.03">
+    <line x1="60" y1="0" x2="60" y2="820" stroke="#AE00FF"/>
+    <line x1="300" y1="0" x2="300" y2="820" stroke="#AE00FF"/>
+    <line x1="500" y1="0" x2="500" y2="820" stroke="#AE00FF"/>
+    <line x1="700" y1="0" x2="700" y2="820" stroke="#AE00FF"/>
+  </g>
+
+  <!-- Title -->
+  <text x="450" y="42" text-anchor="middle" fill="url(#title-grad)" font-size="26" font-weight="bold" filter="url(#soft-glow)">AGENTX vs THE COMPETITION</text>
+  <text x="450" y="65" text-anchor="middle" fill="#8866aa" font-size="13" letter-spacing="3">RUNTIME + ARCHITECTURE + FEATURES</text>
+
+  <!-- Legend -->
+  <rect x="200" y="80" width="16" height="16" rx="4" fill="url(#agentx-grad)" filter="url(#soft-glow)"/>
+  <text x="222" y="93" fill="#FF55B8" font-size="12" font-weight="600">AgentX</text>
+  <rect x="330" y="80" width="16" height="16" rx="4" fill="url(#pico-grad)"/>
+  <text x="352" y="93" fill="#8877bb" font-size="12">PicoClaw</text>
+  <rect x="460" y="80" width="16" height="16" rx="4" fill="url(#open-grad)"/>
+  <text x="482" y="93" fill="#6655aa" font-size="12">OpenClaw</text>
+
+  <!-- ═══ PERFORMANCE BARS ═══ -->
+  <line x1="40" y1="110" x2="860" y2="110" stroke="#FF009230"/>
+
+  <!-- MEMORY -->
+  <text x="50" y="136" fill="#FF55B8" font-size="15" font-weight="bold" filter="url(#soft-glow)">MEMORY</text>
+  <text x="50" y="164" fill="#aa88cc" font-size="12">AgentX</text>
+  <rect x="150" y="154" width="6" height="16" rx="3" fill="url(#agentx-grad)" filter="url(#neon-glow)"/>
+  <text x="166" y="166" fill="#FF88CC" font-size="12" font-weight="bold">~5 MB</text>
+  <text x="50" y="188" fill="#7766aa" font-size="12">PicoClaw</text>
+  <rect x="150" y="178" width="18" height="16" rx="3" fill="url(#pico-grad)"/>
+  <text x="176" y="190" fill="#8877bb" font-size="12">10–20 MB</text>
+  <text x="50" y="212" fill="#5544aa" font-size="12">OpenClaw</text>
+  <rect x="150" y="202" width="690" height="16" rx="3" fill="url(#open-grad)"/>
+  <text x="720" y="214" fill="#8877bb" font-size="12" font-weight="bold">&gt;1,000 MB</text>
+
+  <!-- STARTUP -->
+  <line x1="40" y1="230" x2="860" y2="230" stroke="#AE00FF20"/>
+  <text x="50" y="256" fill="#BB66FF" font-size="15" font-weight="bold" filter="url(#soft-glow)">COLD START</text>
+  <text x="175" y="256" fill="#553366" font-size="10">@ 0.8 GHz core</text>
+  <text x="50" y="280" fill="#aa88cc" font-size="12">AgentX</text>
+  <rect x="150" y="270" width="4" height="16" rx="3" fill="url(#agentx-grad)" filter="url(#neon-glow)"/>
+  <text x="164" y="282" fill="#FF88CC" font-size="12" font-weight="bold">0.3s</text>
+  <text x="50" y="304" fill="#7766aa" font-size="12">PicoClaw</text>
+  <rect x="150" y="294" width="10" height="16" rx="3" fill="url(#pico-grad)"/>
+  <text x="168" y="306" fill="#8877bb" font-size="12">~1s</text>
+  <text x="50" y="328" fill="#5544aa" font-size="12">OpenClaw</text>
+  <rect x="150" y="318" width="690" height="16" rx="3" fill="url(#open-grad)"/>
+  <text x="720" y="330" fill="#8877bb" font-size="12" font-weight="bold">&gt;500s</text>
+
+  <!-- ═══ FEATURE MATRIX ═══ -->
+  <line x1="40" y1="352" x2="860" y2="352" stroke="#FF009240"/>
+  <text x="450" y="380" text-anchor="middle" fill="url(#title-grad)" font-size="18" font-weight="bold" filter="url(#soft-glow)">ARCHITECTURE &amp; FEATURES</text>
+
+  <!-- Column Headers -->
+  <text x="470" y="406" text-anchor="middle" fill="#553366" font-size="11" font-weight="bold" letter-spacing="1">OPENCLAW</text>
+  <text x="600" y="406" text-anchor="middle" fill="#553366" font-size="11" font-weight="bold" letter-spacing="1">PICOCLAW</text>
+  <text x="770" y="406" text-anchor="middle" fill="#FF55B8" font-size="11" font-weight="bold" letter-spacing="1">AGENTX</text>
+
+  <!-- Row separator -->
+  <line x1="60" y1="414" x2="860" y2="414" stroke="#AE00FF15"/>
+
+  <!-- Row 1: Streaming -->
+  <text x="70" y="438" fill="#aa88cc" font-size="13">Real-Time Streaming</text>
+  <text x="470" y="438" text-anchor="middle" fill="#FF4444" font-size="16">✗</text>
+  <text x="600" y="438" text-anchor="middle" fill="#FF4444" font-size="16">✗</text>
+  <text x="770" y="438" text-anchor="middle" fill="#00FF88" font-size="16" filter="url(#soft-glow)">✓</text>
+  <line x1="60" y1="450" x2="860" y2="450" stroke="#AE00FF08"/>
+
+  <!-- Row 2: Parallel Tools -->
+  <text x="70" y="474" fill="#aa88cc" font-size="13">Parallel Tool Execution</text>
+  <text x="470" y="474" text-anchor="middle" fill="#FF4444" font-size="16">✗</text>
+  <text x="600" y="474" text-anchor="middle" fill="#FF4444" font-size="16">✗</text>
+  <text x="770" y="474" text-anchor="middle" fill="#00FF88" font-size="16" filter="url(#soft-glow)">✓</text>
+  <line x1="60" y1="486" x2="860" y2="486" stroke="#AE00FF08"/>
+
+  <!-- Row 3: Native Function Calling -->
+  <text x="70" y="510" fill="#aa88cc" font-size="13">Native Function Calling</text>
+  <text x="470" y="510" text-anchor="middle" fill="#FF4444" font-size="16">✗</text>
+  <text x="470" y="524" text-anchor="middle" fill="#553366" font-size="9">regex parsing</text>
+  <text x="600" y="510" text-anchor="middle" fill="#FF4444" font-size="16">✗</text>
+  <text x="600" y="524" text-anchor="middle" fill="#553366" font-size="9">regex parsing</text>
+  <text x="770" y="510" text-anchor="middle" fill="#00FF88" font-size="16" filter="url(#soft-glow)">✓</text>
+  <line x1="60" y1="534" x2="860" y2="534" stroke="#AE00FF08"/>
+
+  <!-- Row 4: Provider Failover -->
+  <text x="70" y="554" fill="#aa88cc" font-size="13">Provider Failover</text>
+  <text x="470" y="554" text-anchor="middle" fill="#FF4444" font-size="16">✗</text>
+  <text x="600" y="554" text-anchor="middle" fill="#FF4444" font-size="16">✗</text>
+  <text x="770" y="554" text-anchor="middle" fill="#00FF88" font-size="16" filter="url(#soft-glow)">✓</text>
+  <line x1="60" y1="566" x2="860" y2="566" stroke="#AE00FF08"/>
+
+  <!-- Row 5: Context Compression -->
+  <text x="70" y="586" fill="#aa88cc" font-size="13">Context Compression</text>
+  <text x="470" y="586" text-anchor="middle" fill="#FF4444" font-size="16">✗</text>
+  <text x="600" y="586" text-anchor="middle" fill="#FFAA44" font-size="16">~</text>
+  <text x="600" y="600" text-anchor="middle" fill="#553366" font-size="9">truncation</text>
+  <text x="770" y="586" text-anchor="middle" fill="#00FF88" font-size="16" filter="url(#soft-glow)">✓</text>
+  <text x="770" y="600" text-anchor="middle" fill="#553366" font-size="9">smart summary</text>
+  <line x1="60" y1="610" x2="860" y2="610" stroke="#AE00FF08"/>
+
+  <!-- Row 6: Skill Marketplace -->
+  <text x="70" y="630" fill="#aa88cc" font-size="13">Skill Marketplace</text>
+  <text x="470" y="630" text-anchor="middle" fill="#FF4444" font-size="16">✗</text>
+  <text x="600" y="630" text-anchor="middle" fill="#FF4444" font-size="16">✗</text>
+  <text x="770" y="630" text-anchor="middle" fill="#00FF88" font-size="16" filter="url(#soft-glow)">✓</text>
+  <text x="770" y="644" text-anchor="middle" fill="#553366" font-size="9">ClawHub</text>
+  <line x1="60" y1="654" x2="860" y2="654" stroke="#AE00FF08"/>
+
+  <!-- Row 7: Hardware I/O -->
+  <text x="70" y="674" fill="#aa88cc" font-size="13">Hardware I/O (I2C/SPI)</text>
+  <text x="470" y="674" text-anchor="middle" fill="#FF4444" font-size="16">✗</text>
+  <text x="600" y="674" text-anchor="middle" fill="#FF4444" font-size="16">✗</text>
+  <text x="770" y="674" text-anchor="middle" fill="#00FF88" font-size="16" filter="url(#soft-glow)">✓</text>
+  <line x1="60" y1="686" x2="860" y2="686" stroke="#AE00FF08"/>
+
+  <!-- Row 8: Subagents -->
+  <text x="70" y="706" fill="#aa88cc" font-size="13">Async Subagents</text>
+  <text x="470" y="706" text-anchor="middle" fill="#FF4444" font-size="16">✗</text>
+  <text x="600" y="706" text-anchor="middle" fill="#FF4444" font-size="16">✗</text>
+  <text x="770" y="706" text-anchor="middle" fill="#00FF88" font-size="16" filter="url(#soft-glow)">✓</text>
+  <line x1="60" y1="718" x2="860" y2="718" stroke="#AE00FF08"/>
+
+  <!-- Row 9: Chat Channels -->
+  <text x="70" y="738" fill="#aa88cc" font-size="13">Chat Channels</text>
+  <text x="470" y="738" text-anchor="middle" fill="#FFAA44" font-size="13" font-weight="bold">1</text>
+  <text x="600" y="738" text-anchor="middle" fill="#FFAA44" font-size="13" font-weight="bold">2</text>
+  <text x="770" y="738" text-anchor="middle" fill="#00FF88" font-size="13" font-weight="bold" filter="url(#soft-glow)">10</text>
+  <line x1="60" y1="750" x2="860" y2="750" stroke="#AE00FF08"/>
+
+  <!-- Row 10: LLM Providers -->
+  <text x="70" y="770" fill="#aa88cc" font-size="13">LLM Providers</text>
+  <text x="470" y="770" text-anchor="middle" fill="#FFAA44" font-size="13" font-weight="bold">3</text>
+  <text x="600" y="770" text-anchor="middle" fill="#FFAA44" font-size="13" font-weight="bold">5</text>
+  <text x="770" y="770" text-anchor="middle" fill="#00FF88" font-size="13" font-weight="bold" filter="url(#soft-glow)">15+</text>
+
+  <!-- Bottom tagline -->
+  <line x1="40" y1="790" x2="860" y2="790" stroke="#FF009230"/>
+  <text x="450" y="810" text-anchor="middle" fill="#8866aa" font-size="12" letter-spacing="2">BUILT DIFFERENT — RUNS EVERYWHERE — SCALES TO ANYTHING</text>
+</svg>
