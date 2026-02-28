@@ -35,6 +35,15 @@ func (s *InstallerService) startup(ctx context.Context) {
 	s.ctx = ctx
 }
 
+func mapArch(goarch string) string {
+	switch goarch {
+	case "arm":
+		return "armv7"
+	default:
+		return goarch
+	}
+}
+
 func (s *InstallerService) DetectPlatform() PlatformInfo {
 	installDir := getInstallDir()
 	ext := ""
@@ -81,13 +90,15 @@ func (s *InstallerService) GetLatestRelease() (string, error) {
 
 func (s *InstallerService) InstallBinary() error {
 	platform := s.DetectPlatform()
-	archName := platform.Arch
 	osName := platform.OS
+	archName := mapArch(platform.Arch)
 
 	ext := ""
 	if osName == "windows" {
 		ext = ".exe"
 	}
+
+	// Raw binary download — matches release asset naming: agentx-{os}-{arch}[.exe]
 	assetName := fmt.Sprintf("agentx-%s-%s%s", osName, archName, ext)
 	url := fmt.Sprintf("https://github.com/Agentx-network/agentx/releases/latest/download/%s", assetName)
 
@@ -98,7 +109,7 @@ func (s *InstallerService) InstallBinary() error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("download failed with status %d", resp.StatusCode)
+		return fmt.Errorf("download failed with status %d for %s", resp.StatusCode, assetName)
 	}
 
 	if err := os.MkdirAll(platform.InstallDir, 0o755); err != nil {
