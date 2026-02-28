@@ -89,3 +89,186 @@ jobs:
           tag="${{ env.RELEASE_TAG }}"
           pkg=$(find . -name "AgentX-*.pkg" -type f | head -1)
           gh release upload "$tag" "$pkg" --clobber
+
+  # ─── Desktop App: Windows Setup.exe (NSIS via Wails) ───
+  desktop-windows:
+    name: Desktop App (Windows)
+    runs-on: windows-latest
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install NSIS
+        shell: pwsh
+        run: choco install nsis -y
+
+      - name: Install Wails CLI
+        shell: bash
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Build desktop app with NSIS installer
+        shell: bash
+        working-directory: cmd/agentx-desktop
+        run: wails build -clean -nsis -ldflags="-s -w"
+
+      - name: Rename installer
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem -Path cmd/agentx-desktop/build/bin -Filter "*-installer.exe" | Select-Object -First 1
+          if ($installer) {
+            Copy-Item $installer.FullName "AgentX-Desktop-Setup.exe"
+          } else {
+            Copy-Item cmd/agentx-desktop/build/bin/agentx-desktop.exe "AgentX-Desktop-Setup.exe"
+          }
+
+      - name: Upload to release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ env.RELEASE_TAG }}" "AgentX-Desktop-Setup.exe" --clobber
+
+  # ─── Desktop App: macOS .dmg ───
+  desktop-macos:
+    name: Desktop App (macOS ${{ matrix.arch }})
+    runs-on: ${{ matrix.os }}
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-13
+            arch: x86_64
+            asset: AgentX-Desktop-x86_64.dmg
+          - os: macos-latest
+            arch: arm64
+            asset: AgentX-Desktop-arm64.dmg
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Build macOS desktop app
+        working-directory: cmd/agentx-desktop
+        run: wails build -clean -ldflags="-s -w"
+
+      - name: Create DMG
+        run: |
+          APP_PATH="cmd/agentx-desktop/build/bin/agentx-desktop.app"
+          if [ -d "$APP_PATH" ]; then
+            hdiutil create -volname "AgentX Desktop" -srcfolder "$APP_PATH" \
+              -ov -format UDZO "${{ matrix.asset }}"
+          else
+            mkdir -p dmg_staging
+            cp cmd/agentx-desktop/build/bin/agentx-desktop dmg_staging/
+            ln -s /Applications dmg_staging/Applications
+            hdiutil create -volname "AgentX Desktop" -srcfolder dmg_staging \
+              -ov -format UDZO "${{ matrix.asset }}"
+          fi
+
+      - name: Upload to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ env.RELEASE_TAG }}" "${{ matrix.asset }}" --clobber
+
+  # ─── Desktop App: Linux .deb ───
+  desktop-linux:
+    name: Desktop App (Linux .deb)
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install system deps
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev build-essential pkg-config
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Build Linux desktop app
+        working-directory: cmd/agentx-desktop
+        run: wails build -clean -ldflags="-s -w" -tags webkit2_41
+
+      - name: Create .deb package
+        run: |
+          mkdir -p deb_pkg/DEBIAN
+          mkdir -p deb_pkg/usr/bin
+          mkdir -p deb_pkg/usr/share/applications
+          mkdir -p deb_pkg/usr/share/icons/hicolor/256x256/apps
+
+          cp cmd/agentx-desktop/build/bin/agentx-desktop deb_pkg/usr/bin/
+          cp cmd/agentx-desktop/build/appicon.png deb_pkg/usr/share/icons/hicolor/256x256/apps/agentx-desktop.png
+
+          cat > deb_pkg/usr/share/applications/agentx-desktop.desktop <<'DESKTOP'
+          [Desktop Entry]
+          Name=AgentX Desktop
+          Comment=AI Agent Dashboard
+          Exec=/usr/bin/agentx-desktop
+          Icon=agentx-desktop
+          Terminal=false
+          Type=Application
+          Categories=Utility;Development;
+          DESKTOP
+
+          VERSION="${RELEASE_TAG#v}"
+          cat > deb_pkg/DEBIAN/control <<CTRL
+          Package: agentx-desktop
+          Version: ${VERSION}
+          Section: utils
+          Priority: optional
+          Architecture: amd64
+          Depends: libwebkit2gtk-4.1-0, libgtk-3-0
+          Maintainer: AgentX Network <dev@agentx.network>
+          Homepage: https://agentx.network
+          Description: AgentX Desktop App
+           GUI dashboard to install, configure, and manage AgentX agents.
+          CTRL
+
+          dpkg-deb --build deb_pkg AgentX-Desktop-amd64.deb
+
+      - name: Upload to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ env.RELEASE_TAG }}" "AgentX-Desktop-amd64.deb" --clobber
