@@ -37,31 +37,9 @@ builds:
       - goos: windows
         goarch: arm
 
-  - id: agentx-desktop
-    env:
-      - CGO_ENABLED=1
-    tags:
-      - stdjson
-      - webkit2_41
-    ldflags:
-      - -s -w
-    goos:
-      - linux
-      - darwin
-      - windows
-    goarch:
-      - amd64
-      - arm64
-    main: ./cmd/agentx-desktop
-    binary: agentx-desktop
-    hooks:
-      pre:
-        - cmd: bash -c "cd cmd/agentx-desktop/frontend && npm install && npm run build"
-    ignore:
-      - goos: linux
-        goarch: arm64
-      - goos: windows
-        goarch: arm64
+  # Desktop builds require CGO (WebView) — built on native OS runners
+  # in the release workflow (desktop-build job), NOT by goreleaser.
+  # See .github/workflows/release.yml for the matrix build.
 
 dockers_v2:
   - id: agentx
@@ -98,17 +76,7 @@ archives:
       - goos: windows
         formats: [zip]
 
-  - id: agentx-desktop
-    builds: [agentx-desktop]
-    formats: [tar.gz]
-    name_template: >-
-      agentx-desktop_
-      {{- title .Os }}_
-      {{- if eq .Arch "amd64" }}x86_64
-      {{- else }}{{ .Arch }}{{ end }}
-    format_overrides:
-      - goos: windows
-        formats: [zip]
+  # Desktop archives are built in the release workflow (desktop-build job)
 
 nfpms:
   - id: agentx
