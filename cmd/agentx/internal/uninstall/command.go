@@ -173,9 +173,21 @@ func removeDesktopApp() error {
 	candidates := []string{
 		filepath.Join(home, ".local", "bin", binaryName),
 		filepath.Join("/usr", "local", "bin", binaryName),
+		filepath.Join("/usr", "bin", binaryName),
 	}
 	if runtime.GOOS == "darwin" {
 		candidates = append(candidates, filepath.Join("/Applications", "AgentX Desktop.app"))
+	}
+	if runtime.GOOS == "linux" {
+		// .deb install leaves a .desktop file and icon
+		candidates = append(candidates,
+			filepath.Join("/usr", "share", "applications", "agentx-desktop.desktop"),
+			filepath.Join("/usr", "share", "icons", "hicolor", "256x256", "apps", "agentx-desktop.png"),
+		)
+	}
+	if runtime.GOOS == "windows" {
+		// NSIS installs to %LOCALAPPDATA%\AgentX Desktop
+		candidates = append(candidates, filepath.Join(home, "AppData", "Local", "AgentX Desktop"))
 	}
 
 	removed := false
