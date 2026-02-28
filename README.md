@@ -26,15 +26,7 @@
 
   <br>
 
-  <img src="assets/hero-stats.gif" alt="AgentX Stats" width="720">
-
-  <br>
-
-  <img src="assets/vs-banner.gif" alt="AgentX vs Competition" width="720">
-
-  <br>
-
-  <img src="assets/model.webp" alt="AgentX AI Agent" width="320">
+  <img src="assets/hero-combined.gif" alt="AgentX Stats & Benchmarks" width="720">
 
   <p><b>Launch, trade, and deploy AI agents that automate tasks and generate value.</b></p>
 
