@@ -32,7 +32,7 @@
 
 </div>
 
-<img src="assets/divider.svg" width="100%">
+<img src="assets/divider.gif" width="100%">
 
 ## About AgentX Network
 
@@ -51,7 +51,7 @@ Built from the ground up in **Go** for maximum efficiency — the most lightweig
 - **Smart Telegram formatting** — markdown tables, long messages, and streaming edits all work cleanly
 - **7,400+ lines of legacy provider code deleted** — cleaner, faster, more maintainable
 
-<img src="assets/divider.svg" width="100%">
+<img src="assets/divider.gif" width="100%">
 
 ## The AgentX Ecosystem
 
@@ -84,7 +84,7 @@ Built from the ground up in **Go** for maximum efficiency — the most lightweig
       <sub>A decentralized marketplace for AI agents. Buy, sell, rent, or monetize agents.</sub>
     </td>
   </tr>
-  <tr><td colspan="4"><img src="assets/divider.svg" width="100%"></td></tr>
+  <tr><td colspan="4"><img src="assets/divider.gif" width="100%"></td></tr>
   <tr>
     <td align="center" width="25%">
       <img src="assets/ecosystem/arena.svg" width="44" height="44"><br><br>
@@ -115,7 +115,7 @@ Built from the ground up in **Go** for maximum efficiency — the most lightweig
 
 <br>
 
-<img src="assets/divider.svg" width="100%">
+<img src="assets/divider.gif" width="100%">
 
 ## Vision & Roadmap
 
@@ -133,7 +133,7 @@ Built from the ground up in **Go** for maximum efficiency — the most lightweig
 
 See the full [Community Roadmap](https://github.com/Agentx-network/agentx/blob/main/ROADMAP.md).
 
-<img src="assets/divider.svg" width="100%">
+<img src="assets/divider.gif" width="100%">
 
 ## Why AgentX Wins
 
@@ -248,7 +248,7 @@ AgentX:    5 MB RAM + 0.3s startup + real-time streaming + parallel tools + 10 c
 
 > **AgentX isn't just faster — it's a fundamentally different architecture.** The Nexus Engine delivers real-time streaming, parallel tool execution, intelligent context compression, and a skill marketplace — the only agent framework built for production at any scale, from a Raspberry Pi to a datacenter.
 
-<img src="assets/divider.svg" width="100%">
+<img src="assets/divider.gif" width="100%">
 
 ## Agents in Action
 
@@ -284,7 +284,7 @@ AgentX:    5 MB RAM + 0.3s startup + real-time streaming + parallel tools + 10 c
 
 <br>
 
-<img src="assets/divider.svg" width="100%">
+<img src="assets/divider.gif" width="100%">
 
 ## Deploy Anywhere
 
@@ -328,7 +328,7 @@ termux-chroot ./agentx-linux-arm64 onboard
 
 AgentX runs on any Linux device — from a $5 board to a Raspberry Pi to an old Android phone. If it runs Linux, it runs AgentX.
 
-<img src="assets/divider.svg" width="100%">
+<img src="assets/divider.gif" width="100%">
 
 ## Quick Start
 
@@ -431,7 +431,7 @@ That's it — two steps. The wizard handles config, workspace, and the gateway s
 
 </details>
 
-<img src="assets/divider.svg" width="100%">
+<img src="assets/divider.gif" width="100%">
 
 ## Chat Channels
 
@@ -592,7 +592,7 @@ See [WeCom Configuration Guide](docs/wecom-app-configuration.md).
 
 </details>
 
-<img src="assets/divider.svg" width="100%">
+<img src="assets/divider.gif" width="100%">
 
 ## Configuration
 
@@ -789,7 +789,7 @@ Multiple endpoints for the same model — AgentX auto round-robins:
 | **Other** | |
 | `agentx version` | Show version information |
 
-<img src="assets/divider.svg" width="100%">
+<img src="assets/divider.gif" width="100%">
 
 ## Docker
 
@@ -811,7 +811,7 @@ docker compose -f docker/docker-compose.yml run --rm agentx-agent -m "What is 2+
 > [!TIP]
 > Set `AGENTX_GATEWAY_HOST=0.0.0.0` to expose endpoints from Docker.
 
-<img src="assets/divider.svg" width="100%">
+<img src="assets/divider.gif" width="100%">
 
 ## Troubleshooting
 
@@ -821,7 +821,7 @@ docker compose -f docker/docker-compose.yml run --rm agentx-agent -m "What is 2+
 | Content filtering errors | Rephrase query or switch model |
 | Telegram "terminated by other getUpdates" | Only run one `agentx gateway` at a time |
 
-<img src="assets/divider.svg" width="100%">
+<img src="assets/divider.gif" width="100%">
 
 ## Uninstall
 
@@ -842,7 +842,7 @@ Use `--yes` / `-y` to skip the confirmation prompt:
 agentx uninstall --yes
 ```
 
-<img src="assets/divider.svg" width="100%">
+<img src="assets/divider.gif" width="100%">
 
 ## Community
 
@@ -862,7 +862,7 @@ agentx uninstall --yes
 
 </div>
 
-<img src="assets/divider.svg" width="100%">
+<img src="assets/divider.gif" width="100%">
 
 <div align="center">
 
