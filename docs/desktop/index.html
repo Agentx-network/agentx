@@ -414,28 +414,28 @@
 
   <div class="step-content active" id="steps-ubuntu">
     <ol class="step-list">
-      <li>Download the <strong>.tar.gz</strong> archive from above</li>
-      <li>Extract: <code>tar xzf agentx-desktop_Linux_x86_64.tar.gz</code></li>
-      <li>Make executable: <code>chmod +x agentx-desktop</code></li>
-      <li>Run: <code>./agentx-desktop</code> &mdash; the GUI launches and walks you through setup</li>
+      <li>Download the <strong>.deb</strong> package from above</li>
+      <li>Install: <code>sudo dpkg -i AgentX-Desktop-amd64.deb</code> &mdash; or double-click the .deb file</li>
+      <li>If prompted for dependencies: <code>sudo apt install -f</code></li>
+      <li>Launch <strong>AgentX Desktop</strong> from your application menu, or run: <code>agentx-desktop</code></li>
     </ol>
   </div>
 
   <div class="step-content" id="steps-macos">
     <ol class="step-list">
-      <li>Download the <strong>.tar.gz</strong> archive for your chip (Apple Silicon or Intel)</li>
-      <li>Extract: <code>tar xzf agentx-desktop_Darwin_*.tar.gz</code></li>
+      <li>Download the <strong>.dmg</strong> for your chip (Apple Silicon or Intel)</li>
+      <li>Open the .dmg and drag <strong>AgentX Desktop</strong> into your Applications folder</li>
       <li>If macOS blocks it: System Settings &rarr; Privacy &amp; Security &rarr; click <strong>Open Anyway</strong></li>
-      <li>Run: <code>./agentx-desktop</code> &mdash; the GUI launches and walks you through setup</li>
+      <li>Launch from Applications &mdash; the GUI walks you through setup</li>
     </ol>
   </div>
 
   <div class="step-content" id="steps-windows">
     <ol class="step-list">
-      <li>Download the <strong>.zip</strong> archive from above</li>
-      <li>Extract the zip to any folder (e.g. <code>C:\AgentX\</code>)</li>
-      <li>Double-click <code>agentx-desktop.exe</code> to launch</li>
+      <li>Download <strong>AgentX-Desktop-Setup.exe</strong> from above</li>
+      <li>Run the installer &mdash; follow the setup wizard</li>
       <li>If Windows SmartScreen warns you, click <strong>More info</strong> &rarr; <strong>Run anyway</strong></li>
+      <li>Launch <strong>AgentX Desktop</strong> from the Start menu or desktop shortcut</li>
     </ol>
   </div>
 </section>
@@ -491,26 +491,26 @@ var DESKTOP_PLATFORMS = {
     label: "Ubuntu / Linux",
     icon: "\uD83D\uDC27",
     archs: [
-      { label: "x86_64 (64-bit)", file: "agentx-desktop_Linux_x86_64.tar.gz", size: "~25 MB" }
+      { label: "x86_64 (64-bit) .deb", file: "AgentX-Desktop-amd64.deb", size: "~25 MB" }
     ],
-    detail: "Ubuntu 22.04+, Debian 12+, Fedora 38+, Arch, and other modern distros. Requires WebKit2GTK."
+    detail: "Ubuntu 22.04+, Debian 12+. Double-click the .deb to install, or run: sudo dpkg -i AgentX-Desktop-amd64.deb"
   },
   macos: {
     label: "macOS",
     icon: "\uD83C\uDF4E",
     archs: [
-      { label: "Apple Silicon (M1\u2013M4)", file: "agentx-desktop_Darwin_arm64.tar.gz", size: "~25 MB" },
-      { label: "Intel x86_64", file: "agentx-desktop_Darwin_x86_64.tar.gz", size: "~25 MB" }
+      { label: "Apple Silicon (M1\u2013M4)", file: "AgentX-Desktop-arm64.dmg", size: "~25 MB" },
+      { label: "Intel x86_64", file: "AgentX-Desktop-x86_64.dmg", size: "~25 MB" }
     ],
-    detail: "macOS 11 Big Sur or later. No extra dependencies needed."
+    detail: "macOS 11 Big Sur or later. Open the .dmg and drag to Applications."
   },
   windows: {
     label: "Windows",
     icon: "\uD83E\uDE9F",
     archs: [
-      { label: "x86_64 (64-bit)", file: "agentx-desktop_Windows_x86_64.zip", size: "~20 MB" }
+      { label: "x86_64 (64-bit)", file: "AgentX-Desktop-Setup.exe", size: "~20 MB" }
     ],
-    detail: "Windows 10 21H2+ or Windows 11. Requires WebView2 (pre-installed on modern Windows)."
+    detail: "Windows 10 21H2+ or Windows 11. Run the Setup installer and follow the wizard."
   }
 };
 
