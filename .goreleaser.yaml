@@ -46,7 +46,7 @@ dockers_v2:
     ids:
       - agentx
     images:
-      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/agentx"
+      - "ghcr.io/{{ toLower .Env.GITHUB_REPOSITORY_OWNER }}/agentx"
       - "docker.io/{{ .Env.DOCKERHUB_IMAGE_NAME }}"
     tags:
       - "{{ .Tag }}"
