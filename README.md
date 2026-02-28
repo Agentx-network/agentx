@@ -289,9 +289,24 @@ AgentX:    5 MB RAM + 0.3s startup + real-time streaming + parallel tools + 10 c
 
 <div align="center">
 
-  <a href="https://agentx-network.github.io/agentx/install.html"><img src="https://img.shields.io/badge/Download_AgentX-All_Platforms-FF0092?style=for-the-badge&labelColor=0a0015" alt="Download AgentX"></a>
+  <a href="https://github.com/Agentx-network/agentx/releases/latest"><img src="https://img.shields.io/badge/Download_AgentX-All_Platforms-FF0092?style=for-the-badge&labelColor=0a0015" alt="Download AgentX"></a>
 
-  <p><b>Linux · macOS · Windows · Android</b> — auto-detects your platform, one click to install.</p>
+  <p><b>Linux · macOS · Windows · Android</b> — download the binary for your platform and run <code>agentx onboard</code>.</p>
+
+  <table>
+    <tr>
+      <td align="center"><b>&#x1F427; Linux</b></td>
+      <td align="center"><b>&#x1F34E; macOS</b></td>
+      <td align="center"><b>&#x1FA9F; Windows</b></td>
+      <td align="center"><b>&#x1F4F1; Android</b></td>
+    </tr>
+    <tr>
+      <td align="center"><a href="https://github.com/Agentx-network/agentx/releases/latest/download/agentx-linux-amd64">x86_64</a> · <a href="https://github.com/Agentx-network/agentx/releases/latest/download/agentx-linux-arm64">ARM64</a></td>
+      <td align="center"><a href="https://github.com/Agentx-network/agentx/releases/latest/download/agentx-darwin-arm64">Apple Silicon</a> · <a href="https://github.com/Agentx-network/agentx/releases/latest/download/agentx-darwin-amd64">Intel</a></td>
+      <td align="center"><a href="https://github.com/Agentx-network/agentx/releases/latest/download/agentx-windows-amd64.exe">x86_64</a></td>
+      <td align="center"><a href="https://github.com/Agentx-network/agentx/releases/latest/download/agentx-linux-arm64">Termux</a></td>
+    </tr>
+  </table>
 
 </div>
 
