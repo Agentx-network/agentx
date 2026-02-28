@@ -239,7 +239,7 @@ jobs:
           mkdir -p deb_pkg/usr/share/icons/hicolor/256x256/apps
 
           cp cmd/agentx-desktop/build/bin/agentx-desktop deb_pkg/usr/bin/
-          cp cmd/agentx-desktop/build/appicon.png deb_pkg/usr/share/icons/hicolor/256x256/apps/agentx-desktop.png
+          cp assets/agentx-desktop-icon.png deb_pkg/usr/share/icons/hicolor/256x256/apps/agentx-desktop.png
 
           cat > deb_pkg/usr/share/applications/agentx-desktop.desktop <<'DESKTOP'
           [Desktop Entry]
