@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Download AgentX — One-Click Install</title>
+<style>
+  :root {
+    --pink: #FF0092;
+    --purple: #AE00FF;
+    --cyan: #00FFFF;
+    --green: #00FF88;
+    --bg: #0a0015;
+    --surface: #140025;
+    --surface2: #1c0035;
+    --border: #2a1045;
+    --border-light: #3d1868;
+    --text: #e0d0f0;
+    --text-dim: #9080a0;
+    --text-muted: #6a5a7a;
+    --glow-pink: rgba(255, 0, 146, 0.25);
+    --glow-cyan: rgba(0, 255, 255, 0.15);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ---- Hero ---- */
+  .hero {
+    text-align: center;
+    padding: 4rem 1.5rem 3rem;
+    background: radial-gradient(ellipse at 50% 0%, rgba(174,0,255,0.12) 0%, transparent 60%);
+  }
+  .hero-badge {
+    display: inline-block;
+    padding: 0.3rem 0.9rem;
+    border: 1px solid var(--border-light);
+    border-radius: 99px;
+    font-size: 0.78rem;
+    color: var(--cyan);
+    background: var(--surface);
+    margin-bottom: 1.2rem;
+    letter-spacing: 0.03em;
+  }
+  .hero h1 {
+    font-size: 3rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--pink), var(--purple), var(--cyan));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 0.6rem;
+    line-height: 1.15;
+  }
+  .hero .subtitle {
+    font-size: 1.15rem;
+    color: var(--text-dim);
+    max-width: 520px;
+    margin: 0 auto 2.5rem;
+    line-height: 1.5;
+  }
+
+  /* ---- Main download card ---- */
+  .detect-card {
+    max-width: 540px;
+    margin: 0 auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2rem 2rem 1.8rem;
+    box-shadow: 0 0 40px var(--glow-pink), 0 0 80px var(--glow-cyan);
+  }
+  .platform-icon { font-size: 3rem; margin-bottom: 0.5rem; }
+  .platform-label { font-size: 0.82rem; color: var(--text-dim); margin-bottom: 0.1rem; }
+  .platform-name { font-size: 1.5rem; font-weight: 700; margin-bottom: 1.2rem; }
+
+  .arch-row {
+    display: flex; align-items: center; justify-content: center;
+    gap: 0.5rem; margin-bottom: 1.3rem; flex-wrap: wrap;
+  }
+  .arch-row label { font-size: 0.82rem; color: var(--text-dim); }
+  .arch-select {
+    background: var(--bg); color: var(--text); border: 1px solid var(--border-light);
+    border-radius: 6px; padding: 0.4rem 0.7rem; font-size: 0.85rem; cursor: pointer; outline: none;
+  }
+  .arch-select:focus { border-color: var(--cyan); }
+
+  .download-btn {
+    display: inline-flex; align-items: center; gap: 0.6rem;
+    padding: 1rem 2.4rem; font-size: 1.15rem; font-weight: 700;
+    color: #fff; background: linear-gradient(135deg, var(--pink), var(--purple));
+    border: none; border-radius: 12px; cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    text-decoration: none; box-shadow: 0 4px 24px var(--glow-pink);
+  }
+  .download-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 32px var(--glow-pink); }
+  .download-btn:active { transform: translateY(0); }
+  .download-btn svg { width: 22px; height: 22px; fill: #fff; }
+
+  .file-hint { margin-top: 0.7rem; font-size: 0.78rem; color: var(--text-muted); }
+  .installer-note { margin-top: 0.5rem; font-size: 0.78rem; color: var(--green); opacity: 0.8; }
+
+  .switch-link {
+    display: inline-block; margin-top: 1.1rem; font-size: 0.82rem;
+    color: var(--cyan); cursor: pointer; text-decoration: none;
+    border-bottom: 1px dashed rgba(0,255,255,0.3);
+  }
+  .switch-link:hover { border-bottom-color: var(--cyan); }
+
+  /* ---- What happens ---- */
+  .what-happens { max-width: 640px; margin: 3rem auto 0; padding: 0 1.5rem; }
+  .what-happens h2 { text-align: center; font-size: 1.3rem; margin-bottom: 1.8rem; }
+  .wh-steps { display: flex; gap: 1.5rem; justify-content: center; flex-wrap: wrap; }
+  .wh-step {
+    flex: 1; min-width: 160px; max-width: 200px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 1.3rem 1rem; text-align: center;
+  }
+  .wh-step .wh-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+  .wh-step .wh-num {
+    display: inline-block; width: 26px; height: 26px; line-height: 26px;
+    border-radius: 50%; background: linear-gradient(135deg, var(--pink), var(--purple));
+    font-size: 0.8rem; font-weight: 800; color: #fff; margin-bottom: 0.5rem;
+  }
+  .wh-step h4 { font-size: 0.95rem; margin-bottom: 0.3rem; }
+  .wh-step p { font-size: 0.8rem; color: var(--text-dim); line-height: 1.45; }
+
+  /* ---- All platforms ---- */
+  .platforms-section { max-width: 780px; margin: 3rem auto 0; padding: 0 1.5rem; }
+  .platforms-section h2 { text-align: center; font-size: 1.3rem; margin-bottom: 1.5rem; }
+  .platform-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+  .platform-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 1.3rem; text-align: center; cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .platform-card:hover { border-color: var(--purple); box-shadow: 0 0 20px rgba(174,0,255,0.15); }
+  .platform-card .card-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+  .platform-card .card-name { font-weight: 700; font-size: 1rem; margin-bottom: 0.2rem; }
+  .platform-card .card-type { font-size: 0.75rem; color: var(--green); opacity: 0.8; margin-bottom: 0.15rem; }
+  .platform-card .card-arch { font-size: 0.75rem; color: var(--text-dim); }
+
+  /* ---- Advanced CLI ---- */
+  .advanced { max-width: 640px; margin: 3rem auto; padding: 0 1.5rem; }
+  .advanced-toggle {
+    display: flex; align-items: center; gap: 0.5rem; cursor: pointer;
+    color: var(--text-dim); font-size: 0.9rem; margin-bottom: 1rem; user-select: none;
+  }
+  .advanced-toggle:hover { color: var(--text); }
+  .advanced-toggle .arrow { transition: transform 0.2s; display: inline-block; font-size: 0.7rem; }
+  .advanced-toggle.open .arrow { transform: rotate(90deg); }
+  .advanced-body {
+    display: none; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1.3rem;
+  }
+  .advanced-body.open { display: block; }
+  .advanced-body h4 { font-size: 0.88rem; color: var(--text-dim); margin-bottom: 0.6rem; margin-top: 1rem; }
+  .advanced-body h4:first-child { margin-top: 0; }
+  .cmd-box {
+    position: relative; background: #000; border: 1px solid var(--border); border-radius: 6px;
+    padding: 0.8rem 3.2rem 0.8rem 1rem;
+    font-family: "SF Mono","Fira Code","Cascadia Code",monospace;
+    font-size: 0.85rem; color: var(--cyan); overflow-x: auto; white-space: nowrap;
+  }
+  .copy-btn {
+    position: absolute; top: 50%; right: 0.5rem; transform: translateY(-50%);
+    background: var(--border); border: none; color: var(--text);
+    padding: 0.3rem 0.55rem; border-radius: 4px; cursor: pointer;
+    font-size: 0.75rem; transition: background 0.2s;
+  }
+  .copy-btn:hover { background: var(--purple); }
+  .copy-btn.copied { background: #00aa55; }
+
+  /* ---- Footer ---- */
+  .footer {
+    text-align: center; padding: 3rem 1rem 2rem; color: var(--text-muted);
+    font-size: 0.82rem; border-top: 1px solid var(--border); margin-top: 2rem;
+  }
+  .footer a { color: var(--pink); text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+  .footer-links { margin-bottom: 0.6rem; }
+  .footer-links a { margin: 0 0.6rem; }
+
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 2.2rem; }
+    .detect-card { padding: 1.5rem 1.2rem; }
+    .download-btn { padding: 0.85rem 1.6rem; font-size: 1rem; }
+    .platform-grid { grid-template-columns: 1fr 1fr; }
+    .wh-steps { flex-direction: column; align-items: center; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ====== HERO ====== -->
+<section class="hero">
+  <div class="hero-badge">v0.3 — Nexus Engine</div>
+  <h1>Install AgentX</h1>
+  <p class="subtitle">Download the binary, double-click to run the setup wizard. No build tools required.</p>
+
+  <div class="detect-card">
+    <div class="platform-icon" id="platformIcon"></div>
+    <div class="platform-label">Detected platform</div>
+    <div class="platform-name" id="platformName"></div>
+
+    <div class="arch-row" id="archRow">
+      <label for="archSelect">Architecture:</label>
+      <select class="arch-select" id="archSelect"></select>
+    </div>
+
+    <a class="download-btn" id="downloadBtn" href="#">
+      <svg viewBox="0 0 24 24"><path d="M12 16l-6-6h4V4h4v6h4l-6 6zm-8 4h16v-2H4v2z"/></svg>
+      <span id="downloadLabel">Download</span>
+    </a>
+    <div class="file-hint" id="fileHint"></div>
+    <div class="installer-note" id="installerNote"></div>
+
+    <a class="switch-link" href="#all-platforms">Not your OS? See all platforms</a>
+  </div>
+</section>
+
+<!-- ====== WHAT HAPPENS ====== -->
+<section class="what-happens">
+  <h2>What happens when you install</h2>
+  <div class="wh-steps">
+    <div class="wh-step">
+      <div class="wh-num">1</div>
+      <div class="wh-icon" id="whIcon1"></div>
+      <h4>Download</h4>
+      <p>Click the button above. A single binary downloads (~12 MB).</p>
+    </div>
+    <div class="wh-step">
+      <div class="wh-num">2</div>
+      <div class="wh-icon" id="whIcon2"></div>
+      <h4 id="whTitle2">Run it</h4>
+      <p id="whText2"></p>
+    </div>
+    <div class="wh-step">
+      <div class="wh-num">3</div>
+      <div class="wh-icon">&#x1F680;</div>
+      <h4>Setup wizard</h4>
+      <p>The onboard wizard launches. Pick your AI provider and go.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====== ALL PLATFORMS ====== -->
+<section class="platforms-section" id="all-platforms">
+  <h2>All Platforms</h2>
+  <div class="platform-grid" id="platformGrid"></div>
+</section>
+
+<!-- ====== ADVANCED CLI ====== -->
+<section class="advanced">
+  <div class="advanced-toggle" id="advToggle">
+    <span class="arrow">&#9654;</span> Advanced: install via command line
+  </div>
+  <div class="advanced-body" id="advBody">
+    <h4>Linux / macOS (auto-install script)</h4>
+    <div class="cmd-box">
+      <span class="cmd">curl -fsSL https://raw.githubusercontent.com/Agentx-network/agentx/main/install.sh | bash</span>
+      <button class="copy-btn" onclick="copyCmd(this)">Copy</button>
+    </div>
+    <h4>Windows (PowerShell)</h4>
+    <div class="cmd-box">
+      <span class="cmd">irm https://raw.githubusercontent.com/Agentx-network/agentx/main/install.ps1 | iex</span>
+      <button class="copy-btn" onclick="copyCmd(this)">Copy</button>
+    </div>
+    <h4>Homebrew</h4>
+    <div class="cmd-box">
+      <span class="cmd">brew install Agentx-network/tap/agentx</span>
+      <button class="copy-btn" onclick="copyCmd(this)">Copy</button>
+    </div>
+    <h4>Build from source</h4>
+    <div class="cmd-box">
+      <span class="cmd">git clone https://github.com/Agentx-network/agentx.git && cd agentx && make install</span>
+      <button class="copy-btn" onclick="copyCmd(this)">Copy</button>
+    </div>
+  </div>
+</section>
+
+<!-- ====== FOOTER ====== -->
+<div class="footer">
+  <div class="footer-links">
+    <a href="https://github.com/Agentx-network/agentx">GitHub</a>
+    <a href="https://agentx.network">Website</a>
+    <a href="https://discord.gg/V4sAZ9XWpN">Discord</a>
+    <a href="https://t.me/agentxofficial">Telegram</a>
+  </div>
+  &copy; 2024&ndash;2026 AgentX Network. All rights reserved.
+</div>
+
+<script>
+/* ============================================================
+   Platform / arch definitions — matches ACTUAL release assets
+   Release naming: agentx-{os}-{arch}[.exe]
+   ============================================================ */
+var REPO = "https://github.com/Agentx-network/agentx/releases/latest/download/";
+
+var PLATFORMS = {
+  windows: {
+    label: "Windows",
+    icon: "\uD83E\uDE9F",
+    installerNote: "Single .exe — no install wizard needed, just move it anywhere and run",
+    whIcon1: "\uD83D\uDCE5",
+    whIcon2: "\uD83D\uDDB1\uFE0F",
+    whTitle2: "Run it",
+    whText2: "Double-click agentx.exe or open PowerShell in the folder and run: agentx onboard",
+    archs: [
+      { label: "x86_64 (64-bit)", file: "agentx-windows-amd64.exe", size: "~12 MB" }
+    ]
+  },
+  macos: {
+    label: "macOS",
+    icon: "\uD83C\uDF4E",
+    installerNote: "Single binary — move to /usr/local/bin or run directly",
+    whIcon1: "\uD83D\uDCE5",
+    whIcon2: "\uD83D\uDCBB",
+    whTitle2: "Move & allow",
+    whText2: "Move to /usr/local/bin, then allow in System Settings \u2192 Privacy & Security if prompted.",
+    archs: [
+      { label: "Apple Silicon (M1\u2013M4)", file: "agentx-darwin-arm64", size: "~12 MB" },
+      { label: "Intel x86_64",              file: "agentx-darwin-amd64", size: "~12 MB" }
+    ]
+  },
+  linux: {
+    label: "Linux",
+    icon: "\uD83D\uDC27",
+    installerNote: "Single static binary — chmod +x and run, or use the install script",
+    whIcon1: "\uD83D\uDCE5",
+    whIcon2: "\uD83D\uDCBB",
+    whTitle2: "Make executable",
+    whText2: "chmod +x the binary and move to /usr/local/bin, or use the one-line install script below.",
+    archs: [
+      { label: "x86_64 (64-bit)",             file: "agentx-linux-amd64",   size: "~12 MB" },
+      { label: "ARM64 (RPi 4/5, Jetson)",     file: "agentx-linux-arm64",   size: "~12 MB" },
+      { label: "ARMv7 (RPi 3, older boards)", file: "agentx-linux-armv7",   size: "~10 MB" },
+      { label: "RISC-V 64",                   file: "agentx-linux-riscv64", size: "~12 MB" },
+      { label: "LoongArch 64",                file: "agentx-linux-loong64", size: "~12 MB" }
+    ]
+  },
+  android: {
+    label: "Android (Termux)",
+    icon: "\uD83D\uDCF1",
+    installerNote: "Download in Termux, or use the one-line install script",
+    whIcon1: "\uD83D\uDCE5",
+    whIcon2: "\uD83D\uDCF2",
+    whTitle2: "Run in Termux",
+    whText2: "Open Termux, use the install script below, or download the binary and run agentx onboard.",
+    archs: [
+      { label: "ARM64 (most phones)",  file: "agentx-linux-arm64", size: "~12 MB" },
+      { label: "ARMv7 (older phones)", file: "agentx-linux-armv7", size: "~10 MB" }
+    ]
+  }
+};
+
+/* Detect platform */
+function detectPlatform() {
+  var ua = navigator.userAgent || "";
+  var plat = navigator.platform || "";
+  if (/Android/i.test(ua))   return "android";
+  if (/Win/i.test(plat))     return "windows";
+  if (/Mac/i.test(plat))     return "macos";
+  return "linux";
+}
+
+var currentPlatform = detectPlatform();
+var currentArchIdx = 0;
+
+function render(platformKey, archIdx) {
+  currentPlatform = platformKey;
+  currentArchIdx = archIdx != null ? archIdx : 0;
+  var plat = PLATFORMS[platformKey] || PLATFORMS.linux;
+
+  document.getElementById("platformIcon").textContent = plat.icon;
+  document.getElementById("platformName").textContent = plat.label;
+
+  var sel = document.getElementById("archSelect");
+  sel.innerHTML = "";
+  plat.archs.forEach(function(a, i) {
+    var opt = document.createElement("option");
+    opt.value = i;
+    opt.textContent = a.label;
+    if (i === currentArchIdx) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  document.getElementById("archRow").style.display = plat.archs.length > 1 ? "flex" : "none";
+
+  document.getElementById("whIcon1").textContent = plat.whIcon1;
+  document.getElementById("whIcon2").textContent = plat.whIcon2;
+  document.getElementById("whTitle2").textContent = plat.whTitle2;
+  document.getElementById("whText2").textContent = plat.whText2;
+
+  updateDownloadLink();
+}
+
+function updateDownloadLink() {
+  var plat = PLATFORMS[currentPlatform];
+  var arch = plat.archs[currentArchIdx] || plat.archs[0];
+  var btn = document.getElementById("downloadBtn");
+  btn.href = REPO + arch.file;
+  document.getElementById("downloadLabel").textContent = "Download for " + plat.label;
+  document.getElementById("fileHint").textContent = arch.file + " \u00B7 " + arch.size;
+  document.getElementById("installerNote").textContent = plat.installerNote;
+}
+
+render(currentPlatform, 0);
+
+document.getElementById("archSelect").addEventListener("change", function() {
+  currentArchIdx = parseInt(this.value, 10);
+  updateDownloadLink();
+});
+
+/* All-platforms grid */
+(function() {
+  var grid = document.getElementById("platformGrid");
+  ["windows","macos","linux","android"].forEach(function(key) {
+    var p = PLATFORMS[key];
+    var card = document.createElement("div");
+    card.className = "platform-card";
+    card.innerHTML =
+      '<div class="card-icon">' + p.icon + '</div>' +
+      '<div class="card-name">' + p.label + '</div>' +
+      '<div class="card-arch">' + p.archs.map(function(a){ return a.label; }).join(", ") + '</div>';
+    card.addEventListener("click", function() {
+      render(key);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+    grid.appendChild(card);
+  });
+})();
+
+/* Advanced toggle */
+document.getElementById("advToggle").addEventListener("click", function() {
+  this.classList.toggle("open");
+  document.getElementById("advBody").classList.toggle("open");
+});
+
+/* Copy to clipboard */
+function copyCmd(btn) {
+  var text = btn.parentElement.querySelector(".cmd").textContent;
+  navigator.clipboard.writeText(text).then(function() {
+    btn.textContent = "Copied!";
+    btn.classList.add("copied");
+    setTimeout(function() { btn.textContent = "Copy"; btn.classList.remove("copied"); }, 2000);
+  });
+}
+</script>
+</body>
+</html>

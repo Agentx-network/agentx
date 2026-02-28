@@ -285,7 +285,58 @@ AgentX:    5 MB RAM + 0.3s startup + real-time streaming + parallel tools + 10 c
 
 <img src="assets/divider.gif" width="100%">
 
-## Deploy Anywhere
+## Quick Install
+
+<div align="center">
+
+<h3><a href="https://agentx-network.github.io/agentx/install.html">&#11015;&#65039; Download AgentX for your platform</a></h3>
+
+<p>Auto-detects your OS — one click to download, double-click to run.</p>
+
+<table>
+  <tr>
+    <td align="center"><b>&#x1F427; Linux</b></td>
+    <td align="center"><b>&#x1F34E; macOS</b></td>
+    <td align="center"><b>&#x1FA9F; Windows</b></td>
+    <td align="center"><b>&#x1F4F1; Android</b></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="https://github.com/Agentx-network/agentx/releases/latest/download/agentx-linux-amd64">x86_64</a> · <a href="https://github.com/Agentx-network/agentx/releases/latest/download/agentx-linux-arm64">ARM64</a></td>
+    <td align="center"><a href="https://github.com/Agentx-network/agentx/releases/latest/download/agentx-darwin-arm64">Apple Silicon</a> · <a href="https://github.com/Agentx-network/agentx/releases/latest/download/agentx-darwin-amd64">Intel</a></td>
+    <td align="center"><a href="https://github.com/Agentx-network/agentx/releases/latest/download/agentx-windows-amd64.exe">x86_64</a></td>
+    <td align="center"><a href="https://github.com/Agentx-network/agentx/releases/latest/download/agentx-linux-arm64">Termux</a></td>
+  </tr>
+</table>
+
+</div>
+
+<details>
+<summary><b>Or install via command line</b></summary>
+<br>
+
+**Linux / macOS:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/Agentx-network/agentx/main/install.sh | bash
+```
+
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/Agentx-network/agentx/main/install.ps1 | iex
+```
+
+**Homebrew:**
+```bash
+brew install Agentx-network/tap/agentx
+```
+
+</details>
+
+After downloading, run `agentx onboard` to launch the setup wizard.
+
+<img src="assets/divider.gif" width="100%">
+
+<details>
+<summary><b>Alternative Install Methods</b></summary>
 
 ### Download Pre-built Binaries
 
@@ -299,24 +350,15 @@ Every release ships ready-to-run binaries — no Go toolchain required:
 | **Linux** | RISC-V 64 | [`agentx-linux-riscv64`](https://github.com/Agentx-network/agentx/releases/latest/download/agentx-linux-riscv64) |
 | **Linux** | LoongArch 64 | [`agentx-linux-loong64`](https://github.com/Agentx-network/agentx/releases/latest/download/agentx-linux-loong64) |
 | **macOS** | Apple Silicon (M1/M2/M3/M4) | [`agentx-darwin-arm64`](https://github.com/Agentx-network/agentx/releases/latest/download/agentx-darwin-arm64) |
+| **macOS** | Intel x86_64 | [`agentx-darwin-amd64`](https://github.com/Agentx-network/agentx/releases/latest/download/agentx-darwin-amd64) |
 | **Windows** | x86_64 | [`agentx-windows-amd64.exe`](https://github.com/Agentx-network/agentx/releases/latest/download/agentx-windows-amd64.exe) |
-
-```bash
-# Linux/macOS — one-liner install
-wget https://github.com/Agentx-network/agentx/releases/latest/download/agentx-linux-amd64 -O agentx
-chmod +x agentx && sudo mv agentx /usr/local/bin/
-agentx onboard
-```
 
 ### Run on Old Android Phones
 
 Give your decade-old phone a second life as an AI Agent.
 
 ```bash
-wget https://github.com/Agentx-network/agentx/releases/latest/download/agentx-linux-arm64
-chmod +x agentx-linux-arm64
-pkg install proot
-termux-chroot ./agentx-linux-arm64 onboard
+curl -fsSL https://raw.githubusercontent.com/Agentx-network/agentx/main/install.sh | bash
 ```
 
 <div align="center">
@@ -327,26 +369,23 @@ termux-chroot ./agentx-linux-arm64 onboard
 
 AgentX runs on any Linux device — from a $5 board to a Raspberry Pi to an old Android phone. If it runs Linux, it runs AgentX.
 
+### Build from Source
+
+```bash
+git clone https://github.com/Agentx-network/agentx.git && cd agentx && make install
+```
+
+### Docker
+
+```bash
+docker compose -f docker/docker-compose.yml --profile gateway up -d
+```
+
+</details>
+
 <img src="assets/divider.gif" width="100%">
 
 ## Quick Start
-
-### Install
-
-<table>
-  <tr>
-    <td><b>Binary</b></td>
-    <td>Download from the <a href="https://github.com/Agentx-network/agentx/releases/latest">latest release</a> (see table above)</td>
-  </tr>
-  <tr>
-    <td><b>Source</b></td>
-    <td><code>git clone https://github.com/Agentx-network/agentx.git && cd agentx && make install</code></td>
-  </tr>
-  <tr>
-    <td><b>Docker</b></td>
-    <td><code>docker compose -f docker/docker-compose.yml --profile gateway up -d</code></td>
-  </tr>
-</table>
 
 ### Setup in 2 Minutes
 
