@@ -138,6 +138,30 @@ See the full [Community Roadmap](https://github.com/Agentx-network/agentx/blob/m
 
 <div align="center">
 
+  <img src="assets/posters/06_girl_vs_openclaw.jpg" alt="AgentX vs OpenClaw" width="800">
+
+  <br><br>
+
+  <img src="assets/posters/05_comparison_final.jpg" alt="AgentX vs OpenClaw Comparison" width="800">
+
+  <br><br>
+
+  <img src="assets/posters/03_racing.jpg" alt="AgentX Speed Comparison" width="800">
+
+  <br><br>
+
+  <img src="assets/posters/04_servers.jpg" alt="Legacy vs Next-Gen" width="800">
+
+  <br><br>
+
+  <img src="assets/posters/01_speed_kills.jpg" alt="Speed Kills" width="800">
+
+  <br><br>
+
+  <img src="assets/posters/02_battle.jpg" alt="The Future is Faster" width="800">
+
+  <br><br>
+
   <img src="assets/compare.svg" alt="AgentX Performance Comparison" width="800">
 
 </div>
