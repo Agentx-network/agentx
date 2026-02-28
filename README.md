@@ -1,6 +1,6 @@
 <div align="center">
 
-  <img src="assets/poster.gif" alt="AgentX Network" width="100%">
+  <img src="assets/posters/06_girl_vs_openclaw.jpg" alt="AgentX Network" width="100%">
 
   <a href="https://agentx.network">
     <img src="assets/logo.png" alt="AgentX Network" width="300">
