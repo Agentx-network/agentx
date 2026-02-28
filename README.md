@@ -289,9 +289,9 @@ AgentX:    5 MB RAM + 0.3s startup + real-time streaming + parallel tools + 10 c
 
 <div align="center">
 
-  <a href="https://install.agentx.network"><img src="https://img.shields.io/badge/Download_AgentX-All_Platforms-FF0092?style=for-the-badge&labelColor=0a0015" alt="Download AgentX"></a>
+  <a href="https://install.agentx.network"><img src="assets/download-button.svg" alt="Download AgentX — Linux · macOS · Windows · Android" width="420"></a>
 
-  <p><b>Linux · macOS · Windows · Android</b> — auto-detects your platform, one click to install.</p>
+  <p>Auto-detects your platform, one click to install.</p>
 
 </div>
 
