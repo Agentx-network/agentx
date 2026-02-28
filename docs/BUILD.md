@@ -77,7 +77,18 @@ done
 
 ## 2. Desktop App
 
-The desktop app uses **Wails v2** (Go + React). It requires `CGO_ENABLED=1` and platform-native libraries, so it **cannot be cross-compiled** — each platform must build on its own OS.
+The desktop app uses **Wails v2** (Go + React). It requires `CGO_ENABLED=1` and platform-native libraries. Unlike the CLI, desktop builds **must run on the target OS** (Linux on Linux, macOS on macOS, Windows on Windows).
+
+### Important: macOS cross-architecture with `-platform`
+
+Wails supports **cross-architecture** builds on macOS via the `-platform` flag. This means a single macOS machine (ARM or Intel) can build for **both** architectures:
+
+```bash
+wails build -clean -platform darwin/arm64  -ldflags="-s -w"   # ARM (Apple Silicon)
+wails build -clean -platform darwin/amd64  -ldflags="-s -w"   # Intel (x86_64)
+```
+
+> **CI note**: GitHub Actions `macos-latest` is an **ARM (Apple Silicon)** runner. Intel macOS runners (`macos-13`) are deprecated and may get cancelled. Always use `macos-latest` with `-platform darwin/amd64` to build Intel binaries — do NOT rely on `macos-13` or try to find an Intel runner.
 
 ### Build for current platform
 
@@ -142,33 +153,70 @@ dpkg-deb --build deb_pkg AgentX-Desktop-amd64.deb
 gh release upload v${VERSION} AgentX-Desktop-amd64.deb --clobber
 ```
 
-### macOS — create .dmg
+### macOS — create .dmg (both architectures)
+
+Both ARM and Intel DMGs can be built from a **single macOS machine** (Apple Silicon or Intel) using the `-platform` flag.
 
 ```bash
-# 1. Build (run on macOS)
+# 1. Build BOTH architectures (run on any macOS)
 cd cmd/agentx-desktop
-wails build -clean -ldflags="-s -w"
+
+# ARM (Apple Silicon)
+wails build -clean -platform darwin/arm64 -ldflags="-s -w"
 cd ../..
 
-# 2. Package
-ARCH=$(uname -m)  # arm64 or x86_64
-if [ -d cmd/agentx-desktop/build/bin/agentx-desktop.app ]; then
-  # Wails produced .app bundle
-  hdiutil create -volname "AgentX Desktop" \
-    -srcfolder cmd/agentx-desktop/build/bin/agentx-desktop.app \
-    -ov -format UDZO "AgentX-Desktop-${ARCH}.dmg"
+# Ad-hoc codesign (REQUIRED for Apple Silicon — without this you get
+# "app is damaged and can't be opened" error)
+APP_PATH="cmd/agentx-desktop/build/bin/agentx-desktop.app"
+if [ -d "$APP_PATH" ]; then
+  codesign --force --deep --sign - "$APP_PATH"
 else
-  # Fallback: wrap binary
-  mkdir -p dmg_staging
-  cp cmd/agentx-desktop/build/bin/agentx-desktop dmg_staging/
-  ln -s /Applications dmg_staging/Applications
-  hdiutil create -volname "AgentX Desktop" \
-    -srcfolder dmg_staging -ov -format UDZO "AgentX-Desktop-${ARCH}.dmg"
+  codesign --force --sign - cmd/agentx-desktop/build/bin/agentx-desktop
 fi
 
-# 3. Upload
-gh release upload v0.5.0 "AgentX-Desktop-${ARCH}.dmg" --clobber
+# Package ARM DMG
+if [ -d "$APP_PATH" ]; then
+  hdiutil create -volname "AgentX Desktop" -srcfolder "$APP_PATH" \
+    -ov -format UDZO "AgentX-Desktop-arm64.dmg"
+else
+  mkdir -p dmg_staging && cp cmd/agentx-desktop/build/bin/agentx-desktop dmg_staging/
+  ln -s /Applications dmg_staging/Applications
+  hdiutil create -volname "AgentX Desktop" -srcfolder dmg_staging \
+    -ov -format UDZO "AgentX-Desktop-arm64.dmg"
+  rm -rf dmg_staging
+fi
+
+# Intel (x86_64) — cross-compile with -platform flag
+cd cmd/agentx-desktop
+wails build -clean -platform darwin/amd64 -ldflags="-s -w"
+cd ../..
+
+# Ad-hoc codesign
+APP_PATH="cmd/agentx-desktop/build/bin/agentx-desktop.app"
+if [ -d "$APP_PATH" ]; then
+  codesign --force --deep --sign - "$APP_PATH"
+else
+  codesign --force --sign - cmd/agentx-desktop/build/bin/agentx-desktop
+fi
+
+if [ -d "$APP_PATH" ]; then
+  hdiutil create -volname "AgentX Desktop" -srcfolder "$APP_PATH" \
+    -ov -format UDZO "AgentX-Desktop-x86_64.dmg"
+else
+  mkdir -p dmg_staging && cp cmd/agentx-desktop/build/bin/agentx-desktop dmg_staging/
+  ln -s /Applications dmg_staging/Applications
+  hdiutil create -volname "AgentX Desktop" -srcfolder dmg_staging \
+    -ov -format UDZO "AgentX-Desktop-x86_64.dmg"
+  rm -rf dmg_staging
+fi
+
+# 2. Upload
+gh release upload v0.5.0 AgentX-Desktop-arm64.dmg AgentX-Desktop-x86_64.dmg --clobber
 ```
+
+> **Gotcha**: Do NOT use `uname -m` to determine the output architecture — it returns the **host** arch, not the **target** arch. Always name files explicitly based on the `-platform` flag you used.
+
+> **Unsigned app warning**: macOS Gatekeeper will show "developer cannot be verified" for unsigned apps. Users need to right-click → Open → Open, or run `xattr -cr /Applications/AgentX\ Desktop.app`. Signing requires an Apple Developer certificate ($99/year).
 
 ### Windows — create Setup.exe (NSIS)
 
@@ -250,8 +298,9 @@ gh workflow run build-installers.yml -f tag=v0.5.0
 | | CLI (`cmd/agentx`) | Desktop (`cmd/agentx-desktop`) |
 |---|---|---|
 | **CGO** | `CGO_ENABLED=0` | `CGO_ENABLED=1` |
-| **Cross-compile** | Yes (any OS builds all targets) | No (must build on native OS) |
+| **Cross-compile** | Yes (any OS builds all targets) | Cross-OS: No. Cross-arch on macOS: Yes (via `-platform` flag) |
 | **Frontend** | None | React + Vite (embedded via `//go:embed`) |
 | **Build tool** | `go build` | `wails build` |
 | **Linux tag** | `stdjson` | `webkit2_41` |
 | **Dependencies** | None | WebKit2GTK (Linux), WebView2 (Windows) |
+| **macOS CI runner** | N/A (built on Linux) | `macos-latest` (ARM) + `-platform` for both archs |

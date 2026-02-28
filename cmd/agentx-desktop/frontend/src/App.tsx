@@ -8,7 +8,7 @@ import DashboardPage from "./pages/DashboardPage";
 import ConfigPage from "./pages/ConfigPage";
 import ChatPage from "./pages/ChatPage";
 import { Toast } from "./components/ui/Toast";
-import type { Page, SetupState } from "./lib/types";
+import type { Page, SetupState, ChatMessage } from "./lib/types";
 
 declare global {
   interface Window {
@@ -86,6 +86,7 @@ export default function App() {
   const [mode, setMode] = useState<AppMode>("loading");
   const [page, setPage] = useState<Page>("installer");
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
 
   const showToast = useCallback((message: string, type: "success" | "error" = "success") => {
     setToast({ message, type });
@@ -202,7 +203,7 @@ export default function App() {
       <Sidebar currentPage={page} onNavigate={setPage} onRunWizard={() => { setPage("installer"); setMode("wizard"); }} />
       <main className="flex-1 overflow-y-auto p-6">
         {page === "dashboard" && <DashboardPage showToast={showToast} />}
-        {page === "chat" && <ChatPage showToast={showToast} />}
+        {page === "chat" && <ChatPage showToast={showToast} messages={chatMessages} setMessages={setChatMessages} />}
         {page === "config" && <ConfigPage showToast={showToast} />}
         {page === "installer" && <InstallerPage showToast={showToast} onComplete={onStepComplete} />}
       </main>
