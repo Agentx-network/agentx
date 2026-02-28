@@ -1,14 +1,15 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import type { ChatMessage } from "../lib/types";
 
 interface Props {
   showToast: (msg: string, type: "success" | "error") => void;
+  messages: ChatMessage[];
+  setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
 }
 
 let messageIdCounter = 0;
 
-export default function ChatPage({ showToast }: Props) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+export default function ChatPage({ showToast, messages, setMessages }: Props) {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [connected, setConnected] = useState<boolean | null>(null);

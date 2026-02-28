@@ -176,6 +176,16 @@ jobs:
         working-directory: cmd/agentx-desktop
         run: wails build -clean -platform ${{ matrix.platform }} -ldflags="-s -w"
 
+      - name: Ad-hoc codesign (required for Apple Silicon)
+        run: |
+          APP_PATH="cmd/agentx-desktop/build/bin/agentx-desktop.app"
+          BIN_PATH="cmd/agentx-desktop/build/bin/agentx-desktop"
+          if [ -d "$APP_PATH" ]; then
+            codesign --force --deep --sign - "$APP_PATH"
+          elif [ -f "$BIN_PATH" ]; then
+            codesign --force --sign - "$BIN_PATH"
+          fi
+
       - name: Create DMG
         run: |
           APP_PATH="cmd/agentx-desktop/build/bin/agentx-desktop.app"
