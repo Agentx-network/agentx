@@ -49,7 +49,6 @@ Built from the ground up in **Go** for maximum efficiency — the most lightweig
 - **Provider failover** — automatic fallback with cooldown when primary model errors
 - **Intelligent context compression** — auto-summarize on overflow, preserving credentials and system context
 - **Smart Telegram formatting** — markdown tables, long messages, and streaming edits all work cleanly
-- **7,400+ lines of legacy provider code deleted** — cleaner, faster, more maintainable
 
 <img src="assets/divider.gif" width="100%">
 
