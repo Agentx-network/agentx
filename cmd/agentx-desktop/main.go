@@ -17,6 +17,8 @@ func main() {
 	installer := NewInstallerService()
 	dashboard := NewDashboardService()
 	configSvc := NewConfigService()
+	chatSvc := NewChatService()
+	agentSetup := NewAgentSetupService()
 
 	err := wails.Run(&options.App{
 		Title:  "AgentX Desktop",
@@ -30,12 +32,16 @@ func main() {
 			installer.startup(ctx)
 			dashboard.startup(ctx)
 			configSvc.startup(ctx)
+			chatSvc.startup(ctx)
+			agentSetup.startup(ctx)
 		},
 		Bind: []interface{}{
 			app,
 			installer,
 			dashboard,
 			configSvc,
+			chatSvc,
+			agentSetup,
 		},
 	})
 	if err != nil {

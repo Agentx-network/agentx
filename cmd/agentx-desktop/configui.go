@@ -2,12 +2,17 @@ package main
 
 import (
 	"context"
+	_ "embed"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/Agentx-network/agentx/pkg/config"
 )
+
+//go:embed catalog.json
+var catalogJSON []byte
 
 type ProviderOption struct {
 	Name      string `json:"name"`
@@ -139,17 +144,12 @@ func (c *ConfigService) UpdateAgentDefaults(defaults config.AgentDefaults) error
 }
 
 func (c *ConfigService) GetAvailableProviders() []ProviderOption {
-	return []ProviderOption{
-		{Name: "OpenAI", ID: "openai", ModelName: "gpt-5.2", Model: "openai/gpt-5.2", APIBase: "https://api.openai.com/v1", KeyURL: "https://platform.openai.com/api-keys", NeedsKey: true},
-		{Name: "Anthropic", ID: "anthropic", ModelName: "claude-sonnet-4.6", Model: "anthropic/claude-sonnet-4.6", APIBase: "https://api.anthropic.com/v1", KeyURL: "https://console.anthropic.com/settings/keys", NeedsKey: true},
-		{Name: "Google Gemini", ID: "gemini", ModelName: "gemini-2.0-flash", Model: "gemini/gemini-2.0-flash-exp", APIBase: "https://generativelanguage.googleapis.com/v1beta", KeyURL: "https://ai.google.dev/", NeedsKey: true},
-		{Name: "DeepSeek", ID: "deepseek", ModelName: "deepseek-chat", Model: "deepseek/deepseek-chat", APIBase: "https://api.deepseek.com/v1", KeyURL: "https://platform.deepseek.com/", NeedsKey: true},
-		{Name: "Groq", ID: "groq", ModelName: "llama-3.3-70b", Model: "groq/llama-3.3-70b-versatile", APIBase: "https://api.groq.com/openai/v1", KeyURL: "https://console.groq.com/keys", NeedsKey: true},
-		{Name: "OpenRouter", ID: "openrouter", ModelName: "openrouter-auto", Model: "openrouter/auto", APIBase: "https://openrouter.ai/api/v1", KeyURL: "https://openrouter.ai/keys", NeedsKey: true},
-		{Name: "Ollama (local)", ID: "ollama", ModelName: "llama3", Model: "ollama/llama3", APIBase: "http://localhost:11434/v1", NeedsKey: false},
-		{Name: "Mistral AI", ID: "mistral", ModelName: "mistral-small", Model: "mistral/mistral-small-latest", APIBase: "https://api.mistral.ai/v1", KeyURL: "https://console.mistral.ai/api-keys", NeedsKey: true},
-		{Name: "Cerebras", ID: "cerebras", ModelName: "cerebras-llama-3.3-70b", Model: "cerebras/llama-3.3-70b", APIBase: "https://api.cerebras.ai/v1", KeyURL: "https://inference.cerebras.ai/", NeedsKey: true},
+	var providers []ProviderOption
+	if err := json.Unmarshal(catalogJSON, &providers); err != nil {
+		// Fallback: return empty list on parse error
+		return nil
 	}
+	return providers
 }
 
 func (c *ConfigService) QuickSetupProvider(providerID string, apiKey string) error {
@@ -193,5 +193,27 @@ func (c *ConfigService) QuickSetupProvider(providerID string, apiKey string) err
 
 	cfg.ModelList = append(cfg.ModelList, newModel)
 	cfg.Agents.Defaults.ModelName = provider.ModelName
+	return config.SaveConfig(getConfigPath(), cfg)
+}
+
+// QuickSetupChannel enables a channel with its token in one call.
+func (c *ConfigService) QuickSetupChannel(channel string, token string) error {
+	cfg, err := config.LoadConfig(getConfigPath())
+	if err != nil {
+		return err
+	}
+	switch channel {
+	case "telegram":
+		cfg.Channels.Telegram.Enabled = true
+		cfg.Channels.Telegram.Token = token
+	case "discord":
+		cfg.Channels.Discord.Enabled = true
+		cfg.Channels.Discord.Token = token
+	case "slack":
+		cfg.Channels.Slack.Enabled = true
+		cfg.Channels.Slack.BotToken = token
+	default:
+		return fmt.Errorf("unsupported channel for quick setup: %s", channel)
+	}
 	return config.SaveConfig(getConfigPath(), cfg)
 }

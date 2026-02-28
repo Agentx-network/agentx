@@ -1188,6 +1188,24 @@ export namespace main {
 	        this.configPath = source["configPath"];
 	    }
 	}
+	export class BootstrapFile {
+	    name: string;
+	    path: string;
+	    content: string;
+	    exists: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new BootstrapFile(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.path = source["path"];
+	        this.content = source["content"];
+	        this.exists = source["exists"];
+	    }
+	}
 	export class ChannelInfo {
 	    name: string;
 	    enabled: boolean;
@@ -1200,6 +1218,20 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
 	        this.enabled = source["enabled"];
+	    }
+	}
+	export class ChatResponse {
+	    response: string;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ChatResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.response = source["response"];
+	        this.error = source["error"];
 	    }
 	}
 	export class ModelInfo {
@@ -1305,6 +1337,7 @@ export namespace main {
 	    binaryInstalled: boolean;
 	    configExists: boolean;
 	    hasApiKey: boolean;
+	    hasChannel: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new SetupState(source);
@@ -1315,6 +1348,25 @@ export namespace main {
 	        this.binaryInstalled = source["binaryInstalled"];
 	        this.configExists = source["configExists"];
 	        this.hasApiKey = source["hasApiKey"];
+	        this.hasChannel = source["hasChannel"];
+	    }
+	}
+	export class SkillEntry {
+	    name: string;
+	    source: string;
+	    description: string;
+	    path: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SkillEntry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.source = source["source"];
+	        this.description = source["description"];
+	        this.path = source["path"];
 	    }
 	}
 

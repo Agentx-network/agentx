@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -178,12 +179,97 @@ func gatewayCmd(debug bool) error {
 	}
 
 	healthServer := health.NewServer(cfg.Gateway.Host, cfg.Gateway.Port)
+
+	// Register chat API endpoint (SSE streaming)
+	healthServer.HandleFunc("/api/chat", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+		var req struct {
+			Message    string `json:"message"`
+			SessionKey string `json:"sessionKey"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+			return
+		}
+		if req.Message == "" {
+			http.Error(w, `{"error":"message is required"}`, http.StatusBadRequest)
+			return
+		}
+		if req.SessionKey == "" {
+			req.SessionKey = "desktop:chat"
+		}
+
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			http.Error(w, `{"error":"streaming not supported"}`, http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+
+		// Subscribe to stream deltas for this request
+		sub := &bus.StreamSubscriber{
+			Ch: make(chan bus.StreamDelta, 200),
+			Filter: func(d bus.StreamDelta) bool {
+				return d.Channel == "desktop" && d.ChatID == "chat"
+			},
+		}
+		msgBus.AddStreamSubscriber(sub)
+
+		// Forward stream deltas as SSE events in background
+		streamDone := make(chan struct{})
+		go func() {
+			defer close(streamDone)
+			for delta := range sub.Ch {
+				data, _ := json.Marshal(map[string]any{
+					"type":  "delta",
+					"delta": delta.Delta,
+					"done":  delta.Done,
+				})
+				fmt.Fprintf(w, "data: %s\n\n", data)
+				flusher.Flush()
+			}
+		}()
+
+		// Process the message (blocks until complete)
+		response, procErr := agentLoop.ProcessDirectWithChannel(
+			r.Context(), req.Message, req.SessionKey, "desktop", "chat",
+		)
+
+		// Unsubscribe and wait for goroutine to drain
+		msgBus.RemoveStreamSubscriber(sub)
+		<-streamDone
+
+		// Send final event with full response
+		if procErr != nil {
+			data, _ := json.Marshal(map[string]any{
+				"type":  "error",
+				"error": procErr.Error(),
+			})
+			fmt.Fprintf(w, "data: %s\n\n", data)
+		} else {
+			data, _ := json.Marshal(map[string]any{
+				"type":     "done",
+				"response": response,
+			})
+			fmt.Fprintf(w, "data: %s\n\n", data)
+		}
+		flusher.Flush()
+	})
+
 	go func() {
 		if err := healthServer.Start(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.ErrorCF("health", "Health server error", map[string]any{"error": err.Error()})
 		}
 	}()
 	fmt.Printf("✓ Health endpoints available at http://%s:%d/health and /ready\n", cfg.Gateway.Host, cfg.Gateway.Port)
+	fmt.Printf("✓ Chat API available at http://%s:%d/api/chat\n", cfg.Gateway.Host, cfg.Gateway.Port)
 
 	go agentLoop.Run(ctx)
 

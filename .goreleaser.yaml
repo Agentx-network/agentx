@@ -37,6 +37,31 @@ builds:
       - goos: windows
         goarch: arm
 
+  - id: agentx-desktop
+    env:
+      - CGO_ENABLED=1
+    tags:
+      - stdjson
+      - webkit2_41
+    ldflags:
+      - -s -w
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    main: ./cmd/agentx-desktop
+    binary: agentx-desktop
+    hooks:
+      pre:
+        - cmd: bash -c "cd cmd/agentx-desktop/frontend && npm install && npm run build"
+    ignore:
+      - goos: linux
+        goarch: arm64
+      - goos: windows
+        goarch: arm64
 
 dockers_v2:
   - id: agentx
@@ -57,7 +82,9 @@ dockers_v2:
       - linux/riscv64
 
 archives:
-  - formats: [tar.gz]
+  - id: agentx
+    builds: [agentx]
+    formats: [tar.gz]
     # this name template makes the OS and Arch compatible with the results of `uname`.
     name_template: >-
       {{ .ProjectName }}_
@@ -71,8 +98,21 @@ archives:
       - goos: windows
         formats: [zip]
 
+  - id: agentx-desktop
+    builds: [agentx-desktop]
+    formats: [tar.gz]
+    name_template: >-
+      agentx-desktop_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else }}{{ .Arch }}{{ end }}
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
 nfpms:
   - id: agentx
+    builds: [agentx]
     package_name: agentx
     file_name_template: >-
       {{ .PackageName }}_

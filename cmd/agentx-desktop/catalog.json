@@ -1,0 +1,63 @@
+[
+  {"name":"OpenAI","id":"openai-gpt-4o","modelName":"GPT-4o","model":"openai/gpt-4o","apiBase":"https://api.openai.com/v1","keyURL":"https://platform.openai.com/api-keys","needsKey":true},
+  {"name":"OpenAI","id":"openai-gpt-4o-mini","modelName":"GPT-4o Mini","model":"openai/gpt-4o-mini","apiBase":"https://api.openai.com/v1","keyURL":"https://platform.openai.com/api-keys","needsKey":true},
+  {"name":"OpenAI","id":"openai-gpt-4.1","modelName":"GPT-4.1","model":"openai/gpt-4.1","apiBase":"https://api.openai.com/v1","keyURL":"https://platform.openai.com/api-keys","needsKey":true},
+  {"name":"OpenAI","id":"openai-gpt-4.1-mini","modelName":"GPT-4.1 Mini","model":"openai/gpt-4.1-mini","apiBase":"https://api.openai.com/v1","keyURL":"https://platform.openai.com/api-keys","needsKey":true},
+  {"name":"OpenAI","id":"openai-gpt-4.1-nano","modelName":"GPT-4.1 Nano","model":"openai/gpt-4.1-nano","apiBase":"https://api.openai.com/v1","keyURL":"https://platform.openai.com/api-keys","needsKey":true},
+  {"name":"OpenAI","id":"openai-o3","modelName":"o3","model":"openai/o3","apiBase":"https://api.openai.com/v1","keyURL":"https://platform.openai.com/api-keys","needsKey":true},
+  {"name":"OpenAI","id":"openai-o3-mini","modelName":"o3 Mini","model":"openai/o3-mini","apiBase":"https://api.openai.com/v1","keyURL":"https://platform.openai.com/api-keys","needsKey":true},
+  {"name":"OpenAI","id":"openai-o4-mini","modelName":"o4 Mini","model":"openai/o4-mini","apiBase":"https://api.openai.com/v1","keyURL":"https://platform.openai.com/api-keys","needsKey":true},
+  {"name":"OpenAI","id":"openai-gpt-5.2","modelName":"GPT-5.2","model":"openai/gpt-5.2","apiBase":"https://api.openai.com/v1","keyURL":"https://platform.openai.com/api-keys","needsKey":true},
+
+  {"name":"Anthropic","id":"anthropic-claude-opus-4.6","modelName":"Claude Opus 4.6","model":"anthropic/claude-opus-4-6","apiBase":"https://api.anthropic.com/v1","keyURL":"https://console.anthropic.com/settings/keys","needsKey":true},
+  {"name":"Anthropic","id":"anthropic-claude-sonnet-4.6","modelName":"Claude Sonnet 4.6","model":"anthropic/claude-sonnet-4-6","apiBase":"https://api.anthropic.com/v1","keyURL":"https://console.anthropic.com/settings/keys","needsKey":true},
+  {"name":"Anthropic","id":"anthropic-claude-haiku-4.5","modelName":"Claude Haiku 4.5","model":"anthropic/claude-haiku-4-5","apiBase":"https://api.anthropic.com/v1","keyURL":"https://console.anthropic.com/settings/keys","needsKey":true},
+  {"name":"Anthropic","id":"anthropic-claude-opus-4","modelName":"Claude Opus 4","model":"anthropic/claude-opus-4-20250514","apiBase":"https://api.anthropic.com/v1","keyURL":"https://console.anthropic.com/settings/keys","needsKey":true},
+  {"name":"Anthropic","id":"anthropic-claude-sonnet-4","modelName":"Claude Sonnet 4","model":"anthropic/claude-sonnet-4-20250514","apiBase":"https://api.anthropic.com/v1","keyURL":"https://console.anthropic.com/settings/keys","needsKey":true},
+  {"name":"Anthropic","id":"anthropic-claude-3.5-sonnet","modelName":"Claude 3.5 Sonnet","model":"anthropic/claude-3-5-sonnet-20241022","apiBase":"https://api.anthropic.com/v1","keyURL":"https://console.anthropic.com/settings/keys","needsKey":true},
+  {"name":"Anthropic","id":"anthropic-claude-3.5-haiku","modelName":"Claude 3.5 Haiku","model":"anthropic/claude-3-5-haiku-20241022","apiBase":"https://api.anthropic.com/v1","keyURL":"https://console.anthropic.com/settings/keys","needsKey":true},
+
+  {"name":"Google Gemini","id":"gemini-2.5-pro","modelName":"Gemini 2.5 Pro","model":"gemini/gemini-2.5-pro","apiBase":"https://generativelanguage.googleapis.com/v1beta","keyURL":"https://ai.google.dev/","needsKey":true},
+  {"name":"Google Gemini","id":"gemini-2.5-flash","modelName":"Gemini 2.5 Flash","model":"gemini/gemini-2.5-flash","apiBase":"https://generativelanguage.googleapis.com/v1beta","keyURL":"https://ai.google.dev/","needsKey":true},
+  {"name":"Google Gemini","id":"gemini-2.0-flash","modelName":"Gemini 2.0 Flash","model":"gemini/gemini-2.0-flash","apiBase":"https://generativelanguage.googleapis.com/v1beta","keyURL":"https://ai.google.dev/","needsKey":true},
+  {"name":"Google Gemini","id":"gemini-2.0-flash-lite","modelName":"Gemini 2.0 Flash Lite","model":"gemini/gemini-2.0-flash-lite","apiBase":"https://generativelanguage.googleapis.com/v1beta","keyURL":"https://ai.google.dev/","needsKey":true},
+
+  {"name":"DeepSeek","id":"deepseek-chat","modelName":"DeepSeek V3","model":"deepseek/deepseek-chat","apiBase":"https://api.deepseek.com/v1","keyURL":"https://platform.deepseek.com/","needsKey":true},
+  {"name":"DeepSeek","id":"deepseek-reasoner","modelName":"DeepSeek R1","model":"deepseek/deepseek-reasoner","apiBase":"https://api.deepseek.com/v1","keyURL":"https://platform.deepseek.com/","needsKey":true},
+
+  {"name":"Groq","id":"groq-llama-3.3-70b","modelName":"Llama 3.3 70B","model":"groq/llama-3.3-70b-versatile","apiBase":"https://api.groq.com/openai/v1","keyURL":"https://console.groq.com/keys","needsKey":true},
+  {"name":"Groq","id":"groq-llama-3.1-8b","modelName":"Llama 3.1 8B","model":"groq/llama-3.1-8b-instant","apiBase":"https://api.groq.com/openai/v1","keyURL":"https://console.groq.com/keys","needsKey":true},
+  {"name":"Groq","id":"groq-mixtral-8x7b","modelName":"Mixtral 8x7B","model":"groq/mixtral-8x7b-32768","apiBase":"https://api.groq.com/openai/v1","keyURL":"https://console.groq.com/keys","needsKey":true},
+  {"name":"Groq","id":"groq-gemma2-9b","modelName":"Gemma 2 9B","model":"groq/gemma2-9b-it","apiBase":"https://api.groq.com/openai/v1","keyURL":"https://console.groq.com/keys","needsKey":true},
+  {"name":"Groq","id":"groq-deepseek-r1-70b","modelName":"DeepSeek R1 70B","model":"groq/deepseek-r1-distill-llama-70b","apiBase":"https://api.groq.com/openai/v1","keyURL":"https://console.groq.com/keys","needsKey":true},
+
+  {"name":"OpenRouter","id":"openrouter-auto","modelName":"Auto (best available)","model":"openrouter/auto","apiBase":"https://openrouter.ai/api/v1","keyURL":"https://openrouter.ai/keys","needsKey":true},
+  {"name":"OpenRouter","id":"openrouter-claude-opus-4.6","modelName":"Claude Opus 4.6","model":"openrouter/anthropic/claude-opus-4-6","apiBase":"https://openrouter.ai/api/v1","keyURL":"https://openrouter.ai/keys","needsKey":true},
+  {"name":"OpenRouter","id":"openrouter-claude-sonnet-4.6","modelName":"Claude Sonnet 4.6","model":"openrouter/anthropic/claude-sonnet-4-6","apiBase":"https://openrouter.ai/api/v1","keyURL":"https://openrouter.ai/keys","needsKey":true},
+  {"name":"OpenRouter","id":"openrouter-gpt-4o","modelName":"GPT-4o","model":"openrouter/openai/gpt-4o","apiBase":"https://openrouter.ai/api/v1","keyURL":"https://openrouter.ai/keys","needsKey":true},
+  {"name":"OpenRouter","id":"openrouter-gpt-5.2","modelName":"GPT-5.2","model":"openrouter/openai/gpt-5.2","apiBase":"https://openrouter.ai/api/v1","keyURL":"https://openrouter.ai/keys","needsKey":true},
+  {"name":"OpenRouter","id":"openrouter-gemini-2.5-pro","modelName":"Gemini 2.5 Pro","model":"openrouter/google/gemini-2.5-pro","apiBase":"https://openrouter.ai/api/v1","keyURL":"https://openrouter.ai/keys","needsKey":true},
+  {"name":"OpenRouter","id":"openrouter-deepseek-r1","modelName":"DeepSeek R1","model":"openrouter/deepseek/deepseek-r1","apiBase":"https://openrouter.ai/api/v1","keyURL":"https://openrouter.ai/keys","needsKey":true},
+  {"name":"OpenRouter","id":"openrouter-llama-3.3-70b","modelName":"Llama 3.3 70B","model":"openrouter/meta-llama/llama-3.3-70b-instruct","apiBase":"https://openrouter.ai/api/v1","keyURL":"https://openrouter.ai/keys","needsKey":true},
+  {"name":"OpenRouter","id":"openrouter-mistral-large","modelName":"Mistral Large","model":"openrouter/mistralai/mistral-large","apiBase":"https://openrouter.ai/api/v1","keyURL":"https://openrouter.ai/keys","needsKey":true},
+  {"name":"OpenRouter","id":"openrouter-qwen-2.5-72b","modelName":"Qwen 2.5 72B","model":"openrouter/qwen/qwen-2.5-72b-instruct","apiBase":"https://openrouter.ai/api/v1","keyURL":"https://openrouter.ai/keys","needsKey":true},
+
+  {"name":"Mistral AI","id":"mistral-large","modelName":"Mistral Large","model":"mistral/mistral-large-latest","apiBase":"https://api.mistral.ai/v1","keyURL":"https://console.mistral.ai/api-keys","needsKey":true},
+  {"name":"Mistral AI","id":"mistral-small","modelName":"Mistral Small","model":"mistral/mistral-small-latest","apiBase":"https://api.mistral.ai/v1","keyURL":"https://console.mistral.ai/api-keys","needsKey":true},
+  {"name":"Mistral AI","id":"mistral-codestral","modelName":"Codestral","model":"mistral/codestral-latest","apiBase":"https://api.mistral.ai/v1","keyURL":"https://console.mistral.ai/api-keys","needsKey":true},
+  {"name":"Mistral AI","id":"mistral-pixtral-large","modelName":"Pixtral Large","model":"mistral/pixtral-large-latest","apiBase":"https://api.mistral.ai/v1","keyURL":"https://console.mistral.ai/api-keys","needsKey":true},
+
+  {"name":"Cerebras","id":"cerebras-llama-3.3-70b","modelName":"Llama 3.3 70B","model":"cerebras/llama-3.3-70b","apiBase":"https://api.cerebras.ai/v1","keyURL":"https://inference.cerebras.ai/","needsKey":true},
+  {"name":"Cerebras","id":"cerebras-llama-3.1-8b","modelName":"Llama 3.1 8B","model":"cerebras/llama-3.1-8b","apiBase":"https://api.cerebras.ai/v1","keyURL":"https://inference.cerebras.ai/","needsKey":true},
+
+  {"name":"Ollama","id":"ollama-llama3","modelName":"Llama 3","model":"ollama/llama3","apiBase":"http://localhost:11434/v1","needsKey":false},
+  {"name":"Ollama","id":"ollama-llama3.1","modelName":"Llama 3.1","model":"ollama/llama3.1","apiBase":"http://localhost:11434/v1","needsKey":false},
+  {"name":"Ollama","id":"ollama-llama3.3","modelName":"Llama 3.3 70B","model":"ollama/llama3.3","apiBase":"http://localhost:11434/v1","needsKey":false},
+  {"name":"Ollama","id":"ollama-mistral","modelName":"Mistral 7B","model":"ollama/mistral","apiBase":"http://localhost:11434/v1","needsKey":false},
+  {"name":"Ollama","id":"ollama-codellama","modelName":"Code Llama","model":"ollama/codellama","apiBase":"http://localhost:11434/v1","needsKey":false},
+  {"name":"Ollama","id":"ollama-phi3","modelName":"Phi-3","model":"ollama/phi3","apiBase":"http://localhost:11434/v1","needsKey":false},
+  {"name":"Ollama","id":"ollama-gemma2","modelName":"Gemma 2","model":"ollama/gemma2","apiBase":"http://localhost:11434/v1","needsKey":false},
+  {"name":"Ollama","id":"ollama-qwen2.5","modelName":"Qwen 2.5","model":"ollama/qwen2.5","apiBase":"http://localhost:11434/v1","needsKey":false},
+  {"name":"Ollama","id":"ollama-deepseek-r1","modelName":"DeepSeek R1","model":"ollama/deepseek-r1","apiBase":"http://localhost:11434/v1","needsKey":false},
+  {"name":"Ollama","id":"ollama-qwq","modelName":"QwQ","model":"ollama/qwq","apiBase":"http://localhost:11434/v1","needsKey":false}
+]

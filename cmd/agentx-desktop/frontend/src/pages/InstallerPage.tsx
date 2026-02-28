@@ -39,23 +39,14 @@ export default function InstallerPage({ showToast, onComplete }: Props) {
     setProgress(null);
     try {
       await window.go.main.InstallerService.InstallBinary();
-      setInstalled(true);
-      showToast("AgentX installed successfully!", "success");
       const p = await window.go.main.InstallerService.DetectPlatform();
       setPlatform(p);
+      setInstalled(true);
+      showToast("Gateway installed successfully!", "success");
     } catch (e: any) {
       showToast(`Install failed: ${e}`, "error");
     } finally {
       setInstalling(false);
-    }
-  };
-
-  const installService = async () => {
-    try {
-      await window.go.main.InstallerService.InstallService();
-      showToast("Service installed and started", "success");
-    } catch (e: any) {
-      showToast(`Service install failed: ${e}`, "error");
     }
   };
 
@@ -68,53 +59,21 @@ export default function InstallerPage({ showToast, onComplete }: Props) {
   return (
     <div className="max-w-xl mx-auto space-y-6">
       <div className="text-center space-y-2">
-        <h2 className="text-3xl font-bold">Install AgentX</h2>
-        <p className="text-white/40 text-sm">
-          Download and install the AgentX binary to get started.
+        <h2 className="text-3xl font-bold uppercase tracking-[0.2em] text-glow-pink">Install AgentX</h2>
+        <p className="text-white/35 text-sm">
+          Download and install the AgentX gateway to get started.
         </p>
       </div>
 
-      <NeonCard title="Platform">
-        {platform ? (
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-white/50">OS</span>
-              <span className="text-white capitalize">{platform.os}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-white/50">Architecture</span>
-              <span className="text-white">{platform.arch}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-white/50">Install Directory</span>
-              <span className="text-white font-mono text-xs">{platform.installDir}</span>
-            </div>
-            {platform.binaryExists && (
-              <div className="flex justify-between">
-                <span className="text-white/50">Installed Version</span>
-                <span className="text-neon-cyan">{platform.version || "unknown"}</span>
-              </div>
-            )}
-            {latestVersion && (
-              <div className="flex justify-between">
-                <span className="text-white/50">Latest Release</span>
-                <span className={hasUpdate ? "text-neon-pink font-medium" : "text-neon-pink"}>
-                  {latestVersion}{hasUpdate ? " — update available!" : ""}
-                </span>
-              </div>
-            )}
-          </div>
-        ) : (
-          <p className="text-white/40 text-sm">Detecting platform...</p>
-        )}
-      </NeonCard>
-
       {!installed ? (
-        <NeonCard>
+        <NeonCard glow>
           <div className="space-y-4">
-            <p className="text-sm text-white/60">
-              Download the AgentX binary from GitHub releases.
-            </p>
+            {platform && (
+              <div className="flex items-center justify-between text-xs text-white/40">
+                <span className="uppercase tracking-wide">{platform.os} / {platform.arch}</span>
+                {latestVersion && <span className="text-neon-pink">{latestVersion}</span>}
+              </div>
+            )}
             {progress && <DownloadProgressBar progress={progress} />}
             <NeonButton onClick={install} disabled={installing} size="lg" className="w-full">
               {installing ? "Installing..." : "Install AgentX"}
@@ -122,22 +81,22 @@ export default function InstallerPage({ showToast, onComplete }: Props) {
           </div>
         </NeonCard>
       ) : (
-        <NeonCard>
+        <NeonCard variant="green">
           <div className="space-y-5">
-            <div className="flex items-center gap-3 text-green-400">
-              <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center text-lg">
+            <div className="flex items-center gap-3 text-neon-green">
+              <div className="w-10 h-10 rounded-full bg-neon-green/15 flex items-center justify-center text-xl shadow-glow-green-sm">
                 ✓
               </div>
               <div>
-                <p className="text-sm font-medium">AgentX binary installed</p>
-                <p className="text-xs text-white/40">{platform?.binaryPath}</p>
+                <p className="text-base font-bold uppercase tracking-wide">Gateway Installed</p>
+                <p className="text-xs text-white/30">{platform?.version || latestVersion}</p>
               </div>
             </div>
 
             {hasUpdate && (
-              <div className="border-t border-white/10 pt-4 space-y-3">
-                <p className="text-sm text-white/60">
-                  A newer version ({latestVersion}) is available. You have {platform?.version}.
+              <div className="border-t border-white/5 pt-4 space-y-3">
+                <p className="text-sm text-white/50">
+                  A newer version ({latestVersion}) is available.
                 </p>
                 {progress && <DownloadProgressBar progress={progress} />}
                 <NeonButton onClick={install} disabled={installing} size="lg" className="w-full">
@@ -145,15 +104,6 @@ export default function InstallerPage({ showToast, onComplete }: Props) {
                 </NeonButton>
               </div>
             )}
-
-            <div className="border-t border-white/10 pt-4 space-y-3">
-              <p className="text-xs text-white/40">
-                Optional: install as a system service so the gateway starts automatically on boot.
-              </p>
-              <NeonButton onClick={installService} variant="ghost" size="sm">
-                Install as System Service
-              </NeonButton>
-            </div>
 
             {onComplete && (
               <NeonButton onClick={onComplete} size="lg" className="w-full">
