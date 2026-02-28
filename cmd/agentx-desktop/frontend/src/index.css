@@ -6,7 +6,7 @@ body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
     Ubuntu, Cantarell, sans-serif;
-  background: #121218;
+  background: linear-gradient(145deg, #0a0a12 0%, #1a0825 40%, #120a1a 70%, #0a0a12 100%);
   color: #fff;
   overflow: hidden;
 }
@@ -18,26 +18,82 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 0, 146, 0.25);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 0, 146, 0.4);
 }
 
-/* Glass card base */
+/* ── Card base ── thick pink neon border with strong glow */
 .glass-card {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(15, 10, 25, 0.85);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
+  border: 2px solid rgba(255, 0, 146, 0.4);
+  border-radius: 14px;
+  box-shadow:
+    0 0 15px rgba(255, 0, 146, 0.2),
+    0 0 40px rgba(255, 0, 146, 0.08),
+    inset 0 0 20px rgba(255, 0, 146, 0.03);
 }
 
-/* Neon glow animations */
+/* ── Card color variants ── */
+.card-pink {
+  border-color: rgba(255, 0, 146, 0.5);
+  box-shadow:
+    0 0 18px rgba(255, 0, 146, 0.3),
+    0 0 50px rgba(255, 0, 146, 0.1),
+    inset 0 0 25px rgba(255, 0, 146, 0.04);
+}
+
+.card-green {
+  border-color: rgba(0, 255, 65, 0.45);
+  box-shadow:
+    0 0 18px rgba(0, 255, 65, 0.25),
+    0 0 50px rgba(0, 255, 65, 0.08),
+    inset 0 0 25px rgba(0, 255, 65, 0.03);
+}
+
+.card-cyan {
+  border-color: rgba(0, 255, 255, 0.4);
+  box-shadow:
+    0 0 18px rgba(0, 255, 255, 0.25),
+    0 0 50px rgba(0, 255, 255, 0.08),
+    inset 0 0 25px rgba(0, 255, 255, 0.03);
+}
+
+.card-purple {
+  border-color: rgba(174, 0, 255, 0.4);
+  box-shadow:
+    0 0 18px rgba(174, 0, 255, 0.25),
+    0 0 50px rgba(174, 0, 255, 0.08),
+    inset 0 0 25px rgba(174, 0, 255, 0.03);
+}
+
+/* ── Text glow utilities ── */
+.text-glow-pink {
+  text-shadow: 0 0 10px rgba(255, 0, 146, 0.6), 0 0 30px rgba(255, 0, 146, 0.3);
+}
+.text-glow-green {
+  text-shadow: 0 0 10px rgba(0, 255, 65, 0.5), 0 0 20px rgba(0, 255, 65, 0.2);
+}
+.text-glow-cyan {
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.5), 0 0 20px rgba(0, 255, 255, 0.2);
+}
+
+/* ── Neon glow animations ── */
 @keyframes pulse-neon {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.7; }
 }
 .animate-pulse-neon {
   animation: pulse-neon 2s ease-in-out infinite;
+}
+
+@keyframes border-glow {
+  0%, 100% { border-color: rgba(255, 0, 146, 0.5); box-shadow: 0 0 18px rgba(255, 0, 146, 0.3), 0 0 50px rgba(255, 0, 146, 0.1); }
+  50% { border-color: rgba(255, 0, 146, 0.7); box-shadow: 0 0 25px rgba(255, 0, 146, 0.45), 0 0 60px rgba(255, 0, 146, 0.15); }
+}
+.animate-border-glow {
+  animation: border-glow 3s ease-in-out infinite;
 }

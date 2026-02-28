@@ -59,7 +59,7 @@ export default function DashboardPage({ showToast }: Props) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Dashboard</h2>
+        <h2 className="text-2xl font-bold uppercase tracking-[0.2em] text-glow-pink">Dashboard</h2>
         <div className="flex gap-2">
           {!status?.running ? (
             <NeonButton onClick={handleStart} size="sm">Start</NeonButton>

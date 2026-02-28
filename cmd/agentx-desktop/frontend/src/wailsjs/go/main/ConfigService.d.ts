@@ -13,6 +13,8 @@ export function GetConfig():Promise<config.Config>;
 
 export function GetModelList():Promise<Array<config.ModelConfig>>;
 
+export function QuickSetupChannel(arg1:string,arg2:string):Promise<void>;
+
 export function QuickSetupProvider(arg1:string,arg2:string):Promise<void>;
 
 export function RemoveModel(arg1:number):Promise<void>;

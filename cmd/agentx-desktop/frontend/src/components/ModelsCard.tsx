@@ -8,25 +8,25 @@ export default function ModelsCard({ models }: Props) {
   const configured = models.filter((m) => m.hasKey);
 
   return (
-    <div className="glass-card p-5">
-      <h3 className="text-sm font-medium text-white/70 mb-4">
-        Models ({configured.length} configured)
+    <div className="glass-card card-green p-5">
+      <h3 className="text-xs font-bold uppercase tracking-widest text-white/70 mb-4">
+        Models <span className="text-neon-green">({configured.length} configured)</span>
       </h3>
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         {models.map((m) => (
           <div
             key={m.modelName}
             className="flex items-center justify-between text-sm"
           >
             <div>
-              <span className={m.hasKey ? "text-white" : "text-white/30"}>
+              <span className={m.hasKey ? "text-white" : "text-white/25"}>
                 {m.modelName}
               </span>
-              <span className="text-white/20 text-xs ml-2">{m.model}</span>
+              <span className="text-white/15 text-xs ml-2 font-mono">{m.model}</span>
             </div>
             <span
-              className={`w-2 h-2 rounded-full ${
-                m.hasKey ? "bg-neon-pink" : "bg-white/20"
+              className={`w-2.5 h-2.5 rounded-full ${
+                m.hasKey ? "bg-neon-green shadow-glow-green-sm" : "bg-white/15"
               }`}
             />
           </div>

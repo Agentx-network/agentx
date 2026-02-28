@@ -3,6 +3,7 @@ import type { ProviderOption } from "../lib/types";
 import NeonButton from "../components/ui/NeonButton";
 import NeonCard from "../components/ui/NeonCard";
 import NeonInput from "../components/ui/NeonInput";
+import SearchableSelect from "../components/ui/SearchableSelect";
 
 interface Props {
   showToast: (msg: string, type: "success" | "error") => void;
@@ -44,51 +45,37 @@ export default function OnboardPage({ showToast, onComplete }: Props) {
   return (
     <div className="max-w-xl mx-auto space-y-6">
       <div className="text-center space-y-2">
-        <h2 className="text-3xl font-bold">Configure AI Provider</h2>
-        <p className="text-white/40 text-sm">
+        <h2 className="text-3xl font-bold uppercase tracking-[0.2em] text-glow-pink">Configure AI Provider</h2>
+        <p className="text-white/35 text-sm">
           Choose an AI provider and enter your API key to power AgentX.
         </p>
       </div>
 
       <NeonCard>
-        <div className="space-y-1">
-          {providers.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => {
-                setSelected(p.id);
-                setApiKey("");
-              }}
-              className={`w-full flex items-center justify-between px-4 py-3 rounded-lg text-left transition-all ${
-                selected === p.id
-                  ? "bg-neon-pink/10 border border-neon-pink/40"
-                  : "hover:bg-white/5 border border-transparent"
-              }`}
-            >
-              <div>
-                <p className={`text-sm font-medium ${selected === p.id ? "text-white" : "text-white/70"}`}>
-                  {p.name}
-                </p>
-                <p className="text-xs text-white/30">{p.modelName}</p>
-              </div>
-              {!p.needsKey && (
-                <span className="text-xs text-neon-cyan/70 bg-neon-cyan/10 px-2 py-0.5 rounded">
-                  No key needed
-                </span>
-              )}
-            </button>
-          ))}
+        <div className="space-y-4">
+          <SearchableSelect
+            label="Provider"
+            placeholder="Search by provider or model name..."
+            options={providers.map((p) => ({
+              id: p.id,
+              label: `${p.name} — ${p.modelName}`,
+              sublabel: p.model,
+              badge: p.needsKey ? undefined : "Local",
+            }))}
+            value={selected}
+            onChange={(id) => { setSelected(id); setApiKey(""); }}
+          />
         </div>
       </NeonCard>
 
       {selectedProvider && (
-        <NeonCard>
+        <NeonCard variant="pink" glow>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium text-white/80">
+              <h3 className="text-sm font-bold uppercase tracking-widest text-white/90">
                 {selectedProvider.name}
               </h3>
-              <span className="text-xs text-white/30 font-mono">
+              <span className="text-xs text-white/25 font-mono">
                 {selectedProvider.model}
               </span>
             </div>
@@ -107,7 +94,7 @@ export default function OnboardPage({ showToast, onComplete }: Props) {
                     href={selectedProvider.keyURL}
                     target="_blank"
                     rel="noopener"
-                    className="text-xs text-neon-cyan hover:underline inline-block"
+                    className="text-xs text-neon-cyan hover:underline inline-block text-glow-cyan"
                   >
                     Get your API key at {selectedProvider.keyURL.replace("https://", "")} →
                   </a>
@@ -123,7 +110,7 @@ export default function OnboardPage({ showToast, onComplete }: Props) {
               </div>
             ) : (
               <div className="space-y-3">
-                <p className="text-sm text-white/50">
+                <p className="text-sm text-white/40">
                   This provider runs locally — no API key required.
                 </p>
                 <NeonButton
@@ -142,7 +129,7 @@ export default function OnboardPage({ showToast, onComplete }: Props) {
 
       <button
         onClick={onComplete}
-        className="block mx-auto text-xs text-white/30 hover:text-white/50 transition-colors"
+        className="block mx-auto text-xs text-white/25 hover:text-neon-pink/60 transition-colors uppercase tracking-widest"
       >
         Skip for now
       </button>

@@ -3,7 +3,7 @@ import type { ProviderOption } from "../lib/types";
 import NeonCard from "../components/ui/NeonCard";
 import NeonButton from "../components/ui/NeonButton";
 import NeonInput from "../components/ui/NeonInput";
-import NeonSelect from "../components/ui/NeonSelect";
+import SearchableSelect from "../components/ui/SearchableSelect";
 import ProvidersSection from "../components/ProvidersSection";
 import ChannelsSection from "../components/ChannelsSection";
 import AgentSection from "../components/AgentSection";
@@ -42,18 +42,24 @@ export default function ConfigPage({ showToast }: Props) {
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <h2 className="text-2xl font-bold">Configuration</h2>
+      <h2 className="text-2xl font-bold uppercase tracking-[0.2em] text-glow-pink">Configuration</h2>
 
-      <NeonCard title="Quick Setup" collapsible>
+      <NeonCard title="Quick Setup" collapsible variant="pink">
         <div className="space-y-3">
-          <p className="text-sm text-white/50">
+          <p className="text-sm text-white/40">
             Quickly configure an AI provider with one click.
           </p>
-          <NeonSelect
+          <SearchableSelect
             label="Provider"
+            placeholder="Search by provider or model name..."
+            options={providers.map((p) => ({
+              id: p.id,
+              label: `${p.name} — ${p.modelName}`,
+              sublabel: p.model,
+              badge: p.needsKey ? undefined : "Local",
+            }))}
             value={selectedProvider}
-            options={providers.map((p) => ({ label: p.name, value: p.id }))}
-            onChange={setSelectedProvider}
+            onChange={(id) => { setSelectedProvider(id); setApiKey(""); }}
           />
           {selected?.needsKey && (
             <div>
@@ -82,15 +88,15 @@ export default function ConfigPage({ showToast }: Props) {
         </div>
       </NeonCard>
 
-      <NeonCard title="Models" collapsible>
+      <NeonCard title="Models" collapsible variant="green">
         <ProvidersSection showToast={showToast} />
       </NeonCard>
 
-      <NeonCard title="Channels" collapsible>
+      <NeonCard title="Channels" collapsible variant="cyan">
         <ChannelsSection showToast={showToast} />
       </NeonCard>
 
-      <NeonCard title="Agent Defaults" collapsible>
+      <NeonCard title="Agent Defaults" collapsible variant="purple">
         <AgentSection showToast={showToast} />
       </NeonCard>
     </div>

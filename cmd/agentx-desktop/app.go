@@ -58,23 +58,21 @@ type SetupState struct {
 	BinaryInstalled bool `json:"binaryInstalled"`
 	ConfigExists    bool `json:"configExists"`
 	HasAPIKey       bool `json:"hasApiKey"`
+	HasChannel      bool `json:"hasChannel"`
 }
 
 // GetSetupState checks install + onboard progress in one call.
 func (a *App) GetSetupState() SetupState {
 	state := SetupState{}
 
-	// Check binary
 	info := (&InstallerService{}).DetectPlatform()
 	state.BinaryInstalled = info.BinaryExists
 
-	// Check config
 	cfgPath := getConfigPath()
 	if _, err := os.Stat(cfgPath); err == nil {
 		state.ConfigExists = true
 	}
 
-	// Check if any model has an API key configured
 	if state.ConfigExists {
 		cfg, err := loadConfigSafe()
 		if err == nil {
@@ -83,6 +81,13 @@ func (a *App) GetSetupState() SetupState {
 					state.HasAPIKey = true
 					break
 				}
+			}
+			if cfg.Channels.Telegram.Enabled && cfg.Channels.Telegram.Token != "" {
+				state.HasChannel = true
+			} else if cfg.Channels.Discord.Enabled && cfg.Channels.Discord.Token != "" {
+				state.HasChannel = true
+			} else if cfg.Channels.Slack.Enabled && cfg.Channels.Slack.BotToken != "" {
+				state.HasChannel = true
 			}
 		}
 	}

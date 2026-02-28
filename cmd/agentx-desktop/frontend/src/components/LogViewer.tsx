@@ -31,20 +31,20 @@ export default function LogViewer({ onRefresh }: Props) {
   }, []);
 
   return (
-    <div className="glass-card p-5">
+    <div className="glass-card card-purple p-5">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-medium text-white/70">Logs</h3>
+        <h3 className="text-xs font-bold uppercase tracking-widest text-white/70">Logs</h3>
         <button
           onClick={() => { fetchLogs(); onRefresh?.(); }}
           disabled={loading}
-          className="text-xs text-neon-cyan hover:text-neon-cyan/80 transition-colors"
+          className="text-[10px] text-neon-cyan hover:text-neon-cyan/80 uppercase tracking-widest font-bold transition-colors"
         >
           {loading ? "Loading..." : "Refresh"}
         </button>
       </div>
       <pre
         ref={ref}
-        className="bg-black/40 rounded-lg p-3 text-xs text-white/70 font-mono overflow-auto max-h-64 whitespace-pre-wrap"
+        className="bg-black/70 rounded-lg p-4 text-xs text-neon-green/70 font-mono overflow-auto max-h-64 whitespace-pre-wrap border border-neon-green/10"
       >
         {logs || "No logs available"}
       </pre>

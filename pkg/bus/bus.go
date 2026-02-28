@@ -5,13 +5,20 @@ import (
 	"sync"
 )
 
+// StreamSubscriber receives copies of stream deltas that match its filter.
+type StreamSubscriber struct {
+	Ch     chan StreamDelta
+	Filter func(StreamDelta) bool // nil means accept all
+}
+
 type MessageBus struct {
-	inbound  chan InboundMessage
-	outbound chan OutboundMessage
-	stream   chan StreamDelta
-	handlers map[string]MessageHandler
-	closed   bool
-	mu       sync.RWMutex
+	inbound    chan InboundMessage
+	outbound   chan OutboundMessage
+	stream     chan StreamDelta
+	streamSubs []*StreamSubscriber
+	handlers   map[string]MessageHandler
+	closed     bool
+	mu         sync.RWMutex
 }
 
 func NewMessageBus() *MessageBus {
@@ -69,6 +76,37 @@ func (mb *MessageBus) PublishStreamDelta(delta StreamDelta) {
 	case mb.stream <- delta:
 	default:
 		// Drop delta if channel is full to avoid blocking
+	}
+	// Fan-out to additional subscribers
+	for _, sub := range mb.streamSubs {
+		if sub.Filter == nil || sub.Filter(delta) {
+			select {
+			case sub.Ch <- delta:
+			default:
+			}
+		}
+	}
+}
+
+// AddStreamSubscriber registers an additional stream consumer that receives
+// copies of deltas matching its filter. Caller must eventually call
+// RemoveStreamSubscriber.
+func (mb *MessageBus) AddStreamSubscriber(sub *StreamSubscriber) {
+	mb.mu.Lock()
+	defer mb.mu.Unlock()
+	mb.streamSubs = append(mb.streamSubs, sub)
+}
+
+// RemoveStreamSubscriber unregisters a subscriber and closes its channel.
+func (mb *MessageBus) RemoveStreamSubscriber(sub *StreamSubscriber) {
+	mb.mu.Lock()
+	defer mb.mu.Unlock()
+	for i, s := range mb.streamSubs {
+		if s == sub {
+			mb.streamSubs = append(mb.streamSubs[:i], mb.streamSubs[i+1:]...)
+			close(sub.Ch)
+			return
+		}
 	}
 }
 

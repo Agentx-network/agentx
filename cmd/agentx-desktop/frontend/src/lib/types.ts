@@ -95,6 +95,14 @@ export interface SetupState {
   binaryInstalled: boolean;
   configExists: boolean;
   hasApiKey: boolean;
+  hasChannel: boolean;
 }
 
-export type Page = "installer" | "onboard" | "dashboard" | "config";
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  timestamp: number;
+}
+
+export type Page = "installer" | "onboard" | "channels" | "agent" | "dashboard" | "config" | "chat";
