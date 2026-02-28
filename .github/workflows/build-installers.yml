@@ -1,0 +1,91 @@
+name: Build Native Installers
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to build installers for (e.g. v0.3.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  # ─── Windows .exe installer (Inno Setup) ───
+  windows-installer:
+    name: Windows Installer
+    runs-on: windows-latest
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Download Windows binary from release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = "${{ env.RELEASE_TAG }}"
+          $asset = "agentx-windows-amd64.exe"
+          $url = "https://github.com/${{ github.repository }}/releases/download/${tag}/${asset}"
+          Invoke-WebRequest -Uri $url -OutFile installer/windows/agentx.exe
+
+      - name: Build installer with Inno Setup
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.5
+        with:
+          path: installer/windows/agentx.iss
+          options: /DMyAppVersion=${{ env.RELEASE_TAG }}
+
+      - name: Upload installer to release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${{ env.RELEASE_TAG }}"
+          installer=$(find . -name "AgentX-Setup-*.exe" -type f | head -1)
+          gh release upload "$tag" "$installer" --clobber
+
+  # ─── macOS .pkg installers ───
+  macos-installer:
+    name: macOS Installer (${{ matrix.arch }})
+    runs-on: macos-latest
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    strategy:
+      matrix:
+        include:
+          - arch: arm64
+            asset: agentx-darwin-arm64
+          - arch: amd64
+            asset: agentx-darwin-amd64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Download macOS binary from release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${{ env.RELEASE_TAG }}"
+          url="https://github.com/${{ github.repository }}/releases/download/${tag}/${{ matrix.asset }}"
+          curl -fsSL "$url" -o agentx
+          chmod +x agentx
+
+      - name: Build .pkg installer
+        run: |
+          chmod +x installer/macos/build-pkg.sh
+          version="${{ env.RELEASE_TAG }}"
+          version="${version#v}"
+          ./installer/macos/build-pkg.sh ./agentx "$version" "${{ matrix.arch }}"
+
+      - name: Upload .pkg to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${{ env.RELEASE_TAG }}"
+          pkg=$(find . -name "AgentX-*.pkg" -type f | head -1)
+          gh release upload "$tag" "$pkg" --clobber

@@ -107,3 +107,14 @@ release:
     ---
 
     Released by [GoReleaser](https://github.com/goreleaser/goreleaser).
+
+brews:
+  - repository:
+      owner: Agentx-network
+      name: homebrew-tap
+    homepage: https://agentx.network
+    description: "Autonomous AI agent framework"
+    install: |
+      bin.install "agentx"
+    test: |
+      system "#{bin}/agentx", "version"
