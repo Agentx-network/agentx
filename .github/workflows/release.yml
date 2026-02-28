@@ -115,33 +115,29 @@ jobs:
             goos: linux
             goarch: amd64
             archive: agentx-desktop_Linux_x86_64.tar.gz
-            archive_cmd: tar czf
-            deps: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev
-            tags: webkit2_41
+            deps: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev build-essential pkg-config
+            wails_flags: "-tags webkit2_41"
           - os: macos-13
             os_name: macOS-Intel
             goos: darwin
             goarch: amd64
             archive: agentx-desktop_Darwin_x86_64.tar.gz
-            archive_cmd: tar czf
             deps: ""
-            tags: ""
+            wails_flags: ""
           - os: macos-latest
             os_name: macOS-ARM
             goos: darwin
             goarch: arm64
             archive: agentx-desktop_Darwin_arm64.tar.gz
-            archive_cmd: tar czf
             deps: ""
-            tags: ""
+            wails_flags: ""
           - os: windows-latest
             os_name: Windows
             goos: windows
             goarch: amd64
             archive: agentx-desktop_Windows_x86_64.zip
-            archive_cmd: zip
             deps: ""
-            tags: ""
+            wails_flags: ""
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout tag
@@ -165,43 +161,27 @@ jobs:
         shell: bash
         run: ${{ matrix.deps }}
 
-      - name: Build frontend
+      - name: Install Wails CLI
         shell: bash
-        run: |
-          cd cmd/agentx-desktop/frontend
-          npm install
-          npm run build
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
-      - name: Build desktop binary
+      - name: Build desktop app
         shell: bash
-        env:
-          CGO_ENABLED: "1"
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-        run: |
-          TAGS=""
-          if [ -n "${{ matrix.tags }}" ]; then
-            TAGS="-tags ${{ matrix.tags }}"
-          fi
-          EXT=""
-          if [ "${{ matrix.goos }}" = "windows" ]; then
-            EXT=".exe"
-          fi
-          go build -ldflags="-s -w" $TAGS -o agentx-desktop${EXT} ./cmd/agentx-desktop
+        working-directory: cmd/agentx-desktop
+        run: wails build -clean -ldflags="-s -w" ${{ matrix.wails_flags }}
 
       - name: Create archive (tar.gz)
         if: matrix.goos != 'windows'
         shell: bash
-        run: tar czf ${{ matrix.archive }} agentx-desktop
+        run: tar czf ${{ matrix.archive }} -C cmd/agentx-desktop/build/bin agentx-desktop
 
       - name: Create archive (zip)
         if: matrix.goos == 'windows'
         shell: pwsh
-        run: Compress-Archive -Path agentx-desktop.exe -DestinationPath ${{ matrix.archive }}
+        run: Compress-Archive -Path cmd/agentx-desktop/build/bin/agentx-desktop.exe -DestinationPath ${{ matrix.archive }}
 
       - name: Upload to release
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release upload "${{ inputs.tag }}" "${{ matrix.archive }}" --clobber
+        run: gh release upload "${{ inputs.tag }}" "${{ matrix.archive }}" --clobber
