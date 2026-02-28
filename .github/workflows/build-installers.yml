@@ -142,7 +142,7 @@ jobs:
   # ─── Desktop App: macOS .dmg ───
   desktop-macos:
     name: Desktop App (macOS ${{ matrix.arch }})
-    runs-on: ${{ matrix.os }}
+    runs-on: macos-latest
     env:
       RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
     strategy:
@@ -155,7 +155,6 @@ jobs:
           - arch: x86_64
             platform: darwin/amd64
             asset: AgentX-Desktop-x86_64.dmg
-    runs-on: macos-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v6
