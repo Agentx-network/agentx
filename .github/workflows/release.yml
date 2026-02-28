@@ -100,3 +100,108 @@ jobs:
           gh release edit "${{ inputs.tag }}" \
             --draft=${{ inputs.draft }} \
             --prerelease=${{ inputs.prerelease }}
+
+  desktop-build:
+    name: Desktop Build (${{ matrix.os_name }})
+    needs: create-tag
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            os_name: Linux
+            goos: linux
+            goarch: amd64
+            archive: agentx-desktop_Linux_x86_64.tar.gz
+            archive_cmd: tar czf
+            deps: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev
+            tags: webkit2_41
+          - os: macos-13
+            os_name: macOS-Intel
+            goos: darwin
+            goarch: amd64
+            archive: agentx-desktop_Darwin_x86_64.tar.gz
+            archive_cmd: tar czf
+            deps: ""
+            tags: ""
+          - os: macos-latest
+            os_name: macOS-ARM
+            goos: darwin
+            goarch: arm64
+            archive: agentx-desktop_Darwin_arm64.tar.gz
+            archive_cmd: tar czf
+            deps: ""
+            tags: ""
+          - os: windows-latest
+            os_name: Windows
+            goos: windows
+            goarch: amd64
+            archive: agentx-desktop_Windows_x86_64.zip
+            archive_cmd: zip
+            deps: ""
+            tags: ""
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.tag }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install system deps
+        if: matrix.deps != ''
+        shell: bash
+        run: ${{ matrix.deps }}
+
+      - name: Build frontend
+        shell: bash
+        run: |
+          cd cmd/agentx-desktop/frontend
+          npm install
+          npm run build
+
+      - name: Build desktop binary
+        shell: bash
+        env:
+          CGO_ENABLED: "1"
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          TAGS=""
+          if [ -n "${{ matrix.tags }}" ]; then
+            TAGS="-tags ${{ matrix.tags }}"
+          fi
+          EXT=""
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            EXT=".exe"
+          fi
+          go build -ldflags="-s -w" $TAGS -o agentx-desktop${EXT} ./cmd/agentx-desktop
+
+      - name: Create archive (tar.gz)
+        if: matrix.goos != 'windows'
+        shell: bash
+        run: tar czf ${{ matrix.archive }} agentx-desktop
+
+      - name: Create archive (zip)
+        if: matrix.goos == 'windows'
+        shell: pwsh
+        run: Compress-Archive -Path agentx-desktop.exe -DestinationPath ${{ matrix.archive }}
+
+      - name: Upload to release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ inputs.tag }}" "${{ matrix.archive }}" --clobber
