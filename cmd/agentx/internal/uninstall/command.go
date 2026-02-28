@@ -59,6 +59,12 @@ func runUninstall() error {
 		fmt.Println("  Removed gateway service")
 	}
 
+	if err := removeDesktopApp(); err != nil {
+		warnings = append(warnings, fmt.Sprintf("desktop app: %v", err))
+	} else {
+		fmt.Println("  Removed agentx-desktop")
+	}
+
 	if err := removeDataDir(); err != nil {
 		warnings = append(warnings, fmt.Sprintf("data directory: %v", err))
 	} else {
@@ -143,6 +149,49 @@ func removeDataDir() error {
 	}
 
 	return os.RemoveAll(dir)
+}
+
+func removeDesktopApp() error {
+	// Best-effort kill any running agentx-desktop processes.
+	if runtime.GOOS == "windows" {
+		_ = exec.Command("taskkill", "/IM", "agentx-desktop.exe", "/F").Run()
+	} else {
+		_ = exec.Command("pkill", "-f", "agentx-desktop").Run()
+	}
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("cannot determine home directory: %w", err)
+	}
+
+	// Check known install locations for the desktop binary.
+	binaryName := "agentx-desktop"
+	if runtime.GOOS == "windows" {
+		binaryName = "agentx-desktop.exe"
+	}
+
+	candidates := []string{
+		filepath.Join(home, ".local", "bin", binaryName),
+		filepath.Join("/usr", "local", "bin", binaryName),
+	}
+	if runtime.GOOS == "darwin" {
+		candidates = append(candidates, filepath.Join("/Applications", "AgentX Desktop.app"))
+	}
+
+	removed := false
+	for _, path := range candidates {
+		if _, err := os.Stat(path); err == nil {
+			if err := os.RemoveAll(path); err != nil {
+				return fmt.Errorf("remove %s: %w", path, err)
+			}
+			removed = true
+		}
+	}
+
+	if !removed {
+		return fmt.Errorf("agentx-desktop binary not found in known locations")
+	}
+	return nil
 }
 
 func removeBinary() error {

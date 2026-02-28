@@ -37,6 +37,7 @@ builds:
       - goos: windows
         goarch: arm
 
+
 dockers_v2:
   - id: agentx
     dockerfile: docker/Dockerfile.goreleaser

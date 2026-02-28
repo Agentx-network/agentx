@@ -11,7 +11,10 @@ build/
 /agentx
 /agentx-bin
 /agentx-test
+/agentx-desktop
 cmd/**/workspace
+node_modules/
+cmd/agentx-desktop/frontend/dist/
 
 # AgentX specific
 

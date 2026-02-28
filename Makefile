@@ -1,4 +1,4 @@
-.PHONY: all build install uninstall clean help test
+.PHONY: all build install uninstall clean help test desktop-dev desktop-build
 
 # Build variables
 BINARY_NAME=agentx
@@ -169,6 +169,17 @@ check: deps fmt vet test
 ## run: Build and run agentx
 run: build
 	@$(BUILD_DIR)/$(BINARY_NAME) $(ARGS)
+
+## desktop-dev: Run AgentX Desktop in development mode (hot reload)
+desktop-dev:
+	@echo "Starting AgentX Desktop in dev mode..."
+	@cd cmd/agentx-desktop && wails dev
+
+## desktop-build: Build AgentX Desktop for current platform
+desktop-build:
+	@echo "Building AgentX Desktop for $(PLATFORM)/$(ARCH)..."
+	@cd cmd/agentx-desktop && wails build
+	@echo "Desktop build complete"
 
 ## help: Show this help message
 help:
