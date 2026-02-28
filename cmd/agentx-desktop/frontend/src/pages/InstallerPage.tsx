@@ -59,6 +59,12 @@ export default function InstallerPage({ showToast, onComplete }: Props) {
     }
   };
 
+  const hasUpdate =
+    installed &&
+    latestVersion &&
+    platform?.version &&
+    !platform.version.includes(latestVersion.replace("v", ""));
+
   return (
     <div className="max-w-xl mx-auto space-y-6">
       <div className="text-center space-y-2">
@@ -92,7 +98,9 @@ export default function InstallerPage({ showToast, onComplete }: Props) {
             {latestVersion && (
               <div className="flex justify-between">
                 <span className="text-white/50">Latest Release</span>
-                <span className="text-neon-pink">{latestVersion}</span>
+                <span className={hasUpdate ? "text-neon-pink font-medium" : "text-neon-pink"}>
+                  {latestVersion}{hasUpdate ? " — update available!" : ""}
+                </span>
               </div>
             )}
           </div>
@@ -125,6 +133,18 @@ export default function InstallerPage({ showToast, onComplete }: Props) {
                 <p className="text-xs text-white/40">{platform?.binaryPath}</p>
               </div>
             </div>
+
+            {hasUpdate && (
+              <div className="border-t border-white/10 pt-4 space-y-3">
+                <p className="text-sm text-white/60">
+                  A newer version ({latestVersion}) is available. You have {platform?.version}.
+                </p>
+                {progress && <DownloadProgressBar progress={progress} />}
+                <NeonButton onClick={install} disabled={installing} size="lg" className="w-full">
+                  {installing ? "Updating..." : `Update to ${latestVersion}`}
+                </NeonButton>
+              </div>
+            )}
 
             <div className="border-t border-white/10 pt-4 space-y-3">
               <p className="text-xs text-white/40">
