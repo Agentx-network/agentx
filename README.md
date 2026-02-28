@@ -285,53 +285,15 @@ AgentX:    5 MB RAM + 0.3s startup + real-time streaming + parallel tools + 10 c
 
 <img src="assets/divider.gif" width="100%">
 
-## Quick Install
+## Install
 
 <div align="center">
 
-<h3><a href="https://agentx-network.github.io/agentx/install.html">&#11015;&#65039; Download AgentX for your platform</a></h3>
+  <a href="https://agentx-network.github.io/agentx/install.html"><img src="https://img.shields.io/badge/Download_AgentX-All_Platforms-FF0092?style=for-the-badge&labelColor=0a0015" alt="Download AgentX"></a>
 
-<p>Auto-detects your OS — one click to download, double-click to run.</p>
-
-<table>
-  <tr>
-    <td align="center"><b>&#x1F427; Linux</b></td>
-    <td align="center"><b>&#x1F34E; macOS</b></td>
-    <td align="center"><b>&#x1FA9F; Windows</b></td>
-    <td align="center"><b>&#x1F4F1; Android</b></td>
-  </tr>
-  <tr>
-    <td align="center"><a href="https://github.com/Agentx-network/agentx/releases/latest/download/agentx-linux-amd64">x86_64</a> · <a href="https://github.com/Agentx-network/agentx/releases/latest/download/agentx-linux-arm64">ARM64</a></td>
-    <td align="center"><a href="https://github.com/Agentx-network/agentx/releases/latest/download/agentx-darwin-arm64">Apple Silicon</a> · <a href="https://github.com/Agentx-network/agentx/releases/latest/download/agentx-darwin-amd64">Intel</a></td>
-    <td align="center"><a href="https://github.com/Agentx-network/agentx/releases/latest/download/agentx-windows-amd64.exe">x86_64</a></td>
-    <td align="center"><a href="https://github.com/Agentx-network/agentx/releases/latest/download/agentx-linux-arm64">Termux</a></td>
-  </tr>
-</table>
+  <p><b>Linux · macOS · Windows · Android</b> — auto-detects your platform, one click to install.</p>
 
 </div>
-
-<details>
-<summary><b>Or install via command line</b></summary>
-<br>
-
-**Linux / macOS:**
-```bash
-curl -fsSL https://raw.githubusercontent.com/Agentx-network/agentx/main/install.sh | bash
-```
-
-**Windows (PowerShell):**
-```powershell
-irm https://raw.githubusercontent.com/Agentx-network/agentx/main/install.ps1 | iex
-```
-
-**Homebrew:**
-```bash
-brew install Agentx-network/tap/agentx
-```
-
-</details>
-
-After downloading, run `agentx onboard` to launch the setup wizard.
 
 <img src="assets/divider.gif" width="100%">
 
