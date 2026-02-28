@@ -149,12 +149,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-14
-            arch: x86_64
-            asset: AgentX-Desktop-x86_64.dmg
-          - os: macos-latest
-            arch: arm64
+          - arch: arm64
+            platform: darwin/arm64
             asset: AgentX-Desktop-arm64.dmg
+          - arch: x86_64
+            platform: darwin/amd64
+            asset: AgentX-Desktop-x86_64.dmg
+    runs-on: macos-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -174,7 +175,7 @@ jobs:
 
       - name: Build macOS desktop app
         working-directory: cmd/agentx-desktop
-        run: wails build -clean -ldflags="-s -w"
+        run: wails build -clean -platform ${{ matrix.platform }} -ldflags="-s -w"
 
       - name: Create DMG
         run: |
