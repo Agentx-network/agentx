@@ -282,6 +282,106 @@ Once your PR is submitted, you can reach out to the assigned reviewers listed in
 
 ---
 
+## Releasing
+
+### How Releases Work
+
+Releases publish pre-built binaries to GitHub Releases. The desktop app (`agentx-desktop`) downloads the **raw binary** (not the archive) from the latest release using the URL pattern:
+
+```
+https://github.com/Agentx-network/agentx/releases/latest/download/agentx-{os}-{arch}
+```
+
+This means every release **must include raw binaries** alongside the `.tar.gz`/`.zip` archives.
+
+### Release Asset Naming
+
+| Asset | Description |
+| --- | --- |
+| `agentx-linux-amd64` | Raw binary — Linux x86_64 |
+| `agentx-linux-arm64` | Raw binary — Linux ARM64 (also used by Android/Termux) |
+| `agentx-linux-armv7` | Raw binary — Linux ARMv7 |
+| `agentx-darwin-amd64` | Raw binary — macOS Intel |
+| `agentx-darwin-arm64` | Raw binary — macOS Apple Silicon |
+| `agentx-windows-amd64.exe` | Raw binary — Windows x86_64 |
+| `agentx-linux-amd64.tar.gz` | Archive — for manual download |
+| `agentx-windows-amd64.zip` | Archive — for manual download |
+| `checksums.txt` | SHA-256 checksums for all assets |
+
+### Creating a Release
+
+#### Option 1: GitHub Actions (preferred)
+
+Trigger the release workflow from the Actions tab or CLI:
+
+```bash
+gh workflow run release.yml --field tag=v0.5.0 --field prerelease=false --field draft=false
+```
+
+This creates the tag, builds all platforms via GoReleaser, and publishes the release.
+
+**Prerequisites**: The following secrets/variables must be set in the repository:
+- `DOCKERHUB_USERNAME` — Docker Hub username
+- `DOCKERHUB_TOKEN` — Docker Hub access token
+- `DOCKERHUB_REPOSITORY` (variable) — e.g. `agentxnetwork/agentx`
+
+#### Option 2: Local Build + Manual Upload
+
+If CI fails or you need a quick release, build locally and upload:
+
+```bash
+# 1. Set build variables
+VERSION=0.5.0
+COMMIT=$(git rev-parse --short HEAD)
+DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+GOVERSION=$(go version | awk '{print $3}')
+LDFLAGS="-s -w \
+  -X github.com/Agentx-network/agentx/cmd/agentx/internal.version=${VERSION} \
+  -X github.com/Agentx-network/agentx/cmd/agentx/internal.gitCommit=${COMMIT} \
+  -X github.com/Agentx-network/agentx/cmd/agentx/internal.buildTime=${DATE} \
+  -X github.com/Agentx-network/agentx/cmd/agentx/internal.goVersion=${GOVERSION}"
+
+# 2. Build all platforms
+mkdir -p dist
+CGO_ENABLED=0 GOOS=linux   GOARCH=amd64       go build -tags stdjson -ldflags "$LDFLAGS" -o dist/agentx-linux-amd64       ./cmd/agentx
+CGO_ENABLED=0 GOOS=linux   GOARCH=arm64       go build -tags stdjson -ldflags "$LDFLAGS" -o dist/agentx-linux-arm64       ./cmd/agentx
+CGO_ENABLED=0 GOOS=linux   GOARCH=arm GOARM=7 go build -tags stdjson -ldflags "$LDFLAGS" -o dist/agentx-linux-armv7       ./cmd/agentx
+CGO_ENABLED=0 GOOS=darwin  GOARCH=amd64       go build -tags stdjson -ldflags "$LDFLAGS" -o dist/agentx-darwin-amd64      ./cmd/agentx
+CGO_ENABLED=0 GOOS=darwin  GOARCH=arm64       go build -tags stdjson -ldflags "$LDFLAGS" -o dist/agentx-darwin-arm64      ./cmd/agentx
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64       go build -tags stdjson -ldflags "$LDFLAGS" -o dist/agentx-windows-amd64.exe ./cmd/agentx
+
+# 3. Create archives (optional, for manual downloaders)
+cd dist
+for f in agentx-linux-* agentx-darwin-* agentx-freebsd-*; do
+  [ -f "$f" ] && tar czf "${f}.tar.gz" "$f"
+done
+[ -f agentx-windows-amd64.exe ] && zip -q agentx-windows-amd64.zip agentx-windows-amd64.exe
+sha256sum * > checksums.txt
+cd ..
+
+# 4. Create tag and release
+git tag -a v${VERSION} -m "Release v${VERSION}"
+git push origin v${VERSION}
+gh release create v${VERSION} --title "v${VERSION}" --generate-notes \
+  dist/agentx-linux-amd64 \
+  dist/agentx-linux-arm64 \
+  dist/agentx-linux-armv7 \
+  dist/agentx-darwin-amd64 \
+  dist/agentx-darwin-arm64 \
+  dist/agentx-windows-amd64.exe \
+  dist/*.tar.gz \
+  dist/*.zip \
+  dist/checksums.txt
+```
+
+### Important Notes
+
+- **Raw binaries are required** — the desktop app and `install.sh` download raw binaries, not archives. If you only upload `.tar.gz` files, the installer will fail with a 404.
+- **Arch naming** — Go's `runtime.GOARCH` returns `arm`, but the binary is named `armv7` for clarity. The desktop installer maps this automatically.
+- The `latest` redirect (`/releases/latest/download/...`) always points to the most recent non-prerelease, non-draft release.
+
+---
+
 ## Communication
 
 - **GitHub Issues** — Bug reports, feature requests, design discussions.
