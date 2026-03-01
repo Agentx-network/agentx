@@ -50,15 +50,24 @@ func (s *InstallerService) DetectPlatform() PlatformInfo {
 	if runtime.GOOS == "windows" {
 		ext = ".exe"
 	}
+
+	// Check install dir first, then fall back to findBinary() (PATH + standard locations).
 	binPath := filepath.Join(installDir, "agentx"+ext)
 	exists := false
 	version := ""
 	if _, err := os.Stat(binPath); err == nil {
 		exists = true
+	} else if resolved, err := findBinary(); err == nil {
+		binPath = resolved
+		exists = true
+	}
+
+	if exists {
 		if out, err := exec.Command(binPath, "version").Output(); err == nil {
 			version = strings.TrimSpace(string(out))
 		}
 	}
+
 	return PlatformInfo{
 		OS:           runtime.GOOS,
 		Arch:         runtime.GOARCH,
