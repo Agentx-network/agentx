@@ -92,6 +92,7 @@ export default function App() {
   const [page, setPage] = useState<Page>("installer");
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [appVersion, setAppVersion] = useState("");
 
   const showToast = useCallback((message: string, type: "success" | "error" = "success") => {
     setToast({ message, type });
@@ -115,6 +116,16 @@ export default function App() {
       } catch {
         // No history yet — ignore
       }
+    })();
+  }, []);
+
+  // Fetch CLI version for sidebar display
+  useEffect(() => {
+    (async () => {
+      try {
+        const p = await window.go.main.InstallerService.DetectPlatform();
+        if (p.version) setAppVersion(p.version);
+      } catch { /* noop */ }
     })();
   }, []);
 
@@ -225,7 +236,7 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-bg">
-      <Sidebar currentPage={page} onNavigate={setPage} onRunWizard={() => { setPage("installer"); setMode("wizard"); }} />
+      <Sidebar currentPage={page} onNavigate={setPage} onRunWizard={() => { setPage("installer"); setMode("wizard"); }} version={appVersion} />
       <main className={`flex-1 p-6 ${page === "chat" ? "overflow-hidden flex flex-col" : "overflow-y-auto"}`}>
         {page === "dashboard" && <DashboardPage showToast={showToast} />}
         {page === "chat" && <ChatPage showToast={showToast} messages={chatMessages} setMessages={setChatMessages} />}
