@@ -201,7 +201,7 @@ export default function App() {
   return (
     <div className="flex h-screen bg-bg">
       <Sidebar currentPage={page} onNavigate={setPage} onRunWizard={() => { setPage("installer"); setMode("wizard"); }} />
-      <main className="flex-1 overflow-y-auto p-6">
+      <main className={`flex-1 p-6 ${page === "chat" ? "overflow-hidden flex flex-col" : "overflow-y-auto"}`}>
         {page === "dashboard" && <DashboardPage showToast={showToast} />}
         {page === "chat" && <ChatPage showToast={showToast} messages={chatMessages} setMessages={setChatMessages} />}
         {page === "config" && <ConfigPage showToast={showToast} />}
