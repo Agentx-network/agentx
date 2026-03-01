@@ -12,6 +12,8 @@ on:
 
 permissions:
   contents: write
+  id-token: write   # Required for SignPath trusted build verification
+  actions: read      # Required for SignPath to read artifact details
 
 jobs:
   # ─── Windows .exe installer (Inno Setup) ───
@@ -40,14 +42,44 @@ jobs:
           path: installer/windows/agentx.iss
           options: /DMyAppVersion=${{ env.RELEASE_TAG }}
 
+      - name: Upload unsigned installer as artifact
+        if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+        id: upload-cli-unsigned
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-installer-unsigned
+          path: |
+            installer/windows/Output/AgentX-Setup-*.exe
+          if-no-files-found: error
+
+      - name: Sign CLI installer with SignPath
+        if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+        uses: signpath/github-action-submit-signing-request@v2
+        with:
+          api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
+          organization-id: '${{ vars.SIGNPATH_ORGANIZATION_ID }}'
+          project-slug: 'agentx'
+          signing-policy-slug: 'release-signing'
+          github-artifact-id: '${{ steps.upload-cli-unsigned.outputs.artifact-id }}'
+          wait-for-completion: true
+          output-artifact-directory: 'cli-installer-signed'
+
       - name: Upload installer to release
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tag="${{ env.RELEASE_TAG }}"
-          installer=$(find . -name "AgentX-Setup-*.exe" -type f | head -1)
-          gh release upload "$tag" "$installer" --clobber
+          # Use signed installer if available, otherwise unsigned
+          signed=$(find cli-installer-signed -name "AgentX-Setup-*.exe" -type f 2>/dev/null | head -1)
+          if [ -n "$signed" ]; then
+            echo "Uploading signed installer"
+            gh release upload "$tag" "$signed" --clobber
+          else
+            echo "Uploading unsigned installer (SignPath not configured)"
+            installer=$(find . -name "AgentX-Setup-*.exe" -type f | head -1)
+            gh release upload "$tag" "$installer" --clobber
+          fi
 
   # ─── macOS .pkg installers ───
   macos-installer:
@@ -133,11 +165,41 @@ jobs:
             Copy-Item cmd/agentx-desktop/build/bin/agentx-desktop.exe "AgentX-Desktop-Setup.exe"
           }
 
+      - name: Upload unsigned desktop installer as artifact
+        if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+        id: upload-desktop-unsigned
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-installer-unsigned
+          path: AgentX-Desktop-Setup.exe
+          if-no-files-found: error
+
+      - name: Sign Desktop installer with SignPath
+        if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+        uses: signpath/github-action-submit-signing-request@v2
+        with:
+          api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
+          organization-id: '${{ vars.SIGNPATH_ORGANIZATION_ID }}'
+          project-slug: 'agentx'
+          signing-policy-slug: 'release-signing'
+          github-artifact-id: '${{ steps.upload-desktop-unsigned.outputs.artifact-id }}'
+          wait-for-completion: true
+          output-artifact-directory: 'desktop-installer-signed'
+
       - name: Upload to release
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${{ env.RELEASE_TAG }}" "AgentX-Desktop-Setup.exe" --clobber
+        run: |
+          # Use signed installer if available, otherwise unsigned
+          signed="desktop-installer-signed/AgentX-Desktop-Setup.exe"
+          if [ -f "$signed" ]; then
+            echo "Uploading signed desktop installer"
+            gh release upload "${{ env.RELEASE_TAG }}" "$signed" --clobber
+          else
+            echo "Uploading unsigned desktop installer (SignPath not configured)"
+            gh release upload "${{ env.RELEASE_TAG }}" "AgentX-Desktop-Setup.exe" --clobber
+          fi
 
   # ─── Desktop App: macOS .dmg ───
   desktop-macos:
