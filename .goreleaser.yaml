@@ -121,6 +121,7 @@ brews:
   - repository:
       owner: Agentx-network
       name: homebrew-tap
+    skip_upload: true
     homepage: https://agentx.network
     description: "Autonomous AI agent framework"
     install: |
