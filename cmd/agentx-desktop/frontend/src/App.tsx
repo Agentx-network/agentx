@@ -52,6 +52,7 @@ declare global {
         ChatService: {
           SendMessage(message: string, sessionKey: string): Promise<{ response: string }>;
           IsGatewayReachable(): Promise<boolean>;
+          GetChatHistory(sessionKey: string): Promise<{ role: string; content: string; timestamp: number }[]>;
         };
         AgentSetupService: {
           GetBootstrapFiles(): Promise<{ name: string; path: string; content: string; exists: boolean }[]>;
@@ -62,6 +63,8 @@ declare global {
           InstallSkill(repo: string): Promise<void>;
           RemoveSkill(name: string): Promise<void>;
           InstallBuiltinSkills(): Promise<void>;
+          SearchSkills(query: string): Promise<{ slug: string; displayName: string; summary: string; version: string; registry: string; score: number }[]>;
+          InstallFromRegistry(slug: string): Promise<void>;
         };
       };
     };
@@ -91,6 +94,26 @@ export default function App() {
   const showToast = useCallback((message: string, type: "success" | "error" = "success") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
+  }, []);
+
+  // Load chat history from disk on startup
+  useEffect(() => {
+    (async () => {
+      try {
+        const history = await window.go.main.ChatService.GetChatHistory("");
+        if (history && history.length > 0) {
+          const msgs: ChatMessage[] = history.map((h, i) => ({
+            id: `hist-${i}`,
+            role: h.role as "user" | "assistant",
+            content: h.content,
+            timestamp: h.timestamp,
+          }));
+          setChatMessages(msgs);
+        }
+      } catch {
+        // No history yet — ignore
+      }
+    })();
   }, []);
 
   // Wizard step order (excluding final "dashboard" marker)

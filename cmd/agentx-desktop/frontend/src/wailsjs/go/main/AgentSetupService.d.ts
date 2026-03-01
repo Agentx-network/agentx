@@ -10,6 +10,8 @@ export function GetSkillContent(arg1:string):Promise<string>;
 
 export function InstallBuiltinSkills():Promise<void>;
 
+export function InstallFromRegistry(arg1:string):Promise<void>;
+
 export function InstallSkill(arg1:string):Promise<void>;
 
 export function ListSkills():Promise<Array<main.SkillEntry>>;
@@ -17,3 +19,5 @@ export function ListSkills():Promise<Array<main.SkillEntry>>;
 export function RemoveSkill(arg1:string):Promise<void>;
 
 export function SaveBootstrapFile(arg1:string,arg2:string):Promise<void>;
+
+export function SearchSkills(arg1:string):Promise<Array<main.SkillSearchResult>>;

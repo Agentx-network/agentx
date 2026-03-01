@@ -1286,6 +1286,22 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class HistoryMessage {
+	    role: string;
+	    content: string;
+	    timestamp: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new HistoryMessage(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.role = source["role"];
+	        this.content = source["content"];
+	        this.timestamp = source["timestamp"];
+	    }
+	}
 	
 	export class PlatformInfo {
 	    os: string;
@@ -1367,6 +1383,28 @@ export namespace main {
 	        this.source = source["source"];
 	        this.description = source["description"];
 	        this.path = source["path"];
+	    }
+	}
+	export class SkillSearchResult {
+	    slug: string;
+	    displayName: string;
+	    summary: string;
+	    version: string;
+	    registry: string;
+	    score: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new SkillSearchResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.slug = source["slug"];
+	        this.displayName = source["displayName"];
+	        this.summary = source["summary"];
+	        this.version = source["version"];
+	        this.registry = source["registry"];
+	        this.score = source["score"];
 	    }
 	}
 
