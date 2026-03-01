@@ -289,12 +289,6 @@ AgentX:    5 MB RAM + 0.3s startup + real-time streaming + parallel tools + 10 c
 
 <div align="center">
 
-  <a href="https://install.agentx.network"><img src="assets/download-button.svg" alt="Download AgentX — Linux · macOS · Windows · Android" width="420"></a>
-
-  <p>Auto-detects your platform, one click to install.</p>
-
-  <br>
-
   <a href="https://install.agentx.network/desktop"><img src="assets/desktop-download-button.svg" alt="AgentX Desktop App — Ubuntu · macOS · Windows" width="420"></a>
 
   <p>GUI dashboard — install, configure, and manage agents visually.</p>
