@@ -16,6 +16,10 @@ cmd/**/workspace
 node_modules/
 cmd/agentx-desktop/frontend/dist/
 
+# Keep Wails Windows build assets (NSIS installer config, icons, info)
+!cmd/agentx-desktop/build/windows/
+!cmd/agentx-desktop/build/appicon.png
+
 # AgentX specific
 
 # AgentX
