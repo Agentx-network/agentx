@@ -64,6 +64,23 @@ func (s *InstallerService) InstallService() error {
 	}
 }
 
+func (s *InstallerService) FullUninstall() error {
+	// 1. Remove gateway service (best-effort).
+	s.UninstallService()
+
+	// 2. Remove data directory (~/.agentx).
+	if home, err := os.UserHomeDir(); err == nil {
+		os.RemoveAll(filepath.Join(home, ".agentx"))
+	}
+
+	// 3. Remove the CLI binary.
+	if binPath, err := findBinary(); err == nil {
+		os.Remove(binPath)
+	}
+
+	return nil
+}
+
 func (s *InstallerService) UninstallService() error {
 	switch runtime.GOOS {
 	case "linux":

@@ -15,6 +15,8 @@ export default function InstallerPage({ showToast, onComplete }: Props) {
   const [installing, setInstalling] = useState(false);
   const [progress, setProgress] = useState<DownloadProgress | null>(null);
   const [installed, setInstalled] = useState(false);
+  const [uninstalling, setUninstalling] = useState(false);
+  const [confirmUninstall, setConfirmUninstall] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -109,6 +111,61 @@ export default function InstallerPage({ showToast, onComplete }: Props) {
               <NeonButton onClick={onComplete} size="lg" className="w-full">
                 Continue to Setup →
               </NeonButton>
+            )}
+          </div>
+        </NeonCard>
+      )}
+
+      {installed && (
+        <NeonCard>
+          <div className="space-y-3">
+            <p className="text-xs text-white/30 uppercase tracking-wide">Danger Zone</p>
+            {!confirmUninstall ? (
+              <NeonButton
+                variant="danger"
+                size="md"
+                className="w-full"
+                onClick={() => setConfirmUninstall(true)}
+              >
+                Uninstall AgentX
+              </NeonButton>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-red-400">
+                  This will remove the gateway binary, service, and all data (~/.agentx). Are you sure?
+                </p>
+                <div className="flex gap-3">
+                  <NeonButton
+                    variant="danger"
+                    size="md"
+                    className="flex-1"
+                    disabled={uninstalling}
+                    onClick={async () => {
+                      setUninstalling(true);
+                      try {
+                        await window.go.main.InstallerService.FullUninstall();
+                        setInstalled(false);
+                        setConfirmUninstall(false);
+                        showToast("AgentX uninstalled successfully", "success");
+                      } catch (e: any) {
+                        showToast(`Uninstall failed: ${e}`, "error");
+                      } finally {
+                        setUninstalling(false);
+                      }
+                    }}
+                  >
+                    {uninstalling ? "Uninstalling..." : "Yes, Uninstall"}
+                  </NeonButton>
+                  <NeonButton
+                    variant="ghost"
+                    size="md"
+                    className="flex-1"
+                    onClick={() => setConfirmUninstall(false)}
+                  >
+                    Cancel
+                  </NeonButton>
+                </div>
+              </div>
             )}
           </div>
         </NeonCard>

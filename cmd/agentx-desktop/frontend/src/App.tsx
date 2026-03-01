@@ -26,6 +26,7 @@ declare global {
           InstallBinary(): Promise<void>;
           InstallService(): Promise<void>;
           UninstallService(): Promise<void>;
+          FullUninstall(): Promise<void>;
           IsServiceRunning(): Promise<boolean>;
         };
         DashboardService: {

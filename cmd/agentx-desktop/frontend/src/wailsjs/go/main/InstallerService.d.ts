@@ -4,6 +4,8 @@ import {main} from '../models';
 
 export function DetectPlatform():Promise<main.PlatformInfo>;
 
+export function FullUninstall():Promise<void>;
+
 export function GetLatestRelease():Promise<string>;
 
 export function InstallBinary():Promise<void>;
