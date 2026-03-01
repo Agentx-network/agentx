@@ -3,15 +3,14 @@ package skills
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/Agentx-network/agentx/cmd/agentx/internal"
 	"github.com/Agentx-network/agentx/pkg/config"
 	"github.com/Agentx-network/agentx/pkg/skills"
+	"github.com/Agentx-network/agentx/pkg/skills/builtin"
 	"github.com/Agentx-network/agentx/pkg/utils"
 )
 
@@ -128,89 +127,55 @@ func skillsRemoveCmd(installer *skills.SkillInstaller, skillName string) {
 }
 
 func skillsInstallBuiltinCmd(workspace string) {
-	builtinSkillsDir := "./agentx/skills"
 	workspaceSkillsDir := filepath.Join(workspace, "skills")
 
-	fmt.Printf("Copying builtin skills to workspace...\n")
+	fmt.Println("Installing builtin skills to workspace...")
 
-	skillsToInstall := []string{
-		"weather",
-		"news",
-		"stock",
-		"calculator",
+	installed, err := builtin.InstallAll(workspaceSkillsDir, false)
+	if err != nil {
+		fmt.Printf("✗ Failed: %v\n", err)
+		return
 	}
 
-	for _, skillName := range skillsToInstall {
-		builtinPath := filepath.Join(builtinSkillsDir, skillName)
-		workspacePath := filepath.Join(workspaceSkillsDir, skillName)
-
-		if _, err := os.Stat(builtinPath); err != nil {
-			fmt.Printf("⊘ Builtin skill '%s' not found: %v\n", skillName, err)
-			continue
+	if len(installed) == 0 {
+		fmt.Println("All builtin skills already installed.")
+	} else {
+		for _, name := range installed {
+			fmt.Printf("  ✓ %s\n", name)
 		}
-
-		if err := os.MkdirAll(workspacePath, 0o755); err != nil {
-			fmt.Printf("✗ Failed to create directory for %s: %v\n", skillName, err)
-			continue
-		}
-
-		if err := copyDirectory(builtinPath, workspacePath); err != nil {
-			fmt.Printf("✗ Failed to copy %s: %v\n", skillName, err)
-		}
+		fmt.Printf("\n✓ %d builtin skill(s) installed!\n", len(installed))
 	}
-
-	fmt.Println("\n✓ All builtin skills installed!")
-	fmt.Println("Now you can use them in your workspace.")
 }
 
 func skillsListBuiltinCmd() {
-	cfg, err := internal.LoadConfig()
-	if err != nil {
-		fmt.Printf("Error loading config: %v\n", err)
-		return
-	}
-	builtinSkillsDir := filepath.Join(filepath.Dir(cfg.WorkspacePath()), "agentx", "skills")
-
 	fmt.Println("\nAvailable Builtin Skills:")
 	fmt.Println("-----------------------")
 
-	entries, err := os.ReadDir(builtinSkillsDir)
+	skills, err := builtin.List()
 	if err != nil {
-		fmt.Printf("Error reading builtin skills: %v\n", err)
+		fmt.Printf("Error: %v\n", err)
 		return
 	}
 
-	if len(entries) == 0 {
+	if len(skills) == 0 {
 		fmt.Println("No builtin skills available.")
 		return
 	}
 
-	for _, entry := range entries {
-		if entry.IsDir() {
-			skillName := entry.Name()
-			skillFile := filepath.Join(builtinSkillsDir, skillName, "SKILL.md")
-
-			description := "No description"
-			if _, err := os.Stat(skillFile); err == nil {
-				data, err := os.ReadFile(skillFile)
-				if err == nil {
-					content := string(data)
-					if idx := strings.Index(content, "\n"); idx > 0 {
-						firstLine := content[:idx]
-						if strings.Contains(firstLine, "description:") {
-							descLine := strings.Index(content[idx:], "\n")
-							if descLine > 0 {
-								description = strings.TrimSpace(content[idx+descLine : idx+descLine])
-							}
-						}
-					}
-				}
+	for _, skill := range skills {
+		// Extract first non-empty, non-heading line as description
+		description := ""
+		for _, line := range strings.Split(string(skill.Content), "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
 			}
-			status := "✓"
-			fmt.Printf("  %s  %s\n", status, entry.Name())
-			if description != "" {
-				fmt.Printf("     %s\n", description)
-			}
+			description = line
+			break
+		}
+		fmt.Printf("  ✓  %s\n", skill.Name)
+		if description != "" {
+			fmt.Printf("     %s\n", description)
 		}
 	}
 }
@@ -262,36 +227,3 @@ func skillsShowCmd(loader *skills.SkillsLoader, skillName string) {
 	fmt.Println(content)
 }
 
-func copyDirectory(src, dst string) error {
-	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		relPath, err := filepath.Rel(src, path)
-		if err != nil {
-			return err
-		}
-
-		dstPath := filepath.Join(dst, relPath)
-
-		if info.IsDir() {
-			return os.MkdirAll(dstPath, info.Mode())
-		}
-
-		srcFile, err := os.Open(path)
-		if err != nil {
-			return err
-		}
-		defer srcFile.Close()
-
-		dstFile, err := os.OpenFile(dstPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, info.Mode())
-		if err != nil {
-			return err
-		}
-		defer dstFile.Close()
-
-		_, err = io.Copy(dstFile, srcFile)
-		return err
-	})
-}

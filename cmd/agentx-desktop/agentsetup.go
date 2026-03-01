@@ -4,11 +4,12 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/Agentx-network/agentx/pkg/config"
 	"github.com/Agentx-network/agentx/pkg/skills"
+	"github.com/Agentx-network/agentx/pkg/skills/builtin"
 )
 
 // BootstrapFile represents one of the agent bootstrap markdown files.
@@ -25,6 +26,16 @@ type SkillEntry struct {
 	Source      string `json:"source"`
 	Description string `json:"description"`
 	Path        string `json:"path"`
+}
+
+// SkillSearchResult is returned by SearchSkills for the frontend.
+type SkillSearchResult struct {
+	Slug        string  `json:"slug"`
+	DisplayName string  `json:"displayName"`
+	Summary     string  `json:"summary"`
+	Version     string  `json:"version"`
+	Registry    string  `json:"registry"`
+	Score       float64 `json:"score"`
 }
 
 // AgentSetupService manages bootstrap files and skills from the desktop UI.
@@ -297,10 +308,90 @@ func (a *AgentSetupService) GetSkillContent(name string) (string, error) {
 	return content, nil
 }
 
-// InstallSkill installs a skill from a GitHub repo path.
+// InstallSkill installs a skill from a GitHub repo path or ClawHub URL.
+// Supported: "owner/repo" (GitHub), "https://clawhub.ai/owner/slug" (ClawHub).
 func (a *AgentSetupService) InstallSkill(repo string) error {
+	slug, isClawHub := parseClawHubInput(repo)
+	if isClawHub {
+		return a.installFromClawHub(slug)
+	}
 	installer := a.getSkillsInstaller()
 	return installer.InstallFromGitHub(context.Background(), repo)
+}
+
+// SearchSkills searches the ClawHub registry for skills matching the query.
+func (a *AgentSetupService) SearchSkills(query string) ([]SkillSearchResult, error) {
+	registry := skills.NewClawHubRegistry(skills.ClawHubConfig{Enabled: true})
+	results, err := registry.Search(context.Background(), query, 20)
+	if err != nil {
+		return nil, fmt.Errorf("search failed: %w", err)
+	}
+	var out []SkillSearchResult
+	for _, r := range results {
+		out = append(out, SkillSearchResult{
+			Slug:        r.Slug,
+			DisplayName: r.DisplayName,
+			Summary:     r.Summary,
+			Version:     r.Version,
+			Registry:    r.RegistryName,
+			Score:       r.Score,
+		})
+	}
+	return out, nil
+}
+
+// InstallFromRegistry installs a skill from ClawHub by slug.
+func (a *AgentSetupService) InstallFromRegistry(slug string) error {
+	return a.installFromClawHub(slug)
+}
+
+func (a *AgentSetupService) installFromClawHub(slug string) error {
+	workspace := a.getWorkspace()
+	skillsDir := filepath.Join(workspace, "skills")
+	targetDir := filepath.Join(skillsDir, slug)
+
+	if _, err := os.Stat(targetDir); err == nil {
+		return fmt.Errorf("skill '%s' already exists", slug)
+	}
+	if err := os.MkdirAll(skillsDir, 0o755); err != nil {
+		return fmt.Errorf("failed to create skills directory: %w", err)
+	}
+
+	registry := skills.NewClawHubRegistry(skills.ClawHubConfig{Enabled: true})
+	result, err := registry.DownloadAndInstall(context.Background(), slug, "", targetDir)
+	if err != nil {
+		os.RemoveAll(targetDir)
+		return fmt.Errorf("install failed: %w", err)
+	}
+	if result.IsMalwareBlocked {
+		os.RemoveAll(targetDir)
+		return fmt.Errorf("skill '%s' is flagged as malicious", slug)
+	}
+	return nil
+}
+
+// parseClawHubInput detects ClawHub URLs and extracts the slug.
+func parseClawHubInput(input string) (string, bool) {
+	input = strings.TrimSpace(input)
+	for _, prefix := range []string{
+		"https://clawhub.ai/",
+		"http://clawhub.ai/",
+		"https://www.clawhub.ai/",
+		"http://www.clawhub.ai/",
+	} {
+		if strings.HasPrefix(strings.ToLower(input), strings.ToLower(prefix)) {
+			path := strings.TrimPrefix(input, input[:len(prefix)])
+			path = strings.TrimSuffix(path, "/")
+			parts := strings.Split(path, "/")
+			if len(parts) >= 2 {
+				return parts[len(parts)-1], true
+			}
+			if len(parts) == 1 && parts[0] != "" {
+				return parts[0], true
+			}
+		}
+	}
+	return "", false
 }
 
 // RemoveSkill removes an installed skill by name.
@@ -309,15 +400,10 @@ func (a *AgentSetupService) RemoveSkill(name string) error {
 	return installer.Uninstall(name)
 }
 
-// InstallBuiltinSkills copies embedded builtin skills to workspace via CLI.
+// InstallBuiltinSkills extracts embedded builtin skills to the workspace.
 func (a *AgentSetupService) InstallBuiltinSkills() error {
-	binPath, err := findBinary()
-	if err != nil {
-		return fmt.Errorf("agentx binary not found: %w", err)
-	}
-	out, err := exec.Command(binPath, "skills", "install-builtin").CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("install-builtin failed: %s", string(out))
-	}
-	return nil
+	workspace := a.getWorkspace()
+	skillsDir := filepath.Join(workspace, "skills")
+	_, err := builtin.InstallAll(skillsDir, false)
+	return err
 }

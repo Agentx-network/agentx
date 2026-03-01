@@ -18,6 +18,10 @@ export function InstallBuiltinSkills() {
   return window['go']['main']['AgentSetupService']['InstallBuiltinSkills']();
 }
 
+export function InstallFromRegistry(arg1) {
+  return window['go']['main']['AgentSetupService']['InstallFromRegistry'](arg1);
+}
+
 export function InstallSkill(arg1) {
   return window['go']['main']['AgentSetupService']['InstallSkill'](arg1);
 }
@@ -32,4 +36,8 @@ export function RemoveSkill(arg1) {
 
 export function SaveBootstrapFile(arg1, arg2) {
   return window['go']['main']['AgentSetupService']['SaveBootstrapFile'](arg1, arg2);
+}
+
+export function SearchSkills(arg1) {
+  return window['go']['main']['AgentSetupService']['SearchSkills'](arg1);
 }
