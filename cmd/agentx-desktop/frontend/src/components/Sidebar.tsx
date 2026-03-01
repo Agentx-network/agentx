@@ -4,6 +4,7 @@ interface Props {
   currentPage: Page;
   onNavigate: (page: Page) => void;
   onRunWizard?: () => void;
+  version?: string;
 }
 
 const navItems: { id: Page; label: string; icon: string }[] = [
@@ -13,7 +14,7 @@ const navItems: { id: Page; label: string; icon: string }[] = [
   { id: "installer", label: "Installer", icon: "📦" },
 ];
 
-export default function Sidebar({ currentPage, onNavigate, onRunWizard }: Props) {
+export default function Sidebar({ currentPage, onNavigate, onRunWizard, version }: Props) {
   return (
     <aside className="w-56 border-r-2 border-neon-pink/20 bg-bg-sidebar flex flex-col">
       <div className="p-5 border-b-2 border-neon-pink/20">
@@ -47,7 +48,7 @@ export default function Sidebar({ currentPage, onNavigate, onRunWizard }: Props)
             Run Setup Wizard
           </button>
         )}
-        <p className="text-[10px] text-white/25 uppercase tracking-widest">v0.1.0</p>
+        <p className="text-[10px] text-white/25 uppercase tracking-widest">{version || ""}</p>
       </div>
     </aside>
   );
