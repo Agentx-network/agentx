@@ -144,12 +144,10 @@ export default function InstallerPage({ showToast, onComplete }: Props) {
                       setUninstalling(true);
                       try {
                         await window.go.main.InstallerService.FullUninstall();
-                        setInstalled(false);
-                        setConfirmUninstall(false);
-                        showToast("AgentX uninstalled successfully", "success");
+                        showToast("AgentX uninstalled. Closing app...", "success");
+                        setTimeout(() => window.runtime.Quit(), 1500);
                       } catch (e: any) {
                         showToast(`Uninstall failed: ${e}`, "error");
-                      } finally {
                         setUninstalling(false);
                       }
                     }}

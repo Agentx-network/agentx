@@ -72,6 +72,7 @@ declare global {
     runtime: {
       EventsOn(event: string, callback: (...args: any[]) => void): void;
       EventsOff(event: string): void;
+      Quit(): void;
     };
   }
 }

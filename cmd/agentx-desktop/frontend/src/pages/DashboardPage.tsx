@@ -73,6 +73,11 @@ export default function DashboardPage({ showToast }: Props) {
 
   const handleStart = async () => {
     try {
+      const p = await window.go.main.InstallerService.DetectPlatform();
+      if (!p.binaryExists) {
+        showToast("AgentX binary not found. Please reinstall from the Install page.", "error");
+        return;
+      }
       await window.go.main.DashboardService.StartGateway();
       showToast("Gateway starting...", "success");
       setTimeout(fetchStatus, 2000);
