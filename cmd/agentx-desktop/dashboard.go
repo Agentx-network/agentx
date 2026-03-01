@@ -175,18 +175,44 @@ func (d *DashboardService) RestartGateway() error {
 }
 
 func findBinary() (string, error) {
-	binPath, err := exec.LookPath("agentx")
+	// Try PATH first (works on all platforms)
+	binName := "agentx"
+	if runtime.GOOS == "windows" {
+		binName = "agentx.exe"
+	}
+	binPath, err := exec.LookPath(binName)
+	if err == nil {
+		return binPath, nil
+	}
+
+	home, err := os.UserHomeDir()
 	if err != nil {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", fmt.Errorf("cannot find agentx binary: %w", err)
-		}
-		binPath = filepath.Join(home, ".local", "bin", "agentx")
-		if _, err := os.Stat(binPath); err != nil {
-			return "", fmt.Errorf("cannot find agentx binary in PATH or %s", binPath)
+		return "", fmt.Errorf("cannot find agentx binary: %w", err)
+	}
+
+	// Platform-specific fallback paths
+	candidates := []string{
+		filepath.Join(home, ".local", "bin", "agentx"), // Linux/macOS
+	}
+
+	if runtime.GOOS == "windows" {
+		candidates = []string{
+			filepath.Join(os.Getenv("ProgramFiles"), "AgentX", "agentx.exe"),
+			filepath.Join(os.Getenv("LOCALAPPDATA"), "AgentX", "agentx.exe"),
+			filepath.Join(home, "AppData", "Local", "AgentX", "agentx.exe"),
 		}
 	}
-	return binPath, nil
+
+	for _, path := range candidates {
+		if path == "" {
+			continue
+		}
+		if _, err := os.Stat(path); err == nil {
+			return path, nil
+		}
+	}
+
+	return "", fmt.Errorf("cannot find agentx binary in PATH or standard install locations")
 }
 
 func getChannelInfos(cfg *config.Config) []ChannelInfo {
