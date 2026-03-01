@@ -33,7 +33,7 @@ CloseApplicationsFilter=*.exe
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-Source: "agentx.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "agentx.exe"; DestDir: "{app}"; Flags: ignoreversion restartreplace
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Additional shortcuts:"
@@ -57,11 +57,13 @@ function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   ResultCode: Integer;
 begin
-  { Kill running agentx processes so the installer can overwrite the binary }
+  { 1. Remove scheduled task FIRST so it cannot restart the process }
+  Exec('schtasks', '/Delete /TN AgentXGateway /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  { 2. Kill running processes }
   Exec('taskkill', '/IM agentx.exe /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Exec('taskkill', '/IM agentx-desktop.exe /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-  { Remove scheduled task (will be re-created on next gateway start) }
-  Exec('schtasks', '/Delete /TN AgentXGateway /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  { 3. Wait for Windows to release file handles }
+  Sleep(2000);
   Result := '';
 end;
 
