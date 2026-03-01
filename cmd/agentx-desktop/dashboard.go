@@ -192,14 +192,17 @@ func findBinary() (string, error) {
 
 	// Platform-specific fallback paths
 	candidates := []string{
-		filepath.Join(home, ".local", "bin", "agentx"), // Linux/macOS
+		filepath.Join(home, ".local", "bin", "agentx"), // Linux/macOS desktop install
 	}
 
 	if runtime.GOOS == "windows" {
 		candidates = []string{
-			filepath.Join(os.Getenv("ProgramFiles"), "AgentX", "agentx.exe"),
-			filepath.Join(os.Getenv("LOCALAPPDATA"), "AgentX", "agentx.exe"),
-			filepath.Join(home, "AppData", "Local", "AgentX", "agentx.exe"),
+			filepath.Join(home, ".local", "bin", "agentx.exe"),                       // Desktop app install
+			filepath.Join(os.Getenv("ProgramFiles"), "AgentX", "agentx.exe"),         // Inno Setup (admin)
+			filepath.Join(os.Getenv("LOCALAPPDATA"), "Programs", "AgentX", "agentx.exe"), // Inno Setup (user, {autopf})
+			filepath.Join(os.Getenv("LOCALAPPDATA"), "AgentX", "agentx.exe"),         // Legacy path
+			filepath.Join(home, "AppData", "Local", "Programs", "AgentX", "agentx.exe"), // Inno Setup fallback
+			filepath.Join(home, "AppData", "Local", "AgentX", "agentx.exe"),          // Legacy fallback
 		}
 	}
 
