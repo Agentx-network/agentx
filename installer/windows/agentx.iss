@@ -26,6 +26,8 @@ ChangesEnvironment=yes
 UninstallDisplayIcon={app}\{#MyAppExeName}
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
+CloseApplications=force
+CloseApplicationsFilter=*.exe
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -51,6 +53,18 @@ Filename: "{app}\{#MyAppExeName}"; Parameters: "onboard"; \
   Description: "Launch AgentX setup wizard"; Flags: nowait postinstall skipifsilent
 
 [Code]
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+begin
+  { Kill running agentx processes so the installer can overwrite the binary }
+  Exec('taskkill', '/IM agentx.exe /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('taskkill', '/IM agentx-desktop.exe /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  { Remove scheduled task (will be re-created on next gateway start) }
+  Exec('schtasks', '/Delete /TN AgentXGateway /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Result := '';
+end;
+
 function NeedsAddPath(Param: string): Boolean;
 var
   OrigPath: string;
