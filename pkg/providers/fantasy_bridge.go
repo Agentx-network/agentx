@@ -70,7 +70,11 @@ func createAnthropicProvider(cfg *config.ModelConfig) (fantasy.Provider, error) 
 		opts = append(opts, anthropic.WithAPIKey(cfg.APIKey))
 	}
 	if cfg.APIBase != "" {
-		opts = append(opts, anthropic.WithBaseURL(cfg.APIBase))
+		// The Fantasy SDK appends /v1/messages to the base URL, so strip
+		// any trailing /v1 to avoid a doubled path (e.g. /v1/v1/messages).
+		base := strings.TrimSuffix(cfg.APIBase, "/v1")
+		base = strings.TrimSuffix(base, "/v1/")
+		opts = append(opts, anthropic.WithBaseURL(base))
 	}
 	return anthropic.New(opts...)
 }
