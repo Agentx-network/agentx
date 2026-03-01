@@ -62,21 +62,14 @@ dockers_v2:
 archives:
   - id: agentx
     builds: [agentx]
-    formats: [tar.gz]
-    # this name template makes the OS and Arch compatible with the results of `uname`.
+    formats: [binary]
     name_template: >-
-      {{ .ProjectName }}_
-      {{- title .Os }}_
-      {{- if eq .Arch "amd64" }}x86_64
-      {{- else if eq .Arch "386" }}i386
+      {{ .ProjectName }}-
+      {{- .Os }}-
+      {{- if eq .Arch "amd64" }}amd64
+      {{- else if eq .Arch "arm64" }}arm64
+      {{- else if and (eq .Arch "arm") (eq .Arm "7") }}armv7
       {{- else }}{{ .Arch }}{{ end }}
-      {{- if .Arm }}v{{ .Arm }}{{ end }}
-    # use zip for windows archives
-    format_overrides:
-      - goos: windows
-        formats: [zip]
-
-  # Desktop archives are built in the release workflow (desktop-build job)
 
 nfpms:
   - id: agentx
