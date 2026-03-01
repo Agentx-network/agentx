@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"regexp"
+
 	"github.com/Agentx-network/agentx/pkg/config"
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -96,7 +98,7 @@ func (c *ChatService) SendMessage(message string, sessionKey string) (*ChatRespo
 			wailsRuntime.EventsEmit(c.ctx, "chat:done", finalResponse)
 		case "error":
 			errMsg, _ := event["error"].(string)
-			return nil, fmt.Errorf("gateway error: %s", errMsg)
+			return nil, fmt.Errorf("%s", friendlyError(errMsg))
 		}
 	}
 
@@ -201,6 +203,70 @@ func readSessionFile(path string) ([]HistoryMessage, error) {
 	}
 
 	return history, nil
+}
+
+// friendlyError converts raw provider/gateway error messages into
+// clean, user-facing English messages for the chat UI.
+func friendlyError(raw string) string {
+	lower := strings.ToLower(raw)
+
+	// Auth / API key errors
+	if strings.Contains(lower, "unauthorized") ||
+		strings.Contains(lower, "401") ||
+		strings.Contains(lower, "invalid api key") ||
+		strings.Contains(lower, "invalid_api_key") ||
+		strings.Contains(lower, "incorrect api key") ||
+		strings.Contains(lower, "authentication") ||
+		strings.Contains(lower, "no api key") ||
+		strings.Contains(lower, "no credentials") {
+		return "Authentication failed — check your API key in Config > Models."
+	}
+
+	// Rate limit
+	if strings.Contains(lower, "rate limit") ||
+		strings.Contains(lower, "rate_limit") ||
+		strings.Contains(lower, "too many requests") ||
+		strings.Contains(lower, "429") ||
+		strings.Contains(lower, "quota") {
+		return "Rate limited by the provider. Please wait a moment and try again."
+	}
+
+	// Billing
+	if strings.Contains(lower, "402") ||
+		strings.Contains(lower, "payment required") ||
+		strings.Contains(lower, "insufficient credits") ||
+		strings.Contains(lower, "insufficient balance") ||
+		strings.Contains(lower, "billing") {
+		return "Billing issue — your provider account may need credits or a payment method."
+	}
+
+	// Overloaded
+	if strings.Contains(lower, "overloaded") {
+		return "The AI provider is currently overloaded. Please try again in a moment."
+	}
+
+	// Timeout / connectivity
+	if strings.Contains(lower, "timeout") ||
+		strings.Contains(lower, "timed out") ||
+		strings.Contains(lower, "deadline exceeded") {
+		return "Request timed out. The provider may be slow — try again."
+	}
+
+	// Connection errors
+	if strings.Contains(lower, "connection refused") ||
+		strings.Contains(lower, "no such host") ||
+		strings.Contains(lower, "dns") {
+		return "Cannot reach the AI provider. Check your internet connection and API base URL."
+	}
+
+	// Strip non-ASCII (e.g., Chinese/Japanese error text) and return a cleaned version.
+	cleaned := regexp.MustCompile(`[^\x20-\x7E]`).ReplaceAllString(raw, "")
+	cleaned = strings.TrimSpace(cleaned)
+	if cleaned == "" || len(cleaned) < 10 {
+		return "An unexpected error occurred. Check your provider settings in Config."
+	}
+
+	return cleaned
 }
 
 // IsGatewayReachable checks if the gateway is available.
