@@ -33,10 +33,14 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [Files]
 Source: "agentx.exe"; DestDir: "{app}"; Flags: ignoreversion
 
+[Tasks]
+Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Additional shortcuts:"
+
 [Icons]
 Name: "{group}\AgentX Onboard"; Filename: "{app}\{#MyAppExeName}"; Parameters: "onboard"
 Name: "{group}\AgentX Chat"; Filename: "{app}\{#MyAppExeName}"; Parameters: "agent"
 Name: "{group}\Uninstall AgentX"; Filename: "{uninstallexe}"
+Name: "{autodesktop}\AgentX"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Registry]
 Root: HKCU; Subkey: "Environment"; ValueType: expandsz; ValueName: "Path"; \
