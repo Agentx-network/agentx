@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -166,6 +167,13 @@ func (s *InstallerService) InstallBinary() error {
 	if err := os.Chmod(tmpFile, 0o755); err != nil {
 		os.Remove(tmpFile)
 		return err
+	}
+
+	// Stop gateway and kill processes before replacing the binary —
+	// on Windows the running exe has a file lock that blocks rename.
+	if platform.BinaryExists {
+		s.UninstallService()
+		time.Sleep(2 * time.Second)
 	}
 
 	if err := os.Rename(tmpFile, platform.BinaryPath); err != nil {
