@@ -6,6 +6,10 @@ export function DetectPlatform() {
   return window['go']['main']['InstallerService']['DetectPlatform']();
 }
 
+export function FullUninstall() {
+  return window['go']['main']['InstallerService']['FullUninstall']();
+}
+
 export function GetLatestRelease() {
   return window['go']['main']['InstallerService']['GetLatestRelease']();
 }
