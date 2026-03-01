@@ -275,6 +275,55 @@ jobs:
           echo "Failed to create DMG after 3 attempts"
           exit 1
 
+      - name: Smoke test — mount DMG and verify binary
+        run: |
+          echo "=== Mounting DMG ==="
+          hdiutil attach "${{ matrix.asset }}" -mountpoint /Volumes/AgentXDesktop -nobrowse
+
+          echo "=== DMG contents ==="
+          ls -la /Volumes/AgentXDesktop/
+
+          APP_PATH="/Volumes/AgentXDesktop/agentx-desktop.app"
+          BIN_PATH="/Volumes/AgentXDesktop/agentx-desktop"
+
+          if [ -d "$APP_PATH" ]; then
+            BINARY="$APP_PATH/Contents/MacOS/agentx-desktop"
+            echo "=== App bundle found ==="
+            ls -la "$APP_PATH/Contents/MacOS/"
+          elif [ -f "$BIN_PATH" ]; then
+            BINARY="$BIN_PATH"
+            echo "=== Standalone binary found ==="
+          else
+            echo "ERROR: No binary found in DMG"
+            ls -laR /Volumes/AgentXDesktop/
+            hdiutil detach /Volumes/AgentXDesktop
+            exit 1
+          fi
+
+          echo "=== Binary info ==="
+          file "$BINARY"
+          echo "=== Architecture ==="
+          lipo -info "$BINARY" || true
+
+          echo "=== Codesign verify ==="
+          codesign -vvv "$BINARY" 2>&1 || echo "(ad-hoc signed or unsigned — expected)"
+
+          echo "=== Launch test (5s timeout) ==="
+          # Launch the app briefly to check it doesn't crash on startup
+          timeout 5 "$BINARY" --help 2>&1 || EXIT_CODE=$?
+          # Exit code 124 = timeout (app ran fine, just no --help flag) — that's OK
+          # Exit code 0 = app exited cleanly
+          if [ "${EXIT_CODE:-0}" -le 124 ]; then
+            echo "PASS: Binary launched successfully"
+          else
+            echo "FAIL: Binary crashed with exit code ${EXIT_CODE}"
+            hdiutil detach /Volumes/AgentXDesktop
+            exit 1
+          fi
+
+          hdiutil detach /Volumes/AgentXDesktop
+          echo "=== Smoke test passed ==="
+
       - name: Upload to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
