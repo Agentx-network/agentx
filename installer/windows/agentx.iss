@@ -69,8 +69,28 @@ procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
   Path: string;
   AppDir: string;
+  AgentXDir: string;
+  ResultCode: Integer;
   P: Integer;
 begin
+  if CurUninstallStep = usUninstall then
+  begin
+    AppDir := ExpandConstant('{app}');
+
+    { Run agentx uninstall to clean up gateway service, data, and desktop app }
+    Exec(AppDir + '\agentx.exe', 'uninstall --yes', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+
+    { Kill any running agentx processes }
+    Exec('taskkill', '/IM agentx.exe /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+
+    { Remove data directory }
+    AgentXDir := ExpandConstant('{%USERPROFILE}\.agentx');
+    DelTree(AgentXDir, True, True, True);
+
+    { Remove desktop shortcut }
+    DeleteFile(ExpandConstant('{autodesktop}\AgentX.lnk'));
+  end;
+
   if CurUninstallStep = usPostUninstall then
   begin
     AppDir := ExpandConstant('{app}');

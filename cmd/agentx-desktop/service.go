@@ -57,6 +57,8 @@ func (s *InstallerService) InstallService() error {
 		return installSystemdUnit(binPath)
 	case "darwin":
 		return installLaunchdPlist(binPath)
+	case "windows":
+		return installTaskScheduler(binPath)
 	default:
 		return fmt.Errorf("service installation not supported on %s", runtime.GOOS)
 	}
@@ -70,6 +72,10 @@ func (s *InstallerService) UninstallService() error {
 		}
 	case "darwin":
 		if err := uninstallLaunchdPlist(); err != nil {
+			return err
+		}
+	case "windows":
+		if err := uninstallTaskScheduler(); err != nil {
 			return err
 		}
 	default:
@@ -97,6 +103,10 @@ func (s *InstallerService) IsServiceRunning() bool {
 		return err == nil
 	case "darwin":
 		cmd := exec.Command("launchctl", "list", "com.agentx.gateway")
+		err := cmd.Run()
+		return err == nil
+	case "windows":
+		cmd := exec.Command("schtasks", "/Query", "/TN", "AgentXGateway")
 		err := cmd.Run()
 		return err == nil
 	}
@@ -160,5 +170,30 @@ func uninstallLaunchdPlist() error {
 	plistPath := filepath.Join(home, "Library", "LaunchAgents", "com.agentx.gateway.plist")
 	exec.Command("launchctl", "unload", plistPath).Run()
 	os.Remove(plistPath)
+	return nil
+}
+
+func installTaskScheduler(binPath string) error {
+	if out, err := exec.Command(
+		"schtasks", "/Create",
+		"/SC", "ONLOGON",
+		"/TN", "AgentXGateway",
+		"/TR", fmt.Sprintf(`"%s" gateway`, binPath),
+		"/RL", "LIMITED",
+		"/F",
+	).CombinedOutput(); err != nil {
+		return fmt.Errorf("schtasks create failed: %s: %w", out, err)
+	}
+	return nil
+}
+
+func uninstallTaskScheduler() error {
+	if out, err := exec.Command(
+		"schtasks", "/Delete",
+		"/TN", "AgentXGateway",
+		"/F",
+	).CombinedOutput(); err != nil {
+		return fmt.Errorf("schtasks delete failed: %s: %w", out, err)
+	}
 	return nil
 }

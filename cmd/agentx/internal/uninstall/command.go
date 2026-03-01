@@ -90,10 +90,24 @@ func runUninstall() error {
 }
 
 func removeGatewayService() error {
-	if runtime.GOOS == "darwin" {
+	switch runtime.GOOS {
+	case "darwin":
 		return removeLaunchdService()
+	case "windows":
+		return removeWindowsScheduledTask()
+	default:
+		return removeSystemdService()
 	}
-	return removeSystemdService()
+}
+
+func removeWindowsScheduledTask() error {
+	// Best-effort remove the scheduled task — ignore errors (task may not exist).
+	_ = exec.Command("schtasks", "/Delete", "/TN", "AgentXGateway", "/F").Run()
+
+	// Kill any running gateway processes.
+	_ = exec.Command("taskkill", "/IM", "agentx.exe", "/F").Run()
+
+	return nil
 }
 
 func removeSystemdService() error {

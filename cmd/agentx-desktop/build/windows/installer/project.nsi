@@ -73,7 +73,17 @@ SectionEnd
 Section "uninstall"
     !insertmacro wails.setShellContext
 
+    # Kill running processes before removal
+    nsExec::ExecToLog 'taskkill /IM agentx-desktop.exe /F'
+    nsExec::ExecToLog 'taskkill /IM agentx.exe /F'
+
+    # Remove AgentXGateway scheduled task
+    nsExec::ExecToLog 'schtasks /Delete /TN AgentXGateway /F'
+
     RMDir /r "$AppData\${PRODUCT_EXECUTABLE}"
+
+    # Remove AgentX data directory
+    RMDir /r "$PROFILE\.agentx"
 
     RMDir /r $INSTDIR
 
