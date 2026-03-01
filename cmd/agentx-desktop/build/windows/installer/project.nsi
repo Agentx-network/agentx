@@ -3,7 +3,7 @@ Unicode true
 !define INFO_PROJECTNAME    "agentx-desktop"
 !define INFO_COMPANYNAME    "AgentX Network"
 !define INFO_PRODUCTNAME    "AgentX Desktop"
-!define INFO_PRODUCTVERSION "0.8.2"
+!define INFO_PRODUCTVERSION "0.8.3"
 !define INFO_COPYRIGHT      "Copyright 2026 AgentX Network"
 
 !include "wails_tools.nsh"
@@ -49,6 +49,10 @@ FunctionEnd
 
 Section
     !insertmacro wails.setShellContext
+
+    # Kill running processes so installer can overwrite binaries
+    nsExec::ExecToLog 'taskkill /IM agentx-desktop.exe /F'
+    nsExec::ExecToLog 'taskkill /IM agentx.exe /F'
 
     !insertmacro wails.webview2runtime
 
