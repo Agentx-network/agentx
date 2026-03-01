@@ -189,16 +189,29 @@ jobs:
       - name: Create DMG
         run: |
           APP_PATH="cmd/agentx-desktop/build/bin/agentx-desktop.app"
-          if [ -d "$APP_PATH" ]; then
-            hdiutil create -volname "AgentX Desktop" -srcfolder "$APP_PATH" \
-              -ov -format UDZO "${{ matrix.asset }}"
-          else
-            mkdir -p dmg_staging
-            cp cmd/agentx-desktop/build/bin/agentx-desktop dmg_staging/
-            ln -s /Applications dmg_staging/Applications
-            hdiutil create -volname "AgentX Desktop" -srcfolder dmg_staging \
-              -ov -format UDZO "${{ matrix.asset }}"
-          fi
+          create_dmg() {
+            if [ -d "$APP_PATH" ]; then
+              hdiutil create -volname "AgentX Desktop" -srcfolder "$APP_PATH" \
+                -ov -format UDZO "${{ matrix.asset }}"
+            else
+              mkdir -p dmg_staging
+              cp cmd/agentx-desktop/build/bin/agentx-desktop dmg_staging/
+              ln -s -f /Applications dmg_staging/Applications
+              hdiutil create -volname "AgentX Desktop" -srcfolder dmg_staging \
+                -ov -format UDZO "${{ matrix.asset }}"
+            fi
+          }
+          # Retry up to 3 times — hdiutil can fail with "Resource busy" on CI
+          for i in 1 2 3; do
+            if create_dmg; then
+              echo "DMG created successfully on attempt $i"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying in 5s..."
+            sleep 5
+          done
+          echo "Failed to create DMG after 3 attempts"
+          exit 1
 
       - name: Upload to release
         env:
