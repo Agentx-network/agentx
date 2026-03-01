@@ -295,12 +295,7 @@ AgentX:    5 MB RAM + 0.3s startup + real-time streaming + parallel tools + 10 c
 
 </div>
 
-<img src="assets/divider.gif" width="100%">
-
-<details>
-<summary><b>Alternative Install Methods</b></summary>
-
-### Download Pre-built Binaries
+### CLI Binaries
 
 Every release ships ready-to-run binaries — no Go toolchain required:
 
@@ -314,6 +309,11 @@ Every release ships ready-to-run binaries — no Go toolchain required:
 | **macOS** | Apple Silicon (M1/M2/M3/M4) | [`agentx-darwin-arm64`](https://github.com/Agentx-network/agentx/releases/latest/download/agentx-darwin-arm64) |
 | **macOS** | Intel x86_64 | [`agentx-darwin-amd64`](https://github.com/Agentx-network/agentx/releases/latest/download/agentx-darwin-amd64) |
 | **Windows** | x86_64 | [`agentx-windows-amd64.exe`](https://github.com/Agentx-network/agentx/releases/latest/download/agentx-windows-amd64.exe) |
+
+<img src="assets/divider.gif" width="100%">
+
+<details>
+<summary><b>Alternative Install Methods</b></summary>
 
 ### Run on Old Android Phones
 
