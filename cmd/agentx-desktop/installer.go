@@ -176,9 +176,28 @@ func (s *InstallerService) InstallBinary() error {
 		time.Sleep(2 * time.Second)
 	}
 
-	if err := os.Rename(tmpFile, platform.BinaryPath); err != nil {
+	// On Windows, a recently-killed process may still hold a file lock.
+	// Rename the old binary out of the way first (Windows allows renaming
+	// a running/locked exe), then rename the new one in, with retries.
+	if runtime.GOOS == "windows" && platform.BinaryExists {
+		oldPath := platform.BinaryPath + ".old"
+		os.Remove(oldPath) // clean up any previous .old file
+		// Move locked binary aside — this usually succeeds even if the file is locked.
+		_ = os.Rename(platform.BinaryPath, oldPath)
+		// Best-effort cleanup; may fail if still locked — that's fine.
+		defer os.Remove(oldPath)
+	}
+
+	var renameErr error
+	for i := 0; i < 5; i++ {
+		if renameErr = os.Rename(tmpFile, platform.BinaryPath); renameErr == nil {
+			break
+		}
+		time.Sleep(time.Duration(i+1) * time.Second)
+	}
+	if renameErr != nil {
 		os.Remove(tmpFile)
-		return err
+		return fmt.Errorf("install failed: %w", renameErr)
 	}
 
 	wailsRuntime.EventsEmit(s.ctx, "download:progress", map[string]interface{}{
