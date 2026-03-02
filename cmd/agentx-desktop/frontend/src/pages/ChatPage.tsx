@@ -111,7 +111,7 @@ export default function ChatPage({ showToast, messages, setMessages }: Props) {
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0 flex-1">
+    <div className="flex flex-col h-full min-h-0 flex-1 bg-[#0a0a12]/80 -m-6 p-6 rounded-xl">
       {/* Header */}
       <div className="flex items-center justify-between pb-4 border-b border-neon-pink/15">
         <h2 className="text-2xl font-bold uppercase tracking-[0.2em] text-glow-pink">

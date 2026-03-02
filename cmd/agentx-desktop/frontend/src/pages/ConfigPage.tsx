@@ -43,7 +43,7 @@ export default function ConfigPage({ showToast }: Props) {
   ];
 
   return (
-    <div className="max-w-2xl space-y-5">
+    <div className="max-w-2xl space-y-5 bg-[#0a0a12]/80 -m-6 p-6 rounded-xl">
       <h2 className="text-2xl font-bold uppercase tracking-[0.2em] text-glow-pink">
         Config
       </h2>
