@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { GatewayStatus } from "../lib/types";
 import NeonButton from "../components/ui/NeonButton";
+import agentHero from "../assets/agent-hero.gif";
 
 interface Props {
   showToast: (msg: string, type: "success" | "error") => void;
@@ -142,14 +143,15 @@ export default function DashboardPage({ showToast }: Props) {
           : "bg-gradient-to-br from-red-500/[0.04] to-white/[0.01] border-red-500/20"
       }`}>
         <div className="flex items-center gap-4">
-          <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-            running
-              ? "bg-neon-green/10 shadow-[0_0_20px_rgba(0,255,65,0.15)]"
-              : "bg-red-500/10"
-          }`}>
-            <div className={`w-4 h-4 rounded-full ${
+          <div className="relative">
+            <img src={agentHero} alt="" className={`w-12 h-12 rounded-xl border ${
               running
-                ? "bg-neon-green shadow-[0_0_12px_rgba(0,255,65,0.6)] animate-pulse"
+                ? "border-neon-green/30 shadow-[0_0_20px_rgba(0,255,65,0.2)]"
+                : "border-red-500/20 opacity-60 grayscale"
+            }`} />
+            <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-[#0a0a12] ${
+              running
+                ? "bg-neon-green shadow-[0_0_8px_rgba(0,255,65,0.6)] animate-pulse"
                 : "bg-red-500/60"
             }`} />
           </div>

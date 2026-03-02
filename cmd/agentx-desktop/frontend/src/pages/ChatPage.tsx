@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import type { ChatMessage } from "../lib/types";
+import agentHero from "../assets/agent-hero.gif";
 
 interface Props {
   showToast: (msg: string, type: "success" | "error") => void;
@@ -140,9 +141,9 @@ export default function ChatPage({ showToast, messages, setMessages }: Props) {
       <div className="flex-1 overflow-y-auto py-4 space-y-4 min-h-0">
         {messages.length === 0 && !sending && (
           <div className="flex items-center justify-center h-full">
-            <div className="text-center space-y-3">
-              <div className="text-4xl opacity-20">💬</div>
-              <p className="text-white/20 text-sm uppercase tracking-widest">
+            <div className="text-center space-y-4">
+              <img src={agentHero} alt="" className="w-24 h-24 mx-auto rounded-full border-2 border-neon-pink/20 shadow-[0_0_30px_rgba(255,0,128,0.15)]" />
+              <p className="text-white/25 text-sm uppercase tracking-widest">
                 Start a conversation
               </p>
               <p className="text-white/10 text-xs max-w-xs">
@@ -216,12 +217,15 @@ export default function ChatPage({ showToast, messages, setMessages }: Props) {
 function MessageBubble({ msg }: { msg: ChatMessage }) {
   return (
     <div
-      className={`flex ${
+      className={`flex items-end gap-2 ${
         msg.role === "user" ? "justify-end" : "justify-start"
       }`}
     >
+      {msg.role === "assistant" && (
+        <img src={agentHero} alt="" className="w-7 h-7 rounded-full border border-neon-pink/20 flex-shrink-0 mb-1" />
+      )}
       <div
-        className={`max-w-[80%] rounded-xl px-4 py-3 ${
+        className={`max-w-[75%] rounded-xl px-4 py-3 ${
           msg.role === "user"
             ? "bg-neon-pink/15 border border-neon-pink/30 text-white"
             : "bg-white/[0.04] border border-white/10 text-white/80"
