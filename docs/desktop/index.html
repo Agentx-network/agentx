@@ -4,37 +4,37 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AgentX Desktop App — Ubuntu · macOS · Windows</title>
-<meta name="description" content="Download AgentX Desktop — full graphical dashboard to install, configure, and manage your AI agents. Available for Ubuntu, macOS, and Windows.">
+<meta name="description" content="Download AgentX Desktop — full graphical dashboard to install, configure, and manage your AI agents.">
 <meta property="og:title" content="AgentX Desktop App — Download">
-<meta property="og:description" content="Full graphical dashboard to install, configure, and manage your AgentX agents. One download, no terminal required.">
+<meta property="og:description" content="Full graphical dashboard to install, configure, and manage your AgentX agents.">
 <meta property="og:image" content="https://agentx.network/assets/images/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Azeret+Mono:wght@400;700&family=IBM+Plex+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&family=Azeret+Mono:wght@400;700&family=IBM+Plex+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --purple: #eb58ff;
-    --purple-dark: #d43ac2;
-    --blue: #5c74ff;
     --pink: #f235a1;
+    --magenta: #d43ac2;
+    --magenta-dark: #6e1e64;
+    --purple: #eb58ff;
+    --blue: #5c74ff;
     --green: #17fb57;
     --bg: #000;
-    --bg-elevated: #080808;
     --surface: rgba(255,255,255,0.03);
-    --surface2: rgba(255,255,255,0.06);
     --border: #706e6e;
-    --border-dim: rgba(112,110,110,0.4);
+    --border-dim: rgba(112,110,110,0.35);
     --text: #fff;
-    --text-secondary: hsla(0,0%,100%,0.85);
-    --text-dim: hsla(0,0%,100%,0.55);
-    --text-muted: hsla(0,0%,100%,0.35);
-    --glow-purple: rgba(235,88,255,0.35);
-    --glow-pink: rgba(242,53,161,0.3);
-    --glow-blue: rgba(92,116,255,0.3);
+    --text-80: hsla(0,0%,100%,0.8);
+    --text-55: hsla(0,0%,100%,0.55);
+    --text-35: hsla(0,0%,100%,0.35);
+    --glow-pink: rgba(242,53,161,0.9);
+    --glow-pink-soft: rgba(242,53,161,0.25);
+    --glow-green: rgba(23,251,87,0.5);
+    --cut: 5px 0 5px 0;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: 'Inter', sans-serif;
     background: var(--bg);
     color: var(--text);
     min-height: 100vh;
@@ -42,119 +42,176 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  /* ---- Navigation ---- */
-  .nav {
+  /* ---- Header ---- */
+  .header {
+    position: fixed;
+    top: 0; left: 0; width: 100%;
     display: flex;
-    align-items: center;
     justify-content: space-between;
-    padding: 1.2rem 2.5rem;
-    border-bottom: 1px solid var(--border-dim);
-    backdrop-filter: blur(20px);
-    background: rgba(0,0,0,0.7);
-    position: sticky;
-    top: 0;
-    z-index: 100;
-  }
-  .nav-logo {
-    display: flex;
     align-items: center;
-    gap: 0.7rem;
-    text-decoration: none;
-    color: var(--text);
+    padding: 1.2rem 1.5rem;
+    z-index: 1000;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(8px);
+    transition: 0.4s;
   }
-  .nav-logo img {
-    height: 32px;
+  .header-logo img {
+    height: 38px;
     width: auto;
   }
-  .nav-logo span {
-    font-family: 'Azeret Mono', monospace;
-    font-weight: 700;
-    font-size: 1.1rem;
-    letter-spacing: -0.02em;
-  }
-  .nav-links {
+  .header-right {
     display: flex;
     align-items: center;
-    gap: 1.8rem;
+    gap: 0.6rem;
   }
-  .nav-links a {
-    color: var(--text-dim);
+  .header-nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0.5rem 1rem;
+    font-family: 'Azeret Mono', monospace;
+    font-size: 0.8rem;
+    font-weight: 400;
+    color: var(--text);
     text-decoration: none;
-    font-size: 0.82rem;
-    font-family: 'IBM Plex Mono', monospace;
-    letter-spacing: 0.02em;
-    transition: color 0.3s;
+    border: 1px solid var(--border-dim);
+    border-radius: var(--cut);
+    background: rgba(0,0,0,0.5);
+    transition: 0.3s;
+    letter-spacing: -0.03em;
   }
-  .nav-links a:hover { color: var(--text); }
-  .nav-links a.active { color: var(--purple); }
-  .nav-cta {
+  .header-nav-btn:hover {
+    border-color: var(--purple);
+    background: rgba(235,88,255,0.08);
+  }
+  .header-nav-btn.active {
+    border-color: var(--pink);
+    box-shadow: inset 0 2px 12px rgba(242,53,161,0.15);
+  }
+
+  /* ---- Animated CTA Button (matching agentx.network GET STARTED) ---- */
+  .cta-btn {
+    position: relative;
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
-    padding: 0.5rem 1.2rem;
-    font-size: 0.8rem;
+    justify-content: center;
+    padding: 0.7rem 1.8rem;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem;
     font-weight: 700;
-    font-family: 'IBM Plex Mono', monospace;
     color: #fff;
-    background: linear-gradient(180deg, var(--purple), var(--blue));
+    background: linear-gradient(10deg, var(--magenta) 27%, var(--magenta-dark) 100%);
     border: none;
-    border-radius: 5px;
+    border-radius: var(--cut);
+    cursor: pointer;
     text-decoration: none;
-    transition: box-shadow 0.3s, transform 0.2s;
-    box-shadow: 0 1px 10px rgba(236,88,255,0.35);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    transition: filter 0.2s;
+    z-index: 1;
   }
-  .nav-cta:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 1px 14px var(--purple);
+  .cta-btn:active { filter: brightness(1.2); }
+  .cta-btn-border {
+    position: absolute;
+    left: -4px; top: -4px;
+    width: calc(100% + 8px);
+    height: calc(100% + 8px);
+    pointer-events: none;
+    overflow: visible;
   }
+  .cta-btn-border rect {
+    fill: none;
+    stroke: var(--purple);
+    stroke-width: 0;
+    vector-effect: non-scaling-stroke;
+    rx: 5; ry: 5;
+    transition: stroke-width 0.3s;
+  }
+  .cta-btn:hover .cta-btn-border rect {
+    stroke-width: 2px;
+    stroke-dasharray: 400;
+    animation: borderAnim 2s linear infinite;
+  }
+  @keyframes borderAnim {
+    0% { stroke-dashoffset: 400; }
+    100% { stroke-dashoffset: 0; }
+  }
+
+  /* ---- Download button (larger CTA variant) ---- */
+  .download-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.8rem;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(10deg, var(--magenta) 27%, var(--magenta-dark) 100%);
+    border: none;
+    border-radius: var(--cut);
+    cursor: pointer;
+    text-decoration: none;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    transition: filter 0.2s, box-shadow 0.3s;
+    box-shadow: 0 1px 14px var(--glow-pink-soft);
+  }
+  .download-btn:hover {
+    box-shadow: 0 4px 24px var(--glow-pink-soft), inset 0 2px 12px rgba(242,53,161,0.2);
+  }
+  .download-btn:active { filter: brightness(1.2); }
+  .download-btn svg { width: 16px; height: 16px; fill: #fff; }
 
   /* ---- Hero ---- */
   .hero {
     text-align: center;
-    padding: 5rem 1.5rem 4rem;
+    padding: 7rem 1.5rem 4rem;
     position: relative;
     overflow: hidden;
   }
   .hero::before {
     content: '';
     position: absolute;
-    top: -40%;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 800px;
-    height: 800px;
-    background: radial-gradient(circle, rgba(235,88,255,0.08) 0%, rgba(92,116,255,0.04) 40%, transparent 70%);
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(ellipse at 50% 20%, rgba(212,58,194,0.1) 0%, transparent 60%);
     pointer-events: none;
   }
   .hero-badge {
     display: inline-block;
     padding: 0.35rem 1rem;
     border: 1px solid var(--border-dim);
-    border-radius: 5px 0 5px 0;
-    font-size: 0.75rem;
-    font-family: 'IBM Plex Mono', monospace;
+    border-radius: var(--cut);
+    font-size: 0.72rem;
+    font-family: 'Azeret Mono', monospace;
     color: var(--green);
-    background: rgba(23,251,87,0.06);
+    background: rgba(23,251,87,0.05);
     margin-bottom: 1.5rem;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
   }
   .hero h1 {
-    font-family: 'Inter', sans-serif;
-    font-size: 3.2rem;
-    font-weight: 800;
+    font-size: 3rem;
+    font-weight: 900;
+    color: var(--text);
+    margin-bottom: 0.8rem;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    text-transform: uppercase;
+  }
+  .hero h1 em {
+    font-style: normal;
     background: linear-gradient(180deg, var(--purple), var(--blue));
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    margin-bottom: 0.8rem;
-    line-height: 1.1;
-    letter-spacing: -0.03em;
   }
   .hero .subtitle {
-    font-size: 1rem;
-    color: var(--text-dim);
-    max-width: 520px;
+    font-size: 0.9rem;
+    color: var(--text-55);
+    max-width: 480px;
     margin: 0 auto 2rem;
     line-height: 1.6;
     font-family: 'IBM Plex Mono', monospace;
@@ -164,7 +221,7 @@
   .features-bar {
     display: flex;
     justify-content: center;
-    gap: 2rem;
+    gap: 1.5rem;
     flex-wrap: wrap;
     margin-bottom: 3rem;
   }
@@ -172,25 +229,16 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    font-size: 0.82rem;
+    font-size: 0.78rem;
     font-family: 'IBM Plex Mono', monospace;
-    color: var(--text-dim);
+    color: var(--text-55);
+    padding: 0.4rem 0.8rem;
+    border: 1px solid var(--border-dim);
+    border-radius: var(--cut);
+    background: rgba(0,0,0,0.4);
   }
-  .feature-item .feat-icon {
-    width: 28px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    background: rgba(235,88,255,0.1);
-    border: 1px solid rgba(235,88,255,0.2);
-    font-size: 0.85rem;
-  }
-  .feature-item strong {
-    color: var(--text-secondary);
-    font-weight: 600;
-  }
+  .feature-item .feat-icon { font-size: 0.9rem; }
+  .feature-item strong { color: var(--text-80); font-weight: 600; }
 
   /* ---- Platform cards ---- */
   .platforms {
@@ -199,90 +247,50 @@
     padding: 0 1.5rem;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 1.2rem;
+    gap: 1rem;
   }
   .plat-card {
     background: var(--surface);
     border: 1px solid var(--border-dim);
-    border-radius: 5px;
+    border-radius: var(--cut);
     padding: 2rem 1.5rem;
     text-align: center;
-    transition: border-color 0.4s, box-shadow 0.4s, transform 0.2s;
+    transition: 0.4s;
     position: relative;
-    overflow: hidden;
   }
-  .plat-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, var(--purple), transparent);
-    opacity: 0;
-    transition: opacity 0.4s;
-  }
-  .plat-card:hover::before { opacity: 1; }
   .plat-card:hover {
-    border-color: rgba(235,88,255,0.4);
-    box-shadow: 0 0 30px rgba(235,88,255,0.1);
-    transform: translateY(-2px);
+    filter: brightness(1.2);
+    border-color: var(--border);
   }
   .plat-card .plat-icon { font-size: 2.8rem; margin-bottom: 0.8rem; }
   .plat-card .plat-name {
-    font-size: 1.3rem;
-    font-weight: 700;
+    font-size: 1.2rem;
+    font-weight: 800;
     margin-bottom: 0.3rem;
     letter-spacing: -0.02em;
+    text-transform: uppercase;
   }
   .plat-card .plat-detail {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     font-family: 'IBM Plex Mono', monospace;
-    color: var(--text-dim);
+    color: var(--text-55);
     margin-bottom: 1.2rem;
     line-height: 1.5;
   }
-
-  .plat-card .download-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.7rem 1.5rem;
-    font-size: 0.88rem;
-    font-weight: 700;
-    font-family: 'IBM Plex Mono', monospace;
-    color: #fff;
-    background: linear-gradient(180deg, var(--purple), var(--blue));
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.3s;
-    text-decoration: none;
-    box-shadow: 0 1px 14px var(--glow-purple);
-    margin-bottom: 0.6rem;
-    position: relative;
-  }
-  .plat-card .download-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 24px var(--glow-purple);
-  }
-  .plat-card .download-btn svg { width: 16px; height: 16px; fill: #fff; }
-
   .plat-card .file-hint {
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     font-family: 'Azeret Mono', monospace;
-    color: var(--text-muted);
-    margin-bottom: 0.3rem;
+    color: var(--text-35);
+    margin-top: 0.5rem;
   }
-
   .plat-card .arch-select {
-    background: var(--bg);
-    color: var(--text-secondary);
+    background: rgba(0,0,0,0.6);
+    color: var(--text-80);
     border: 1px solid var(--border-dim);
-    border-radius: 5px;
+    border-radius: var(--cut);
     padding: 0.35rem 0.6rem;
-    font-size: 0.78rem;
-    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    font-family: 'Azeret Mono', monospace;
     cursor: pointer;
     outline: none;
     margin-bottom: 1rem;
@@ -290,43 +298,53 @@
   }
   .plat-card .arch-select:focus { border-color: var(--purple); }
 
-  /* ---- Highlighted card (detected) ---- */
+  /* ---- Detected platform card ---- */
   .plat-card.detected {
     border-color: var(--pink);
-    box-shadow: inset 0 3px 18px rgba(242,53,161,0.12), 0 0 30px rgba(242,53,161,0.08);
   }
-  .plat-card.detected::before { opacity: 1; background: linear-gradient(90deg, transparent, var(--pink), transparent); }
+  .plat-card.detected::after {
+    content: '';
+    position: absolute;
+    left: 4px; top: 4px;
+    width: calc(100% - 8px);
+    height: calc(100% - 8px);
+    box-shadow: inset 0 3.62px 18.48px 0 rgba(242,53,161,0.25);
+    border-radius: var(--cut);
+    pointer-events: none;
+  }
   .plat-card.detected .detected-badge {
     display: inline-block;
     padding: 0.2rem 0.7rem;
     border: 1px solid var(--pink);
-    border-radius: 5px 0 5px 0;
-    font-size: 0.68rem;
-    font-family: 'IBM Plex Mono', monospace;
+    border-radius: var(--cut);
+    font-size: 0.65rem;
+    font-family: 'Azeret Mono', monospace;
     color: var(--pink);
-    background: rgba(242,53,161,0.08);
+    background: rgba(242,53,161,0.06);
     margin-bottom: 0.8rem;
-    letter-spacing: 0.03em;
     text-transform: uppercase;
+    letter-spacing: 0.04em;
   }
 
-  /* ---- Section titles ---- */
-  .section-title {
+  /* ---- Section styling ---- */
+  .section-header {
     text-align: center;
-    font-size: 1.6rem;
-    font-weight: 700;
-    margin-bottom: 0.5rem;
-    letter-spacing: -0.02em;
-  }
-  .section-subtitle {
-    text-align: center;
-    font-size: 0.82rem;
-    font-family: 'IBM Plex Mono', monospace;
-    color: var(--text-dim);
     margin-bottom: 2rem;
   }
+  .section-header h2 {
+    font-size: 1.6rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.4rem;
+  }
+  .section-header p {
+    font-size: 0.78rem;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--text-55);
+  }
 
-  /* ---- Divider line ---- */
+  /* ---- Divider ---- */
   .divider {
     max-width: 940px;
     margin: 3.5rem auto;
@@ -337,7 +355,7 @@
     background: linear-gradient(90deg, transparent, var(--border-dim), transparent);
   }
 
-  /* ---- What's included ---- */
+  /* ---- What's included grid ---- */
   .included-section {
     max-width: 940px;
     margin: 0 auto;
@@ -346,28 +364,32 @@
   .included-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 1rem;
+    gap: 0.8rem;
   }
   .inc-card {
     background: var(--surface);
     border: 1px solid var(--border-dim);
-    border-radius: 5px;
-    padding: 1.5rem;
+    border-radius: var(--cut);
+    padding: 1.3rem;
     text-align: left;
-    transition: border-color 0.3s;
+    transition: 0.4s;
   }
-  .inc-card:hover { border-color: rgba(235,88,255,0.3); }
-  .inc-card .inc-icon { font-size: 1.8rem; margin-bottom: 0.7rem; }
+  .inc-card:hover {
+    filter: brightness(1.3);
+    border-color: var(--border);
+  }
+  .inc-card .inc-icon { font-size: 1.6rem; margin-bottom: 0.6rem; }
   .inc-card h4 {
-    font-size: 0.9rem;
-    margin-bottom: 0.4rem;
+    font-size: 0.85rem;
     font-weight: 700;
-    letter-spacing: -0.01em;
+    margin-bottom: 0.3rem;
+    text-transform: uppercase;
+    letter-spacing: 0.01em;
   }
   .inc-card p {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     font-family: 'IBM Plex Mono', monospace;
-    color: var(--text-dim);
+    color: var(--text-55);
     line-height: 1.5;
   }
 
@@ -384,23 +406,22 @@
     margin-bottom: 1.5rem;
   }
   .step-tab {
-    padding: 0.5rem 1.2rem;
+    padding: 0.5rem 1.1rem;
     border: 1px solid var(--border-dim);
-    border-radius: 5px;
+    border-radius: var(--cut);
     background: transparent;
-    color: var(--text-dim);
+    color: var(--text-55);
     cursor: pointer;
-    font-size: 0.82rem;
+    font-size: 0.78rem;
     font-weight: 600;
-    font-family: 'IBM Plex Mono', monospace;
-    transition: all 0.3s;
+    font-family: 'Azeret Mono', monospace;
+    transition: 0.3s;
   }
-  .step-tab:hover { border-color: var(--border); color: var(--text-secondary); }
+  .step-tab:hover { border-color: var(--border); color: var(--text-80); }
   .step-tab.active {
-    border-color: var(--purple);
-    color: var(--purple);
-    background: rgba(235,88,255,0.06);
-    box-shadow: inset 0 2px 12px rgba(235,88,255,0.08);
+    border-color: var(--pink);
+    color: var(--pink);
+    box-shadow: inset 0 2px 12px rgba(242,53,161,0.12);
   }
   .step-content { display: none; }
   .step-content.active { display: block; }
@@ -411,39 +432,37 @@
   .step-content .step-list li {
     counter-increment: steps;
     position: relative;
-    padding: 1rem 1rem 1rem 3.5rem;
+    padding: 0.9rem 1rem 0.9rem 3.2rem;
     background: var(--surface);
     border: 1px solid var(--border-dim);
-    border-radius: 5px;
-    margin-bottom: 0.6rem;
+    border-radius: var(--cut);
+    margin-bottom: 0.5rem;
     line-height: 1.5;
-    font-size: 0.88rem;
-    color: var(--text-secondary);
-    transition: border-color 0.3s;
+    font-size: 0.85rem;
+    color: var(--text-80);
   }
-  .step-content .step-list li:hover { border-color: var(--border); }
   .step-content .step-list li::before {
     content: counter(steps);
     position: absolute;
-    left: 1rem;
-    top: 1rem;
+    left: 0.9rem;
+    top: 0.9rem;
     width: 22px;
     height: 22px;
     line-height: 22px;
     text-align: center;
     border-radius: 50%;
-    background: linear-gradient(180deg, var(--purple), var(--blue));
-    font-size: 0.72rem;
+    background: linear-gradient(10deg, var(--magenta) 27%, var(--magenta-dark) 100%);
+    font-size: 0.7rem;
     font-weight: 800;
     color: #fff;
   }
   .step-content code {
-    background: rgba(235,88,255,0.08);
-    border: 1px solid rgba(235,88,255,0.15);
+    background: rgba(235,88,255,0.06);
+    border: 1px solid rgba(235,88,255,0.12);
     border-radius: 3px;
-    padding: 0.12rem 0.45rem;
+    padding: 0.1rem 0.4rem;
     font-family: 'Azeret Mono', monospace;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     color: var(--purple);
   }
 
@@ -456,39 +475,38 @@
   .prereq-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 1rem;
+    gap: 0.8rem;
   }
   .prereq-card {
     background: var(--surface);
     border: 1px solid var(--border-dim);
-    border-radius: 5px;
-    padding: 1.3rem;
+    border-radius: var(--cut);
+    padding: 1.2rem;
   }
   .prereq-card h4 {
-    font-size: 0.88rem;
-    margin-bottom: 0.5rem;
+    font-size: 0.85rem;
     font-weight: 700;
+    margin-bottom: 0.5rem;
   }
   .prereq-card p {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     font-family: 'IBM Plex Mono', monospace;
-    color: var(--text-dim);
+    color: var(--text-55);
     line-height: 1.6;
   }
   .prereq-card code {
-    background: rgba(235,88,255,0.08);
-    border: 1px solid rgba(235,88,255,0.15);
+    background: rgba(235,88,255,0.06);
+    border: 1px solid rgba(235,88,255,0.12);
     border-radius: 3px;
-    padding: 0.1rem 0.4rem;
+    padding: 0.08rem 0.35rem;
     font-family: 'Azeret Mono', monospace;
-    font-size: 0.72rem;
+    font-size: 0.7rem;
     color: var(--purple);
   }
   .prereq-card a {
     color: var(--purple);
     text-decoration: none;
     border-bottom: 1px solid rgba(235,88,255,0.3);
-    transition: border-color 0.3s;
   }
   .prereq-card a:hover { border-bottom-color: var(--purple); }
 
@@ -500,9 +518,9 @@
     text-align: center;
   }
   .cli-alt p {
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     font-family: 'IBM Plex Mono', monospace;
-    color: var(--text-dim);
+    color: var(--text-55);
     margin-bottom: 0.8rem;
   }
   .cli-alt a {
@@ -510,101 +528,93 @@
     text-decoration: none;
     font-weight: 600;
     font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.85rem;
-    border-bottom: 1px solid rgba(235,88,255,0.3);
-    transition: border-color 0.3s;
+    font-size: 0.82rem;
   }
-  .cli-alt a:hover { border-bottom-color: var(--purple); }
+  .cli-alt a:hover { text-decoration: underline; }
 
   /* ---- Footer ---- */
   .footer {
     text-align: center;
     padding: 3rem 1.5rem 2rem;
-    color: var(--text-muted);
-    font-size: 0.78rem;
+    color: var(--text-35);
+    font-size: 0.75rem;
     font-family: 'IBM Plex Mono', monospace;
     border-top: 1px solid var(--border-dim);
     margin-top: 4rem;
   }
-  .footer-logo {
-    margin-bottom: 1.2rem;
-  }
-  .footer-logo img {
-    height: 28px;
-    opacity: 0.5;
-  }
+  .footer-logo { margin-bottom: 1.2rem; }
+  .footer-logo img { height: 28px; opacity: 0.4; }
   .footer-links {
     margin-bottom: 1rem;
     display: flex;
     justify-content: center;
-    gap: 1.5rem;
+    gap: 1.2rem;
     flex-wrap: wrap;
   }
   .footer-links a {
-    color: var(--text-dim);
+    color: var(--text-55);
     text-decoration: none;
+    font-size: 0.75rem;
     transition: color 0.3s;
-    font-size: 0.78rem;
   }
   .footer-links a:hover { color: var(--text); }
   .footer-social {
     display: flex;
     justify-content: center;
-    gap: 1rem;
-    margin-bottom: 1.2rem;
+    gap: 1.2rem;
+    margin-bottom: 1rem;
   }
   .footer-social a {
-    color: var(--text-muted);
+    color: var(--text-35);
     text-decoration: none;
-    font-size: 0.82rem;
+    font-size: 0.78rem;
     transition: color 0.3s;
   }
   .footer-social a:hover { color: var(--purple); }
 
   /* ---- Responsive ---- */
   @media (max-width: 768px) {
-    .nav { padding: 1rem 1.2rem; }
-    .nav-links { display: none; }
-    .hero h1 { font-size: 2.2rem; }
-    .hero { padding: 3.5rem 1.2rem 3rem; }
-    .platforms { grid-template-columns: 1fr; max-width: 400px; }
+    .header-right { gap: 0.3rem; }
+    .header-nav-btn span.hide-mobile { display: none; }
+    .hero h1 { font-size: 2rem; }
+    .hero { padding: 6rem 1.2rem 3rem; }
+    .platforms { grid-template-columns: 1fr; max-width: 380px; }
     .included-grid { grid-template-columns: 1fr; }
     .prereq-grid { grid-template-columns: 1fr; }
-    .features-bar { gap: 1rem; }
-    .feature-item { font-size: 0.75rem; }
-  }
-
-  /* ---- Glow animation for detected card ---- */
-  @keyframes glow-pulse {
-    0%, 100% { box-shadow: inset 0 3px 18px rgba(242,53,161,0.12), 0 0 30px rgba(242,53,161,0.08); }
-    50% { box-shadow: inset 0 3px 18px rgba(242,53,161,0.18), 0 0 40px rgba(242,53,161,0.12); }
-  }
-  .plat-card.detected {
-    animation: glow-pulse 3s ease-in-out infinite;
+    .features-bar { gap: 0.6rem; }
   }
 </style>
 </head>
 <body>
 
-<!-- ====== NAVIGATION ====== -->
-<nav class="nav">
-  <a href="https://agentx.network" class="nav-logo">
+<!-- ====== HEADER ====== -->
+<header class="header">
+  <a href="https://agentx.network" class="header-logo">
     <img src="https://agentx.network/assets/images/logo.png" alt="AgentX">
-    <span>AgentX</span>
   </a>
-  <div class="nav-links">
-    <a href="https://agentx.network">Home</a>
-    <a href="https://install.agentx.network">CLI</a>
-    <a href="https://install.agentx.network/desktop/" class="active">Desktop</a>
-    <a href="https://github.com/Agentx-network/agentx" target="_blank">GitHub</a>
-    <a href="https://agentx.network" class="nav-cta">Get Started</a>
+  <div class="header-right">
+    <a href="https://install.agentx.network" class="header-nav-btn">
+      <span>CLI</span>
+    </a>
+    <a href="https://install.agentx.network/desktop/" class="header-nav-btn active">
+      <span>Desktop</span>
+    </a>
+    <a href="https://github.com/Agentx-network/agentx" target="_blank" class="header-nav-btn">
+      <span>GitHub</span>
+    </a>
+    <a href="https://agentx.network" class="cta-btn">
+      Get Started
+      <svg class="cta-btn-border" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <rect x="1" y="1" width="98" height="98" rx="5" ry="5"/>
+      </svg>
+    </a>
   </div>
-</nav>
+</header>
 
 <!-- ====== HERO ====== -->
 <section class="hero">
   <div class="hero-badge">Desktop App &mdash; GUI Dashboard</div>
-  <h1>AgentX Desktop</h1>
+  <h1><em>AgentX</em> Desktop</h1>
   <p class="subtitle">Full graphical dashboard to install, configure, and manage your AgentX agents. One download, no terminal required.</p>
 
   <div class="features-bar">
@@ -614,7 +624,7 @@
     </div>
     <div class="feature-item">
       <span class="feat-icon">&#x2699;&#xFE0F;</span>
-      <strong>Visual config editor</strong>
+      <strong>Visual config</strong>
     </div>
     <div class="feature-item">
       <span class="feat-icon">&#x1F4AC;</span>
@@ -637,8 +647,10 @@
 
 <!-- ====== WHAT'S INCLUDED ====== -->
 <section class="included-section">
-  <h2 class="section-title">What's Included</h2>
-  <p class="section-subtitle">Everything you need to run your AI agents</p>
+  <div class="section-header">
+    <h2>What's Included</h2>
+    <p>Everything you need to run your AI agents</p>
+  </div>
   <div class="included-grid">
     <div class="inc-card">
       <div class="inc-icon">&#x1F4E5;</div>
@@ -678,8 +690,10 @@
 
 <!-- ====== INSTALL STEPS ====== -->
 <section class="steps-section">
-  <h2 class="section-title">Installation Steps</h2>
-  <p class="section-subtitle">Get up and running in minutes</p>
+  <div class="section-header">
+    <h2>Installation Steps</h2>
+    <p>Get up and running in minutes</p>
+  </div>
   <div class="steps-tabs">
     <div class="step-tab active" onclick="showSteps('ubuntu')">Ubuntu / Linux</div>
     <div class="step-tab" onclick="showSteps('macos')">macOS</div>
@@ -719,8 +733,10 @@
 
 <!-- ====== PREREQUISITES ====== -->
 <section class="prereq-section">
-  <h2 class="section-title">Prerequisites</h2>
-  <p class="section-subtitle">System requirements by platform</p>
+  <div class="section-header">
+    <h2>Prerequisites</h2>
+    <p>System requirements by platform</p>
+  </div>
   <div class="prereq-grid">
     <div class="prereq-card">
       <h4>&#x1F427; Ubuntu / Linux</h4>
@@ -766,15 +782,12 @@
     <a href="https://agentx.network">Website</a>
     <a href="https://discord.gg/V4sAZ9XWpN">Discord</a>
     <a href="https://agentx.network/terms">Terms</a>
-    <a href="https://agentx.network/privacy">Privacy Policy</a>
+    <a href="https://agentx.network/privacy">Privacy</a>
   </div>
   &copy; 2024&ndash;2026 AgentX Network. All rights reserved.
 </footer>
 
 <script>
-/* ============================================================
-   Release assets — match goreleaser name_template
-   ============================================================ */
 var REPO = "https://github.com/Agentx-network/agentx/releases/latest/download/";
 
 var DESKTOP_PLATFORMS = {
@@ -805,7 +818,6 @@ var DESKTOP_PLATFORMS = {
   }
 };
 
-/* Detect platform */
 function detectPlatform() {
   var ua = navigator.userAgent || "";
   var plat = navigator.platform || "";
@@ -816,7 +828,6 @@ function detectPlatform() {
 
 var detected = detectPlatform();
 
-/* Render platform cards */
 (function() {
   var container = document.getElementById("platforms");
   var order = ["ubuntu", "macos", "windows"];
@@ -854,7 +865,6 @@ var detected = detectPlatform();
     container.appendChild(card);
   });
 
-  /* Arch selectors */
   document.querySelectorAll(".arch-select").forEach(function(sel) {
     sel.addEventListener("change", function() {
       var key = this.dataset.platform;
@@ -866,7 +876,6 @@ var detected = detectPlatform();
   });
 })();
 
-/* Steps tabs */
 function showSteps(platform) {
   document.querySelectorAll(".step-tab").forEach(function(t) { t.classList.remove("active"); });
   document.querySelectorAll(".step-content").forEach(function(c) { c.classList.remove("active"); });
