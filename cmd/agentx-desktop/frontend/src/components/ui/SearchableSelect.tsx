@@ -48,7 +48,7 @@ export default function SearchableSelect({ label, placeholder = "Search...", opt
   return (
     <div ref={ref} className="relative">
       {label && (
-        <label className="block text-xs text-white/50 mb-1.5 uppercase tracking-widest font-medium">
+        <label className="block text-xs text-white/60 mb-1.5 uppercase tracking-widest font-medium">
           {label}
         </label>
       )}
@@ -64,10 +64,10 @@ export default function SearchableSelect({ label, placeholder = "Search...", opt
             : "border-neon-purple/20 hover:border-neon-pink/30"
         }`}
       >
-        <span className={selected ? "text-white" : "text-white/30"}>
+        <span className={selected ? "text-white" : "text-white/40"}>
           {selected ? selected.label : "Select..."}
         </span>
-        <span className={`text-white/30 text-xs transition-transform ${open ? "rotate-180" : ""}`}>
+        <span className={`text-white/45 text-xs transition-transform ${open ? "rotate-180" : ""}`}>
           ▼
         </span>
       </button>
@@ -81,7 +81,7 @@ export default function SearchableSelect({ label, placeholder = "Search...", opt
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={placeholder}
-              className="w-full bg-white/[0.04] border border-neon-purple/20 rounded-md px-3 py-2 text-sm text-white placeholder-white/25 focus:outline-none focus:border-neon-pink/40"
+              className="w-full bg-white/[0.04] border border-neon-purple/20 rounded-md px-3 py-2 text-sm text-white placeholder-white/35 focus:outline-none focus:border-neon-pink/40"
             />
           </div>
           <div className="max-h-52 overflow-y-auto">
@@ -103,7 +103,7 @@ export default function SearchableSelect({ label, placeholder = "Search...", opt
                   <div>
                     <p className="text-sm font-medium">{o.label}</p>
                     {o.sublabel && (
-                      <p className="text-xs text-white/25 font-mono">{o.sublabel}</p>
+                      <p className="text-xs text-white/40 font-mono">{o.sublabel}</p>
                     )}
                   </div>
                   {o.badge && (

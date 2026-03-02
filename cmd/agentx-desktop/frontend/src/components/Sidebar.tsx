@@ -24,7 +24,7 @@ export default function Sidebar({ currentPage, onNavigate, onRunWizard, version 
           <h1 className="text-xl font-bold text-white text-glow-pink uppercase tracking-widest">
             AgentX
           </h1>
-          <p className="text-[10px] text-neon-pink/50 uppercase tracking-[0.2em] font-medium">Desktop</p>
+          <p className="text-[11px] text-neon-pink/60 uppercase tracking-[0.2em] font-medium">Desktop</p>
         </div>
       </div>
       <nav className="flex-1 p-3 space-y-1">
@@ -35,7 +35,7 @@ export default function Sidebar({ currentPage, onNavigate, onRunWizard, version 
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm uppercase tracking-widest transition-all ${
               currentPage === item.id
                 ? "bg-neon-pink/15 text-neon-pink border-l-[3px] border-neon-pink shadow-glow-pink-sm"
-                : "text-white/45 hover:text-white/80 hover:bg-white/5 border-l-[3px] border-transparent"
+                : "text-white/55 hover:text-white/80 hover:bg-white/5 border-l-[3px] border-transparent"
             }`}
           >
             <span>{item.icon}</span>
@@ -47,12 +47,12 @@ export default function Sidebar({ currentPage, onNavigate, onRunWizard, version 
         {onRunWizard && (
           <button
             onClick={onRunWizard}
-            className="w-full text-[10px] text-neon-pink/40 hover:text-neon-pink hover:bg-neon-pink/10 uppercase tracking-widest font-bold py-2 px-3 rounded-lg border border-neon-pink/15 hover:border-neon-pink/30 transition-all"
+            className="w-full text-[11px] text-neon-pink/60 hover:text-neon-pink hover:bg-neon-pink/10 uppercase tracking-widest font-bold py-2 px-3 rounded-lg border border-neon-pink/20 hover:border-neon-pink/30 transition-all"
           >
             Run Setup Wizard
           </button>
         )}
-        <p className="text-[10px] text-white/25 uppercase tracking-widest">{version || ""}</p>
+        <p className="text-[11px] text-white/40 uppercase tracking-widest">{version || ""}</p>
       </div>
     </aside>
   );

@@ -241,7 +241,7 @@ func getModelInfos(cfg *config.Config) []ModelInfo {
 		models = append(models, ModelInfo{
 			ModelName: m.ModelName,
 			Model:     m.Model,
-			HasKey:    m.APIKey != "",
+			HasKey:    m.APIKey != "" && m.APIKey != "ollama",
 		})
 	}
 	return models
