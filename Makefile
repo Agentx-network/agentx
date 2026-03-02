@@ -178,7 +178,7 @@ desktop-dev:
 ## desktop-build: Build AgentX Desktop for current platform
 desktop-build:
 	@echo "Building AgentX Desktop for $(PLATFORM)/$(ARCH)..."
-	@cd cmd/agentx-desktop && wails build
+	@cd cmd/agentx-desktop && wails build -ldflags="-s -w -H windowsgui"
 	@echo "Desktop build complete"
 
 ## help: Show this help message

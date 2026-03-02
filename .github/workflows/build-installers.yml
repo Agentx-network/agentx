@@ -121,7 +121,7 @@ jobs:
       - name: Build desktop app with NSIS installer
         shell: bash
         working-directory: cmd/agentx-desktop
-        run: wails build -clean -nsis -ldflags="-s -w"
+        run: wails build -clean -nsis -ldflags="-s -w -H windowsgui"
 
       - name: Rename installer
         shell: pwsh
