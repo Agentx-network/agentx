@@ -9,6 +9,11 @@ import (
 	"github.com/Agentx-network/agentx/pkg/config"
 )
 
+// version is set at build time via ldflags:
+//
+//	-X main.version=0.8.11
+var version = "dev"
+
 // App struct holds application lifecycle state.
 type App struct {
 	ctx context.Context
@@ -35,7 +40,7 @@ type AppInfo struct {
 // GetAppInfo returns version, OS, and arch information.
 func (a *App) GetAppInfo() AppInfo {
 	return AppInfo{
-		Version:    "0.1.0",
+		Version:    version,
 		OS:         runtime.GOOS,
 		Arch:       runtime.GOARCH,
 		ConfigPath: getConfigPath(),
