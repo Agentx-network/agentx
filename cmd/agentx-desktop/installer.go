@@ -64,7 +64,9 @@ func (s *InstallerService) DetectPlatform() PlatformInfo {
 	}
 
 	if exists {
-		if out, err := exec.Command(binPath, "version").Output(); err == nil {
+		versionCmd := exec.Command(binPath, "version")
+		hideConsoleWindow(versionCmd)
+		if out, err := versionCmd.Output(); err == nil {
 			version = strings.TrimSpace(string(out))
 		}
 	}

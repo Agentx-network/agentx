@@ -105,7 +105,9 @@ func (s *InstallerService) UninstallService() error {
 
 func killGatewayProcesses() {
 	if runtime.GOOS == "windows" {
-		exec.Command("taskkill", "/IM", "agentx.exe", "/F").Run()
+		cmd := exec.Command("taskkill", "/IM", "agentx.exe", "/F")
+		hideConsoleWindow(cmd)
+		cmd.Run()
 		return
 	}
 	exec.Command("pkill", "-f", "agentx gateway").Run()
@@ -124,6 +126,7 @@ func (s *InstallerService) IsServiceRunning() bool {
 		return err == nil
 	case "windows":
 		cmd := exec.Command("schtasks", "/Query", "/TN", "AgentXGateway")
+		hideConsoleWindow(cmd)
 		err := cmd.Run()
 		return err == nil
 	}
@@ -191,25 +194,29 @@ func uninstallLaunchdPlist() error {
 }
 
 func installTaskScheduler(binPath string) error {
-	if out, err := exec.Command(
+	cmd := exec.Command(
 		"schtasks", "/Create",
 		"/SC", "ONLOGON",
 		"/TN", "AgentXGateway",
 		"/TR", fmt.Sprintf(`"%s" gateway`, binPath),
 		"/RL", "LIMITED",
 		"/F",
-	).CombinedOutput(); err != nil {
+	)
+	hideConsoleWindow(cmd)
+	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("schtasks create failed: %s: %w", out, err)
 	}
 	return nil
 }
 
 func uninstallTaskScheduler() error {
-	if out, err := exec.Command(
+	cmd := exec.Command(
 		"schtasks", "/Delete",
 		"/TN", "AgentXGateway",
 		"/F",
-	).CombinedOutput(); err != nil {
+	)
+	hideConsoleWindow(cmd)
+	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("schtasks delete failed: %s: %w", out, err)
 	}
 	return nil
