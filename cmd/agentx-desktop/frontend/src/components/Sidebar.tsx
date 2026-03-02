@@ -1,4 +1,5 @@
 import type { Page } from "../lib/types";
+import agentHero from "../assets/agent-hero.gif";
 
 interface Props {
   currentPage: Page;
@@ -17,11 +18,14 @@ const navItems: { id: Page; label: string; icon: string }[] = [
 export default function Sidebar({ currentPage, onNavigate, onRunWizard, version }: Props) {
   return (
     <aside className="w-56 border-r-2 border-neon-pink/20 bg-bg-sidebar flex flex-col">
-      <div className="p-5 border-b-2 border-neon-pink/20">
-        <h1 className="text-xl font-bold text-white text-glow-pink uppercase tracking-widest">
-          AgentX
-        </h1>
-        <p className="text-[10px] text-neon-pink/50 mt-1 uppercase tracking-[0.2em] font-medium">Desktop</p>
+      <div className="p-5 border-b-2 border-neon-pink/20 flex items-center gap-3">
+        <img src={agentHero} alt="" className="w-10 h-10 rounded-full border border-neon-pink/30 shadow-[0_0_12px_rgba(255,0,128,0.2)]" />
+        <div>
+          <h1 className="text-xl font-bold text-white text-glow-pink uppercase tracking-widest">
+            AgentX
+          </h1>
+          <p className="text-[10px] text-neon-pink/50 uppercase tracking-[0.2em] font-medium">Desktop</p>
+        </div>
       </div>
       <nav className="flex-1 p-3 space-y-1">
         {navItems.map((item) => (

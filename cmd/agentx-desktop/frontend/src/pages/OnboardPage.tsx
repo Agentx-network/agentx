@@ -4,6 +4,7 @@ import NeonButton from "../components/ui/NeonButton";
 import NeonCard from "../components/ui/NeonCard";
 import NeonInput from "../components/ui/NeonInput";
 import SearchableSelect from "../components/ui/SearchableSelect";
+import agentHero from "../assets/agent-hero.gif";
 
 interface Props {
   showToast: (msg: string, type: "success" | "error") => void;
@@ -44,7 +45,8 @@ export default function OnboardPage({ showToast, onComplete }: Props) {
 
   return (
     <div className="max-w-xl mx-auto space-y-6">
-      <div className="text-center space-y-2">
+      <div className="text-center space-y-4">
+        <img src={agentHero} alt="" className="w-20 h-20 mx-auto rounded-full border-2 border-neon-pink/25 shadow-[0_0_30px_rgba(255,0,128,0.2)]" />
         <h2 className="text-3xl font-bold uppercase tracking-[0.2em] text-glow-pink">Configure AI Provider</h2>
         <p className="text-white/35 text-sm">
           Choose an AI provider and enter your API key to power AgentX.
