@@ -33,6 +33,19 @@ func gatewayCmd(debug bool) error {
 		fmt.Println("🔍 Debug mode enabled")
 	}
 
+	// Enable file logging to ~/.agentx/gateway.log
+	home, err := os.UserHomeDir()
+	if err == nil {
+		logDir := filepath.Join(home, ".agentx")
+		os.MkdirAll(logDir, 0o755)
+		logPath := filepath.Join(logDir, "gateway.log")
+		if err := logger.EnableFileLogging(logPath); err != nil {
+			fmt.Printf("Warning: could not enable file logging: %v\n", err)
+		} else {
+			defer logger.DisableFileLogging()
+		}
+	}
+
 	cfg, err := internal.LoadConfig()
 	if err != nil {
 		return fmt.Errorf("error loading config: %w", err)

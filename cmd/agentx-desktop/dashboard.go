@@ -96,11 +96,38 @@ func (d *DashboardService) GetLogs(lines int) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		allLines := strings.Split(string(data), "\n")
+		allLines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
 		if len(allLines) > lines {
 			allLines = allLines[len(allLines)-lines:]
 		}
-		return strings.Join(allLines, "\n"), nil
+		// Format JSON log entries into readable lines
+		formatted := make([]string, 0, len(allLines))
+		for _, line := range allLines {
+			if line == "" {
+				continue
+			}
+			var entry struct {
+				Level     string `json:"level"`
+				Timestamp string `json:"timestamp"`
+				Component string `json:"component"`
+				Message   string `json:"message"`
+			}
+			if json.Unmarshal([]byte(line), &entry) == nil && entry.Message != "" {
+				ts := entry.Timestamp
+				if len(ts) > 19 {
+					ts = ts[:19] // trim to "2006-01-02T15:04:05"
+				}
+				ts = strings.Replace(ts, "T", " ", 1)
+				comp := ""
+				if entry.Component != "" {
+					comp = " [" + entry.Component + "]"
+				}
+				formatted = append(formatted, fmt.Sprintf("%s %s%s %s", ts, entry.Level, comp, entry.Message))
+			} else {
+				formatted = append(formatted, line)
+			}
+		}
+		return strings.Join(formatted, "\n"), nil
 	}
 
 	// Try journalctl on Linux
