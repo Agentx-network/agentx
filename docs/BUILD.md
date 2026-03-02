@@ -287,9 +287,9 @@ gh workflow run build-installers.yml -f tag=v0.5.0
 
 ### Full release flow
 
-1. `gh workflow run release.yml -f tag=v0.8.11` — creates tag, builds CLI binaries + Docker
+1. `gh workflow run release.yml -f tag=v0.8.12` — creates tag, builds CLI binaries + Docker
 2. `build-installers.yml` triggers automatically on release publish — builds all installers
-3. Or re-trigger manually: `gh workflow run build-installers.yml -f tag=v0.8.11`
+3. Or re-trigger manually: `gh workflow run build-installers.yml -f tag=v0.8.12`
 
 ---
 

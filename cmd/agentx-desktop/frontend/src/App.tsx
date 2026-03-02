@@ -122,12 +122,14 @@ export default function App() {
     })();
   }, []);
 
-  // Fetch CLI version for sidebar display
+  // Fetch desktop app version for sidebar display
   useEffect(() => {
     (async () => {
       try {
-        const p = await window.go.main.InstallerService.DetectPlatform();
-        if (p.version) setAppVersion(p.version);
+        const info = await window.go.main.App.GetAppInfo();
+        if (info.version && info.version !== "dev") {
+          setAppVersion("v" + info.version);
+        }
       } catch { /* noop */ }
     })();
   }, []);
