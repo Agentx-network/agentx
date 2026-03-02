@@ -27,7 +27,7 @@ export default function DashboardPage({ showToast }: Props) {
   const [logsLoading, setLogsLoading] = useState(false);
   const [files, setFiles] = useState<BootstrapFile[]>([]);
   const [skills, setSkills] = useState<SkillEntry[]>([]);
-  const [showLogs, setShowLogs] = useState(false);
+  const [showLogs, setShowLogs] = useState(true);
   const logRef = useRef<HTMLPreElement>(null);
 
   const fetchStatus = async () => {
@@ -169,9 +169,9 @@ export default function DashboardPage({ showToast }: Props) {
           </div>
           {activeModel && (
             <div className="text-right">
-              <div className="text-[10px] uppercase tracking-widest text-white/25">Model</div>
-              <div className="text-sm text-white/70 font-medium">{activeModel.modelName}</div>
-              <div className="text-[10px] text-white/20 font-mono">{activeModel.model}</div>
+              <div className="text-[11px] uppercase tracking-widest text-white/45">Model</div>
+              <div className="text-sm text-white/80 font-medium">{activeModel.modelName}</div>
+              <div className="text-[11px] text-white/35 font-mono">{activeModel.model}</div>
             </div>
           )}
         </div>
@@ -181,57 +181,57 @@ export default function DashboardPage({ showToast }: Props) {
       <div className="grid grid-cols-3 gap-3">
         {/* Channels */}
         <div className="glass-card p-4">
-          <div className="text-[10px] uppercase tracking-widest text-white/25 mb-2">Channels</div>
+          <div className="text-[11px] uppercase tracking-widest text-white/45 mb-2 font-medium">Channels</div>
           {activeChannels.length > 0 ? (
             <div className="space-y-1.5">
               {activeChannels.map(ch => (
                 <div key={ch.name} className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-neon-cyan shadow-[0_0_6px_rgba(0,255,255,0.4)]" />
-                  <span className="text-xs text-white/60">{ch.name}</span>
+                  <span className="text-xs text-white/70">{ch.name}</span>
                 </div>
               ))}
             </div>
           ) : (
-            <span className="text-xs text-white/15">None active</span>
+            <span className="text-xs text-white/35">None active</span>
           )}
         </div>
 
         {/* Identity files */}
         <div className="glass-card p-4">
-          <div className="text-[10px] uppercase tracking-widest text-white/25 mb-2">Identity</div>
+          <div className="text-[11px] uppercase tracking-widest text-white/45 mb-2 font-medium">Identity</div>
           {identityFiles.length > 0 ? (
             <div className="space-y-1.5">
               {identityFiles.map(f => (
                 <div key={f.name} className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-neon-purple shadow-[0_0_6px_rgba(168,85,247,0.4)]" />
-                  <span className="text-xs text-white/60">{f.name.replace(".md", "")}</span>
+                  <span className="text-xs text-white/70">{f.name.replace(".md", "")}</span>
                 </div>
               ))}
             </div>
           ) : (
-            <span className="text-xs text-white/15">Not configured</span>
+            <span className="text-xs text-white/35">Not configured</span>
           )}
         </div>
 
         {/* Skills */}
         <div className="glass-card p-4">
-          <div className="text-[10px] uppercase tracking-widest text-white/25 mb-2">
-            Skills <span className="text-neon-cyan/40">({skills.length})</span>
+          <div className="text-[11px] uppercase tracking-widest text-white/45 mb-2 font-medium">
+            Skills <span className="text-neon-cyan/60">({skills.length})</span>
           </div>
           {skills.length > 0 ? (
             <div className="space-y-1.5">
               {skills.slice(0, 5).map(s => (
                 <div key={s.name} className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-neon-cyan shadow-[0_0_6px_rgba(0,255,255,0.3)]" />
-                  <span className="text-xs text-white/60 truncate">{s.name}</span>
+                  <span className="text-xs text-white/70 truncate">{s.name}</span>
                 </div>
               ))}
               {skills.length > 5 && (
-                <span className="text-[10px] text-white/20">+{skills.length - 5} more</span>
+                <span className="text-[11px] text-white/40">+{skills.length - 5} more</span>
               )}
             </div>
           ) : (
-            <span className="text-xs text-white/15">None installed</span>
+            <span className="text-xs text-white/35">None installed</span>
           )}
         </div>
       </div>
@@ -239,12 +239,12 @@ export default function DashboardPage({ showToast }: Props) {
       {/* Models configured */}
       {configuredModels.length > 1 && (
         <div className="glass-card p-4">
-          <div className="text-[10px] uppercase tracking-widest text-white/25 mb-2">
-            Models <span className="text-neon-green/40">({configuredModels.length})</span>
+          <div className="text-[11px] uppercase tracking-widest text-white/45 mb-2 font-medium">
+            Models <span className="text-neon-green/60">({configuredModels.length})</span>
           </div>
           <div className="flex flex-wrap gap-2">
             {configuredModels.map(m => (
-              <span key={m.modelName} className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-neon-green/5 border border-neon-green/10 text-xs text-white/50">
+              <span key={m.modelName} className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-neon-green/5 border border-neon-green/10 text-xs text-white/70">
                 <div className="w-1.5 h-1.5 rounded-full bg-neon-green shadow-[0_0_4px_rgba(0,255,65,0.4)]" />
                 {m.modelName}
               </span>
@@ -265,12 +265,12 @@ export default function DashboardPage({ showToast }: Props) {
               <button
                 onClick={(e) => { e.stopPropagation(); fetchLogs(); }}
                 disabled={logsLoading}
-                className="text-[10px] text-neon-cyan/50 hover:text-neon-cyan uppercase tracking-widest font-bold transition-colors"
+                className="text-[11px] text-neon-cyan/70 hover:text-neon-cyan uppercase tracking-widest font-bold transition-colors"
               >
                 {logsLoading ? "..." : "Refresh"}
               </button>
             )}
-            <span className={`text-white/20 text-xs transition-transform ${showLogs ? "rotate-180" : ""}`}>
+            <span className={`text-white/40 text-xs transition-transform ${showLogs ? "rotate-180" : ""}`}>
               ▼
             </span>
           </div>
@@ -278,7 +278,7 @@ export default function DashboardPage({ showToast }: Props) {
         {showLogs && (
           <pre
             ref={logRef}
-            className="px-4 py-3 text-xs text-neon-green/60 font-mono whitespace-pre-wrap leading-relaxed overflow-auto max-h-64 border-t border-white/[0.04]"
+            className="px-4 py-3 text-xs text-neon-green/70 font-mono whitespace-pre-wrap leading-relaxed overflow-auto max-h-64 border-t border-white/[0.04]"
           >
             {logs || "No logs available"}
           </pre>

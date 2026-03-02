@@ -11,7 +11,7 @@ interface Props {
 type Tab = "provider" | "channels" | "agent";
 
 export default function ConfigPage({ showToast }: Props) {
-  const [tab, setTab] = useState<Tab>("provider");
+  const [tab, setTab] = useState<Tab>("agent");
   const [providers, setProviders] = useState<ProviderOption[]>([]);
   const [models, setModels] = useState<ModelConfig[]>([]);
   const [channels, setChannels] = useState<ChannelInfo[]>([]);
@@ -37,9 +37,9 @@ export default function ConfigPage({ showToast }: Props) {
   };
 
   const tabs: { key: Tab; label: string; count?: number }[] = [
-    { key: "provider", label: "Provider", count: models.filter(m => m.api_key).length },
-    { key: "channels", label: "Channels", count: channels.filter(c => c.enabled).length },
     { key: "agent", label: "Agent" },
+    { key: "provider", label: "Provider", count: models.filter(m => m.api_key && m.api_key !== "ollama").length },
+    { key: "channels", label: "Channels", count: channels.filter(c => c.enabled).length },
   ];
 
   return (
@@ -62,8 +62,8 @@ export default function ConfigPage({ showToast }: Props) {
         />
         <StatusChip
           label="Providers"
-          value={`${models.filter(m => m.api_key).length} configured`}
-          active={models.some(m => m.api_key)}
+          value={`${models.filter(m => m.api_key && m.api_key !== "ollama").length} configured`}
+          active={models.some(m => m.api_key && m.api_key !== "ollama")}
         />
       </div>
 
@@ -76,12 +76,12 @@ export default function ConfigPage({ showToast }: Props) {
             className={`flex-1 px-4 py-2 rounded-md text-xs font-bold uppercase tracking-widest transition-all ${
               tab === t.key
                 ? "bg-neon-pink/20 text-neon-pink shadow-[0_0_12px_rgba(255,0,102,0.15)]"
-                : "text-white/40 hover:text-white/60 hover:bg-white/[0.03]"
+                : "text-white/50 hover:text-white/70 hover:bg-white/[0.03]"
             }`}
           >
             {t.label}
             {t.count !== undefined && (
-              <span className={`ml-1.5 text-[10px] ${tab === t.key ? "text-neon-pink/60" : "text-white/20"}`}>
+              <span className={`ml-1.5 text-[11px] ${tab === t.key ? "text-neon-pink/60" : "text-white/40"}`}>
                 ({t.count})
               </span>
             )}
@@ -120,10 +120,10 @@ export default function ConfigPage({ showToast }: Props) {
 function StatusChip({ label, value, active }: { label: string; value: string; active: boolean }) {
   return (
     <div className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-2">
-      <div className="text-[10px] uppercase tracking-widest text-white/30 mb-0.5">{label}</div>
+      <div className="text-[11px] uppercase tracking-widest text-white/45 mb-0.5">{label}</div>
       <div className="flex items-center gap-1.5">
         <div className={`w-1.5 h-1.5 rounded-full ${active ? "bg-neon-green shadow-[0_0_6px_rgba(0,255,65,0.5)]" : "bg-white/15"}`} />
-        <span className="text-xs text-white/70 truncate">{value}</span>
+        <span className="text-xs text-white/80 truncate">{value}</span>
       </div>
     </div>
   );
@@ -141,8 +141,8 @@ function ProviderTab({
   showToast: Props["showToast"];
   onRefresh: () => void;
 }) {
-  // Default to the provider that has a key configured, or first available
-  const activeModel = models.find(m => m.api_key) || models[0];
+  // Default to the provider that has a real key configured, or first available
+  const activeModel = models.find(m => m.api_key && m.api_key !== "ollama") || models[0];
   const defaultId = activeModel
     ? providers.find(p => p.model === activeModel.model)?.id ?? ""
     : "";
@@ -178,7 +178,7 @@ function ProviderTab({
   };
 
   // Build options with "Configured" badge for ones that have keys
-  const configuredModels = new Set(models.filter(m => m.api_key).map(m => m.model));
+  const configuredModels = new Set(models.filter(m => m.api_key && m.api_key !== "ollama").map(m => m.model));
 
   return (
     <div className="glass-card p-4 space-y-4">
@@ -200,7 +200,7 @@ function ProviderTab({
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-neon-green/5 border border-neon-green/15">
           <div className="w-1.5 h-1.5 rounded-full bg-neon-green shadow-[0_0_6px_rgba(0,255,65,0.5)]" />
           <span className="text-xs text-neon-green/80">Key set:</span>
-          <span className="text-xs text-white/40 font-mono">{maskKey(configuredModel.api_key)}</span>
+          <span className="text-xs text-white/60 font-mono">{maskKey(configuredModel.api_key)}</span>
         </div>
       )}
 
@@ -214,7 +214,7 @@ function ProviderTab({
             placeholder={configuredModel?.api_key ? "Enter new key to update" : "Enter your API key"}
           />
           {selected?.keyURL && (
-            <a href={selected.keyURL} target="_blank" rel="noopener" className="text-[11px] text-neon-cyan hover:underline mt-1 inline-block">
+            <a href={selected.keyURL} target="_blank" rel="noopener" className="text-xs text-neon-cyan hover:underline mt-1 inline-block">
               Get API key →
             </a>
           )}
@@ -325,7 +325,7 @@ function ChannelsTab({
               placeholder={isEnabled ? "Enter new token to update" : selectedChannel.placeholder}
             />
             {selectedChannel.helpUrl && (
-              <a href={selectedChannel.helpUrl} target="_blank" rel="noopener" className="text-[11px] text-neon-cyan hover:underline inline-block">
+              <a href={selectedChannel.helpUrl} target="_blank" rel="noopener" className="text-xs text-neon-cyan hover:underline inline-block">
                 {selectedChannel.helpText} →
               </a>
             )}
@@ -370,7 +370,6 @@ function AgentTab({
   setDefaults: (d: AgentDefaults) => void;
   showToast: Props["showToast"];
 }) {
-  const [subTab, setSubTab] = useState<"settings" | "files" | "skills">("settings");
   const [files, setFiles] = useState<BootstrapFile[]>([]);
   const [editingFile, setEditingFile] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
@@ -516,44 +515,31 @@ function AgentTab({
   const hasAnyFiles = files.some((f) => f.exists);
 
   return (
-    <div className="space-y-4">
-      {/* Sub-tabs */}
-      <div className="flex gap-1 bg-white/[0.02] rounded-md p-0.5">
-        {(["settings", "files", "skills"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setSubTab(t)}
-            className={`flex-1 px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-widest transition-all ${
-              subTab === t
-                ? "bg-white/[0.06] text-white/80"
-                : "text-white/25 hover:text-white/40"
-            }`}
-          >
-            {t === "files" ? "Identity" : t === "skills" ? `Skills (${skills.length})` : "Settings"}
-          </button>
-        ))}
-      </div>
-
-      {/* Settings sub-tab */}
-      {subTab === "settings" && defaults && (
-        <div className="glass-card p-4 space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <NeonInput label="Model" value={defaults.model_name ?? defaults.model ?? ""} onChange={(v) => setDefaults({ ...defaults, model_name: v })} />
-            <NeonInput label="Max Tokens" value={String(defaults.max_tokens)} onChange={(v) => setDefaults({ ...defaults, max_tokens: parseInt(v) || 0 })} />
-            <NeonInput label="Temperature" value={defaults.temperature !== undefined ? String(defaults.temperature) : ""} onChange={(v) => setDefaults({ ...defaults, temperature: v ? parseFloat(v) : undefined })} placeholder="auto" />
-            <NeonInput label="Max Tool Iterations" value={String(defaults.max_tool_iterations)} onChange={(v) => setDefaults({ ...defaults, max_tool_iterations: parseInt(v) || 0 })} />
+    <div className="space-y-5">
+      {/* Settings */}
+      {defaults && (
+        <div>
+          <div className="text-xs uppercase tracking-widest text-white/50 mb-2 font-medium">Settings</div>
+          <div className="glass-card p-4 space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <NeonInput label="Model" value={defaults.model_name ?? defaults.model ?? ""} onChange={(v) => setDefaults({ ...defaults, model_name: v })} />
+              <NeonInput label="Max Tokens" value={String(defaults.max_tokens)} onChange={(v) => setDefaults({ ...defaults, max_tokens: parseInt(v) || 0 })} />
+              <NeonInput label="Temperature" value={defaults.temperature !== undefined ? String(defaults.temperature) : ""} onChange={(v) => setDefaults({ ...defaults, temperature: v ? parseFloat(v) : undefined })} placeholder="auto" />
+              <NeonInput label="Max Tool Iterations" value={String(defaults.max_tool_iterations)} onChange={(v) => setDefaults({ ...defaults, max_tool_iterations: parseInt(v) || 0 })} />
+            </div>
+            <NeonInput label="Workspace" value={defaults.workspace} onChange={(v) => setDefaults({ ...defaults, workspace: v })} />
+            <NeonButton onClick={saveDefaults} size="sm">Save</NeonButton>
           </div>
-          <NeonInput label="Workspace" value={defaults.workspace} onChange={(v) => setDefaults({ ...defaults, workspace: v })} />
-          <NeonButton onClick={saveDefaults} size="sm">Save</NeonButton>
         </div>
       )}
 
-      {/* Identity files sub-tab */}
-      {subTab === "files" && (
+      {/* Identity files */}
+      <div>
+        <div className="text-xs uppercase tracking-widest text-white/50 mb-2 font-medium">Identity</div>
         <div className="space-y-3">
           {!hasAnyFiles && (
             <div className="glass-card p-4 text-center space-y-3">
-              <p className="text-sm text-white/40">No identity files yet.</p>
+              <p className="text-sm text-white/50">No identity files yet.</p>
               <NeonButton onClick={handleCreateDefaults} size="sm" className="w-full">Create Defaults</NeonButton>
             </div>
           )}
@@ -562,7 +548,7 @@ function AgentTab({
             <div className="glass-card p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-widest text-neon-pink">{editingFile}</span>
-                <button onClick={() => setEditingFile(null)} className="text-xs text-white/30 hover:text-white/60">Cancel</button>
+                <button onClick={() => setEditingFile(null)} className="text-xs text-white/50 hover:text-white/70">Cancel</button>
               </div>
               <textarea
                 value={editContent}
@@ -580,26 +566,29 @@ function AgentTab({
                 <div key={file.name} className="flex items-center justify-between px-4 py-3">
                   <div>
                     <span className="text-sm text-white/80 font-medium">{file.name}</span>
-                    <span className="text-[11px] text-white/25 ml-2">{fileDescriptions[file.name] || ""}</span>
+                    <span className="text-xs text-white/40 ml-2">{fileDescriptions[file.name] || ""}</span>
                   </div>
                   {file.exists ? (
-                    <button onClick={() => handleEditFile(file)} className="text-xs text-neon-pink/50 hover:text-neon-pink transition-colors uppercase tracking-widest">Edit</button>
+                    <button onClick={() => handleEditFile(file)} className="text-xs text-neon-pink/70 hover:text-neon-pink transition-colors uppercase tracking-widest font-medium">Edit</button>
                   ) : (
-                    <button onClick={() => { setEditingFile(file.name); setEditContent(`# ${file.name.replace(".md", "")}\n\n`); }} className="text-xs text-white/30 hover:text-white/50 transition-colors uppercase tracking-widest">Create</button>
+                    <button onClick={() => { setEditingFile(file.name); setEditContent(`# ${file.name.replace(".md", "")}\n\n`); }} className="text-xs text-white/50 hover:text-white/70 transition-colors uppercase tracking-widest font-medium">Create</button>
                   )}
                 </div>
               ))}
             </div>
           )}
         </div>
-      )}
+      </div>
 
-      {/* Skills sub-tab */}
-      {subTab === "skills" && (
+      {/* Skills */}
+      <div>
+        <div className="text-xs uppercase tracking-widest text-white/50 mb-2 font-medium">
+          Skills <span className="text-neon-cyan/60">({skills.length})</span>
+        </div>
         <div className="space-y-3">
           {/* Search ClawHub */}
           <div className="glass-card p-4 space-y-3">
-            <div className="text-[10px] uppercase tracking-widest text-white/25 mb-1">Search ClawHub Registry</div>
+            <div className="text-xs uppercase tracking-widest text-white/45 mb-1 font-medium">Search ClawHub Registry</div>
             <div className="flex gap-2">
               <div className="flex-1">
                 <NeonInput
@@ -623,13 +612,13 @@ function AgentTab({
                     <div key={r.slug} className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white/[0.02] border border-white/[0.06] hover:border-neon-cyan/20 transition-colors">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm text-white/80 font-medium">{r.displayName || r.slug}</span>
-                          {r.version && <span className="text-[10px] text-white/20 font-mono">v{r.version}</span>}
+                          <span className="text-sm text-white/90 font-medium">{r.displayName || r.slug}</span>
+                          {r.version && <span className="text-[11px] text-white/40 font-mono">v{r.version}</span>}
                         </div>
-                        {r.summary && <p className="text-[11px] text-white/30 mt-0.5 truncate">{r.summary}</p>}
+                        {r.summary && <p className="text-xs text-white/45 mt-0.5 truncate">{r.summary}</p>}
                       </div>
                       {alreadyInstalled ? (
-                        <span className="text-[10px] text-neon-green/60 uppercase tracking-widest shrink-0">Installed</span>
+                        <span className="text-[11px] text-neon-green/80 uppercase tracking-widest shrink-0 font-medium">Installed</span>
                       ) : (
                         <NeonButton
                           onClick={() => handleInstallFromRegistry(r.slug)}
@@ -645,7 +634,7 @@ function AgentTab({
               </div>
             )}
             {searchResults.length === 0 && searchQuery && !searching && (
-              <p className="text-[11px] text-white/20 text-center py-2">No results. Try a different query.</p>
+              <p className="text-xs text-white/40 text-center py-2">No results. Try a different query.</p>
             )}
           </div>
 
@@ -655,7 +644,7 @@ function AgentTab({
               {installing ? "Installing..." : "Install Builtin Skills (web-search, calculator, summarizer, code-runner)"}
             </NeonButton>
             <div className="border-t border-white/[0.04] pt-3">
-              <div className="text-[10px] uppercase tracking-widest text-white/25 mb-2">Install from GitHub</div>
+              <div className="text-xs uppercase tracking-widest text-white/45 mb-2 font-medium">Install from GitHub</div>
               <div className="flex gap-2">
                 <div className="flex-1">
                   <NeonInput value={installRepo} onChange={setInstallRepo} placeholder="owner/repo" />
@@ -671,24 +660,24 @@ function AgentTab({
           {skills.length > 0 && (
             <div className="glass-card overflow-hidden">
               <div className="px-4 py-2.5 border-b border-white/[0.04]">
-                <span className="text-[10px] uppercase tracking-widest text-white/25">Installed ({skills.length})</span>
+                <span className="text-xs uppercase tracking-widest text-white/45 font-medium">Installed ({skills.length})</span>
               </div>
               <div className="divide-y divide-white/[0.04]">
                 {skills.map((skill) => (
                   <div key={skill.name} className="flex items-center justify-between px-4 py-3">
                     <div>
-                      <span className="text-sm text-white/80 font-medium">{skill.name}</span>
-                      <span className="text-[10px] text-neon-cyan/50 bg-neon-cyan/5 px-1.5 py-0.5 rounded ml-2 uppercase tracking-widest">{skill.source}</span>
-                      {skill.description && <p className="text-[11px] text-white/25 mt-0.5">{skill.description}</p>}
+                      <span className="text-sm text-white/90 font-medium">{skill.name}</span>
+                      <span className="text-[11px] text-neon-cyan/70 bg-neon-cyan/8 px-1.5 py-0.5 rounded ml-2 uppercase tracking-widest">{skill.source}</span>
+                      {skill.description && <p className="text-xs text-white/40 mt-0.5">{skill.description}</p>}
                     </div>
-                    <button onClick={() => handleRemoveSkill(skill.name)} className="text-xs text-red-400/40 hover:text-red-400 transition-colors uppercase tracking-widest">Remove</button>
+                    <button onClick={() => handleRemoveSkill(skill.name)} className="text-xs text-red-400/60 hover:text-red-400 transition-colors uppercase tracking-widest font-medium">Remove</button>
                   </div>
                 ))}
               </div>
             </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

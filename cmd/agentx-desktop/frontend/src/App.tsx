@@ -9,6 +9,7 @@ import ConfigPage from "./pages/ConfigPage";
 import ChatPage from "./pages/ChatPage";
 import { Toast } from "./components/ui/Toast";
 import type { Page, SetupState, ChatMessage } from "./lib/types";
+import agentHero from "./assets/agent-hero.gif";
 
 declare global {
   interface Window {
@@ -187,11 +188,18 @@ export default function App() {
   if (mode === "loading") {
     return (
       <div className="flex items-center justify-center h-screen bg-bg">
-        <div className="text-center space-y-4">
-          <h1 className="text-3xl font-bold text-white text-glow-pink uppercase tracking-[0.3em]">
-            AgentX
-          </h1>
-          <p className="text-neon-pink/40 text-sm uppercase tracking-widest">Loading...</p>
+        <div className="text-center space-y-6">
+          <img
+            src={agentHero}
+            alt=""
+            className="w-32 h-32 mx-auto rounded-full border-2 border-neon-pink/30 shadow-[0_0_40px_rgba(255,0,128,0.25)] animate-pulse"
+          />
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold text-white text-glow-pink uppercase tracking-[0.3em]">
+              AgentX
+            </h1>
+            <p className="text-neon-pink/40 text-sm uppercase tracking-widest">Loading...</p>
+          </div>
         </div>
       </div>
     );
