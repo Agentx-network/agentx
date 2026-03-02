@@ -10,6 +10,7 @@ import ChatPage from "./pages/ChatPage";
 import { Toast } from "./components/ui/Toast";
 import type { Page, SetupState, ChatMessage } from "./lib/types";
 import agentHero from "./assets/agent-hero.gif";
+import posterBg from "./assets/poster-bg.jpg";
 
 declare global {
   interface Window {
@@ -185,20 +186,37 @@ export default function App() {
     }
   }, [page, finishWizard]);
 
+  // Subtle ambient poster background — shared across all screens
+  const ambientBg = (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden">
+      <img src={posterBg} alt="" className="w-full h-full object-cover opacity-[0.12]" />
+    </div>
+  );
+
   if (mode === "loading") {
     return (
-      <div className="flex items-center justify-center h-screen bg-bg">
-        <div className="text-center space-y-6">
+      <div className="relative flex items-end justify-center h-screen overflow-hidden">
+        {/* Poster background — full opacity for loading */}
+        <img
+          src={posterBg}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        {/* Dark gradient overlay for blending */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a12] via-[#0a0a12]/60 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a12]/50 to-transparent h-1/3" />
+        {/* Content at bottom */}
+        <div className="relative z-10 text-center space-y-4 pb-12">
           <img
             src={agentHero}
             alt=""
-            className="w-32 h-32 mx-auto rounded-full border-2 border-neon-pink/30 shadow-[0_0_40px_rgba(255,0,128,0.25)] animate-pulse"
+            className="w-20 h-20 mx-auto rounded-full border-2 border-neon-pink/40 shadow-[0_0_40px_rgba(255,0,128,0.35)] animate-pulse"
           />
           <div className="space-y-2">
-            <h1 className="text-3xl font-bold text-white text-glow-pink uppercase tracking-[0.3em]">
+            <h1 className="text-4xl font-bold text-white text-glow-pink uppercase tracking-[0.3em] drop-shadow-lg">
               AgentX
             </h1>
-            <p className="text-neon-pink/40 text-sm uppercase tracking-widest">Loading...</p>
+            <p className="text-neon-pink/60 text-sm uppercase tracking-widest animate-pulse">Loading...</p>
           </div>
         </div>
       </div>
@@ -209,8 +227,9 @@ export default function App() {
     const currentIdx = wizardSteps.findIndex((s) => s.key === page);
 
     return (
-      <div className="flex flex-col h-screen bg-bg">
-        <header className="flex items-center justify-between px-8 py-5 border-b-2 border-neon-pink/20">
+      <div className="relative flex flex-col h-screen bg-bg">
+        {ambientBg}
+        <header className="relative flex items-center justify-between px-8 py-5 border-b-2 border-neon-pink/20">
           <h1 className="text-xl font-bold text-white text-glow-pink uppercase tracking-[0.2em]">
             AgentX Setup
           </h1>
@@ -223,7 +242,7 @@ export default function App() {
             ))}
           </div>
         </header>
-        <main className="flex-1 overflow-y-auto p-8">
+        <main className="relative flex-1 overflow-y-auto p-8">
           {page === "installer" && (
             <InstallerPage showToast={showToast} onComplete={onStepComplete} />
           )}
@@ -243,9 +262,10 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen bg-bg">
+    <div className="relative flex h-screen bg-bg">
+      {ambientBg}
       <Sidebar currentPage={page} onNavigate={setPage} onRunWizard={() => { setPage("installer"); setMode("wizard"); }} version={appVersion} />
-      <main className={`flex-1 p-6 ${page === "chat" ? "overflow-hidden flex flex-col" : "overflow-y-auto"}`}>
+      <main className={`relative flex-1 p-6 ${page === "chat" ? "overflow-hidden flex flex-col" : "overflow-y-auto"}`}>
         {page === "dashboard" && <DashboardPage showToast={showToast} />}
         {page === "chat" && <ChatPage showToast={showToast} messages={chatMessages} setMessages={setChatMessages} />}
         {page === "config" && <ConfigPage showToast={showToast} />}
