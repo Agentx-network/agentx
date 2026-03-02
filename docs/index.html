@@ -10,31 +10,30 @@
 <meta property="og:image" content="https://agentx.network/assets/images/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Azeret+Mono:wght@400;700&family=IBM+Plex+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&family=Azeret+Mono:wght@400;700&family=IBM+Plex+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --purple: #eb58ff;
-    --purple-dark: #d43ac2;
-    --blue: #5c74ff;
     --pink: #f235a1;
+    --magenta: #d43ac2;
+    --magenta-dark: #6e1e64;
+    --purple: #eb58ff;
+    --blue: #5c74ff;
     --green: #17fb57;
     --bg: #000;
-    --bg-elevated: #080808;
     --surface: rgba(255,255,255,0.03);
-    --surface2: rgba(255,255,255,0.06);
     --border: #706e6e;
-    --border-dim: rgba(112,110,110,0.4);
+    --border-dim: rgba(112,110,110,0.35);
     --text: #fff;
-    --text-secondary: hsla(0,0%,100%,0.85);
-    --text-dim: hsla(0,0%,100%,0.55);
-    --text-muted: hsla(0,0%,100%,0.35);
-    --glow-purple: rgba(235,88,255,0.35);
-    --glow-pink: rgba(242,53,161,0.3);
-    --glow-blue: rgba(92,116,255,0.3);
+    --text-80: hsla(0,0%,100%,0.8);
+    --text-55: hsla(0,0%,100%,0.55);
+    --text-35: hsla(0,0%,100%,0.35);
+    --glow-pink: rgba(242,53,161,0.9);
+    --glow-pink-soft: rgba(242,53,161,0.25);
+    --cut: 5px 0 5px 0;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: 'Inter', sans-serif;
     background: var(--bg);
     color: var(--text);
     min-height: 100vh;
@@ -42,158 +41,184 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  /* ---- Navigation ---- */
-  .nav {
+  /* ---- Header ---- */
+  .header {
+    position: fixed;
+    top: 0; left: 0; width: 100%;
     display: flex;
-    align-items: center;
     justify-content: space-between;
-    padding: 1.2rem 2.5rem;
-    border-bottom: 1px solid var(--border-dim);
-    backdrop-filter: blur(20px);
-    background: rgba(0,0,0,0.7);
-    position: sticky;
-    top: 0;
-    z-index: 100;
-  }
-  .nav-logo {
-    display: flex;
     align-items: center;
-    gap: 0.7rem;
-    text-decoration: none;
-    color: var(--text);
+    padding: 1.2rem 1.5rem;
+    z-index: 1000;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(8px);
+    transition: 0.4s;
   }
-  .nav-logo img {
-    height: 32px;
+  .header-logo img {
+    height: 38px;
     width: auto;
   }
-  .nav-logo span {
-    font-family: 'Azeret Mono', monospace;
-    font-weight: 700;
-    font-size: 1.1rem;
-    letter-spacing: -0.02em;
-  }
-  .nav-links {
+  .header-right {
     display: flex;
     align-items: center;
-    gap: 1.8rem;
+    gap: 0.6rem;
   }
-  .nav-links a {
-    color: var(--text-dim);
+  .header-nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0.5rem 1rem;
+    font-family: 'Azeret Mono', monospace;
+    font-size: 0.8rem;
+    font-weight: 400;
+    color: var(--text);
     text-decoration: none;
-    font-size: 0.82rem;
-    font-family: 'IBM Plex Mono', monospace;
-    letter-spacing: 0.02em;
-    transition: color 0.3s;
+    border: 1px solid var(--border-dim);
+    border-radius: var(--cut);
+    background: rgba(0,0,0,0.5);
+    transition: 0.3s;
+    letter-spacing: -0.03em;
   }
-  .nav-links a:hover { color: var(--text); }
-  .nav-links a.active { color: var(--purple); }
-  .nav-cta {
+  .header-nav-btn:hover {
+    border-color: var(--purple);
+    background: rgba(235,88,255,0.08);
+  }
+  .header-nav-btn.active {
+    border-color: var(--pink);
+    box-shadow: inset 0 2px 12px rgba(242,53,161,0.15);
+  }
+  .cta-btn {
+    position: relative;
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
-    padding: 0.5rem 1.2rem;
-    font-size: 0.8rem;
+    justify-content: center;
+    padding: 0.7rem 1.8rem;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem;
     font-weight: 700;
-    font-family: 'IBM Plex Mono', monospace;
     color: #fff;
-    background: linear-gradient(180deg, var(--purple), var(--blue));
+    background: linear-gradient(10deg, var(--magenta) 27%, var(--magenta-dark) 100%);
     border: none;
-    border-radius: 5px;
+    border-radius: var(--cut);
+    cursor: pointer;
     text-decoration: none;
-    transition: box-shadow 0.3s, transform 0.2s;
-    box-shadow: 0 1px 10px rgba(236,88,255,0.35);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    transition: filter 0.2s;
   }
-  .nav-cta:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 1px 14px var(--purple);
+  .cta-btn:active { filter: brightness(1.2); }
+  .cta-btn-border {
+    position: absolute;
+    left: -4px; top: -4px;
+    width: calc(100% + 8px);
+    height: calc(100% + 8px);
+    pointer-events: none;
+    overflow: visible;
+  }
+  .cta-btn-border rect {
+    fill: none;
+    stroke: var(--purple);
+    stroke-width: 0;
+    vector-effect: non-scaling-stroke;
+    rx: 5; ry: 5;
+    transition: stroke-width 0.3s;
+  }
+  .cta-btn:hover .cta-btn-border rect {
+    stroke-width: 2px;
+    stroke-dasharray: 400;
+    animation: borderAnim 2s linear infinite;
+  }
+  @keyframes borderAnim {
+    0% { stroke-dashoffset: 400; }
+    100% { stroke-dashoffset: 0; }
   }
 
   /* ---- Hero ---- */
   .hero {
     text-align: center;
-    padding: 5rem 1.5rem 3.5rem;
+    padding: 7rem 1.5rem 3.5rem;
     position: relative;
     overflow: hidden;
   }
   .hero::before {
     content: '';
     position: absolute;
-    top: -40%;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 800px;
-    height: 800px;
-    background: radial-gradient(circle, rgba(235,88,255,0.08) 0%, rgba(92,116,255,0.04) 40%, transparent 70%);
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(ellipse at 50% 20%, rgba(212,58,194,0.1) 0%, transparent 60%);
     pointer-events: none;
   }
   .hero-badge {
     display: inline-block;
     padding: 0.35rem 1rem;
     border: 1px solid var(--border-dim);
-    border-radius: 5px 0 5px 0;
-    font-size: 0.75rem;
-    font-family: 'IBM Plex Mono', monospace;
+    border-radius: var(--cut);
+    font-size: 0.72rem;
+    font-family: 'Azeret Mono', monospace;
     color: var(--green);
-    background: rgba(23,251,87,0.06);
+    background: rgba(23,251,87,0.05);
     margin-bottom: 1.5rem;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
   }
   .hero h1 {
-    font-family: 'Inter', sans-serif;
-    font-size: 3.2rem;
-    font-weight: 800;
+    font-size: 3rem;
+    font-weight: 900;
+    color: var(--text);
+    margin-bottom: 0.8rem;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    text-transform: uppercase;
+  }
+  .hero h1 em {
+    font-style: normal;
     background: linear-gradient(180deg, var(--purple), var(--blue));
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    margin-bottom: 0.8rem;
-    line-height: 1.1;
-    letter-spacing: -0.03em;
   }
   .hero .subtitle {
-    font-size: 1rem;
-    color: var(--text-dim);
-    max-width: 520px;
+    font-size: 0.9rem;
+    color: var(--text-55);
+    max-width: 480px;
     margin: 0 auto 2.5rem;
     line-height: 1.6;
     font-family: 'IBM Plex Mono', monospace;
   }
 
-  /* ---- Main download card ---- */
+  /* ---- Detect card ---- */
   .detect-card {
-    max-width: 540px;
+    max-width: 520px;
     margin: 0 auto;
     background: var(--surface);
     border: 1px solid var(--border-dim);
-    border-radius: 5px;
-    padding: 2rem 2rem 1.8rem;
+    border-radius: var(--cut);
+    padding: 2rem;
     text-align: center;
     position: relative;
-    overflow: hidden;
-    box-shadow: 0 0 40px rgba(235,88,255,0.08), 0 0 80px rgba(92,116,255,0.04);
   }
-  .detect-card::before {
+  .detect-card::after {
     content: '';
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, var(--pink), transparent);
+    left: 4px; top: 4px;
+    width: calc(100% - 8px);
+    height: calc(100% - 8px);
+    box-shadow: inset 0 3.62px 18.48px 0 rgba(242,53,161,0.15);
+    border-radius: var(--cut);
+    pointer-events: none;
   }
   .platform-icon { font-size: 3rem; margin-bottom: 0.5rem; }
   .platform-label {
-    font-size: 0.75rem;
-    font-family: 'IBM Plex Mono', monospace;
-    color: var(--text-muted);
-    margin-bottom: 0.1rem;
+    font-size: 0.72rem;
+    font-family: 'Azeret Mono', monospace;
+    color: var(--text-35);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.1rem;
   }
   .platform-name {
-    font-size: 1.5rem;
-    font-weight: 700;
+    font-size: 1.4rem;
+    font-weight: 800;
+    text-transform: uppercase;
     margin-bottom: 1.2rem;
     letter-spacing: -0.02em;
   }
@@ -203,67 +228,71 @@
     gap: 0.5rem; margin-bottom: 1.3rem; flex-wrap: wrap;
   }
   .arch-row label {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     font-family: 'IBM Plex Mono', monospace;
-    color: var(--text-dim);
+    color: var(--text-55);
   }
   .arch-select {
-    background: var(--bg); color: var(--text-secondary); border: 1px solid var(--border-dim);
-    border-radius: 5px; padding: 0.4rem 0.7rem; font-size: 0.8rem;
-    font-family: 'IBM Plex Mono', monospace;
+    background: rgba(0,0,0,0.6); color: var(--text-80);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--cut); padding: 0.4rem 0.7rem;
+    font-size: 0.78rem; font-family: 'Azeret Mono', monospace;
     cursor: pointer; outline: none; transition: border-color 0.3s;
   }
   .arch-select:focus { border-color: var(--purple); }
 
   .download-btn {
     display: inline-flex; align-items: center; gap: 0.6rem;
-    padding: 1rem 2.4rem; font-size: 1rem; font-weight: 700;
-    font-family: 'IBM Plex Mono', monospace;
-    color: #fff; background: linear-gradient(180deg, var(--purple), var(--blue));
-    border: none; border-radius: 5px; cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.3s;
-    text-decoration: none; box-shadow: 0 1px 14px var(--glow-purple);
+    padding: 1rem 2.2rem; font-size: 0.95rem; font-weight: 700;
+    font-family: 'Inter', sans-serif;
+    color: #fff; background: linear-gradient(10deg, var(--magenta) 27%, var(--magenta-dark) 100%);
+    border: none; border-radius: var(--cut); cursor: pointer;
+    transition: filter 0.2s, box-shadow 0.3s;
+    text-decoration: none;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    box-shadow: 0 1px 14px var(--glow-pink-soft);
   }
-  .download-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 24px var(--glow-purple); }
-  .download-btn:active { transform: translateY(0); }
+  .download-btn:hover { box-shadow: 0 4px 24px var(--glow-pink-soft); }
+  .download-btn:active { filter: brightness(1.2); }
   .download-btn svg { width: 20px; height: 20px; fill: #fff; }
 
   .file-hint {
-    margin-top: 0.7rem; font-size: 0.72rem;
-    font-family: 'Azeret Mono', monospace; color: var(--text-muted);
+    margin-top: 0.7rem; font-size: 0.7rem;
+    font-family: 'Azeret Mono', monospace; color: var(--text-35);
   }
   .installer-note {
-    margin-top: 0.5rem; font-size: 0.72rem;
+    margin-top: 0.4rem; font-size: 0.7rem;
     font-family: 'IBM Plex Mono', monospace;
-    color: var(--green); opacity: 0.8;
+    color: var(--green); opacity: 0.7;
   }
 
   .switch-link {
-    display: inline-block; margin-top: 1.1rem; font-size: 0.78rem;
+    display: inline-block; margin-top: 1rem; font-size: 0.75rem;
     font-family: 'IBM Plex Mono', monospace;
     color: var(--purple); cursor: pointer; text-decoration: none;
     border-bottom: 1px solid rgba(235,88,255,0.3);
-    transition: border-color 0.3s;
   }
   .switch-link:hover { border-bottom-color: var(--purple); }
 
-  /* ---- Section titles ---- */
-  .section-title {
+  /* ---- Section styling ---- */
+  .section-header {
     text-align: center;
-    font-size: 1.6rem;
-    font-weight: 700;
-    margin-bottom: 0.5rem;
-    letter-spacing: -0.02em;
-  }
-  .section-subtitle {
-    text-align: center;
-    font-size: 0.82rem;
-    font-family: 'IBM Plex Mono', monospace;
-    color: var(--text-dim);
     margin-bottom: 2rem;
   }
+  .section-header h2 {
+    font-size: 1.6rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.4rem;
+  }
+  .section-header p {
+    font-size: 0.78rem;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--text-55);
+  }
 
-  /* ---- Divider line ---- */
   .divider {
     max-width: 940px;
     margin: 3.5rem auto;
@@ -276,166 +305,149 @@
 
   /* ---- What happens ---- */
   .what-happens { max-width: 700px; margin: 0 auto; padding: 0 1.5rem; }
-  .wh-steps { display: flex; gap: 1.2rem; justify-content: center; flex-wrap: wrap; }
+  .wh-steps { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
   .wh-step {
     flex: 1; min-width: 160px; max-width: 200px;
-    background: var(--surface); border: 1px solid var(--border-dim); border-radius: 5px;
+    background: var(--surface); border: 1px solid var(--border-dim);
+    border-radius: var(--cut);
     padding: 1.3rem 1rem; text-align: center;
-    transition: border-color 0.3s;
+    transition: 0.4s;
   }
-  .wh-step:hover { border-color: rgba(235,88,255,0.3); }
+  .wh-step:hover { filter: brightness(1.3); border-color: var(--border); }
   .wh-step .wh-icon { font-size: 2rem; margin-bottom: 0.5rem; }
   .wh-step .wh-num {
-    display: inline-block; width: 24px; height: 24px; line-height: 24px;
-    border-radius: 50%; background: linear-gradient(180deg, var(--purple), var(--blue));
-    font-size: 0.72rem; font-weight: 800; color: #fff; margin-bottom: 0.5rem;
+    display: inline-block; width: 22px; height: 22px; line-height: 22px;
+    border-radius: 50%; background: linear-gradient(10deg, var(--magenta) 27%, var(--magenta-dark) 100%);
+    font-size: 0.68rem; font-weight: 800; color: #fff; margin-bottom: 0.5rem;
   }
-  .wh-step h4 { font-size: 0.9rem; margin-bottom: 0.3rem; font-weight: 700; }
+  .wh-step h4 {
+    font-size: 0.88rem; font-weight: 700; margin-bottom: 0.3rem;
+    text-transform: uppercase;
+  }
   .wh-step p {
-    font-size: 0.78rem; font-family: 'IBM Plex Mono', monospace;
-    color: var(--text-dim); line-height: 1.5;
+    font-size: 0.75rem; font-family: 'IBM Plex Mono', monospace;
+    color: var(--text-55); line-height: 1.5;
   }
 
   /* ---- All platforms ---- */
   .platforms-section { max-width: 780px; margin: 0 auto; padding: 0 1.5rem; }
-  .platform-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+  .platform-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.8rem; }
   .platform-card {
-    background: var(--surface); border: 1px solid var(--border-dim); border-radius: 5px;
+    background: var(--surface); border: 1px solid var(--border-dim);
+    border-radius: var(--cut);
     padding: 1.3rem; text-align: center; cursor: pointer;
-    transition: border-color 0.3s, box-shadow 0.3s, transform 0.2s;
+    transition: 0.4s;
   }
   .platform-card:hover {
-    border-color: rgba(235,88,255,0.4);
-    box-shadow: 0 0 20px rgba(235,88,255,0.08);
-    transform: translateY(-2px);
+    filter: brightness(1.3);
+    border-color: var(--border);
   }
   .platform-card .card-icon { font-size: 2rem; margin-bottom: 0.5rem; }
-  .platform-card .card-name { font-weight: 700; font-size: 1rem; margin-bottom: 0.2rem; }
-  .platform-card .card-type {
-    font-size: 0.72rem; font-family: 'IBM Plex Mono', monospace;
-    color: var(--green); opacity: 0.8; margin-bottom: 0.15rem;
+  .platform-card .card-name {
+    font-weight: 700; font-size: 0.95rem; margin-bottom: 0.2rem;
+    text-transform: uppercase;
   }
   .platform-card .card-arch {
-    font-size: 0.72rem; font-family: 'IBM Plex Mono', monospace;
-    color: var(--text-dim);
+    font-size: 0.7rem; font-family: 'IBM Plex Mono', monospace;
+    color: var(--text-55);
   }
 
   /* ---- Advanced CLI ---- */
   .advanced { max-width: 640px; margin: 0 auto; padding: 0 1.5rem; }
   .advanced-toggle {
     display: flex; align-items: center; gap: 0.5rem; cursor: pointer;
-    color: var(--text-dim); font-size: 0.85rem; font-family: 'IBM Plex Mono', monospace;
-    margin-bottom: 1rem; user-select: none; transition: color 0.3s;
+    color: var(--text-55); font-size: 0.82rem;
+    font-family: 'Azeret Mono', monospace;
+    margin-bottom: 1rem; user-select: none; transition: 0.3s;
   }
   .advanced-toggle:hover { color: var(--text); }
   .advanced-toggle .arrow { transition: transform 0.2s; display: inline-block; font-size: 0.7rem; }
   .advanced-toggle.open .arrow { transform: rotate(90deg); }
   .advanced-body {
     display: none; background: var(--surface); border: 1px solid var(--border-dim);
-    border-radius: 5px; padding: 1.3rem;
+    border-radius: var(--cut); padding: 1.3rem;
   }
   .advanced-body.open { display: block; }
   .advanced-body h4 {
-    font-size: 0.82rem; color: var(--text-dim); font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.8rem; color: var(--text-55);
+    font-family: 'IBM Plex Mono', monospace;
     margin-bottom: 0.6rem; margin-top: 1rem;
   }
   .advanced-body h4:first-child { margin-top: 0; }
   .cmd-box {
-    position: relative; background: rgba(235,88,255,0.04);
-    border: 1px solid rgba(235,88,255,0.15); border-radius: 5px;
+    position: relative; background: rgba(235,88,255,0.03);
+    border: 1px solid rgba(235,88,255,0.1);
+    border-radius: var(--cut);
     padding: 0.8rem 3.2rem 0.8rem 1rem;
     font-family: 'Azeret Mono', monospace;
-    font-size: 0.8rem; color: var(--purple); overflow-x: auto; white-space: nowrap;
+    font-size: 0.78rem; color: var(--purple); overflow-x: auto; white-space: nowrap;
   }
   .copy-btn {
     position: absolute; top: 50%; right: 0.5rem; transform: translateY(-50%);
-    background: var(--border-dim); border: none; color: var(--text-secondary);
+    background: var(--border-dim); border: none; color: var(--text-80);
     padding: 0.3rem 0.55rem; border-radius: 3px; cursor: pointer;
-    font-size: 0.72rem; font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.7rem; font-family: 'Azeret Mono', monospace;
     transition: background 0.2s;
   }
   .copy-btn:hover { background: var(--purple); color: #fff; }
   .copy-btn.copied { background: var(--green); color: #000; }
 
-  /* ---- Desktop app link ---- */
+  /* ---- Desktop link ---- */
   .desktop-link {
-    max-width: 640px;
-    margin: 0 auto;
-    padding: 0 1.5rem;
-    text-align: center;
+    max-width: 640px; margin: 0 auto; padding: 0 1.5rem; text-align: center;
   }
   .desktop-link-card {
-    background: var(--surface);
-    border: 1px solid var(--border-dim);
-    border-radius: 5px;
-    padding: 1.5rem 2rem;
-    transition: border-color 0.3s;
+    background: var(--surface); border: 1px solid var(--border-dim);
+    border-radius: var(--cut); padding: 1.5rem 2rem; transition: 0.3s;
   }
-  .desktop-link-card:hover { border-color: rgba(235,88,255,0.3); }
+  .desktop-link-card:hover { border-color: var(--border); }
   .desktop-link-card p {
-    font-size: 0.85rem; font-family: 'IBM Plex Mono', monospace;
-    color: var(--text-dim); margin-bottom: 0.6rem;
+    font-size: 0.82rem; font-family: 'IBM Plex Mono', monospace;
+    color: var(--text-55); margin-bottom: 0.6rem;
   }
   .desktop-link-card a {
     color: var(--purple); text-decoration: none; font-weight: 600;
-    font-family: 'IBM Plex Mono', monospace; font-size: 0.85rem;
-    border-bottom: 1px solid rgba(235,88,255,0.3);
-    transition: border-color 0.3s;
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.82rem;
   }
-  .desktop-link-card a:hover { border-bottom-color: var(--purple); }
+  .desktop-link-card a:hover { text-decoration: underline; }
 
   /* ---- Footer ---- */
   .footer {
     text-align: center;
     padding: 3rem 1.5rem 2rem;
-    color: var(--text-muted);
-    font-size: 0.78rem;
+    color: var(--text-35);
+    font-size: 0.75rem;
     font-family: 'IBM Plex Mono', monospace;
     border-top: 1px solid var(--border-dim);
     margin-top: 4rem;
   }
-  .footer-logo {
-    margin-bottom: 1.2rem;
-  }
-  .footer-logo img {
-    height: 28px;
-    opacity: 0.5;
-  }
+  .footer-logo { margin-bottom: 1.2rem; }
+  .footer-logo img { height: 28px; opacity: 0.4; }
   .footer-links {
     margin-bottom: 1rem;
-    display: flex;
-    justify-content: center;
-    gap: 1.5rem;
-    flex-wrap: wrap;
+    display: flex; justify-content: center; gap: 1.2rem; flex-wrap: wrap;
   }
   .footer-links a {
-    color: var(--text-dim);
-    text-decoration: none;
+    color: var(--text-55); text-decoration: none; font-size: 0.75rem;
     transition: color 0.3s;
-    font-size: 0.78rem;
   }
   .footer-links a:hover { color: var(--text); }
   .footer-social {
-    display: flex;
-    justify-content: center;
-    gap: 1rem;
-    margin-bottom: 1.2rem;
+    display: flex; justify-content: center; gap: 1.2rem; margin-bottom: 1rem;
   }
   .footer-social a {
-    color: var(--text-muted);
-    text-decoration: none;
-    font-size: 0.82rem;
+    color: var(--text-35); text-decoration: none; font-size: 0.78rem;
     transition: color 0.3s;
   }
   .footer-social a:hover { color: var(--purple); }
 
   @media (max-width: 600px) {
-    .nav { padding: 1rem 1.2rem; }
-    .nav-links { display: none; }
-    .hero h1 { font-size: 2.2rem; }
-    .hero { padding: 3.5rem 1.2rem 3rem; }
+    .header-right { gap: 0.3rem; }
+    .header-nav-btn { padding: 0.4rem 0.6rem; font-size: 0.72rem; }
+    .hero h1 { font-size: 2rem; }
+    .hero { padding: 6rem 1.2rem 3rem; }
     .detect-card { padding: 1.5rem 1.2rem; }
-    .download-btn { padding: 0.85rem 1.6rem; font-size: 0.9rem; }
+    .download-btn { padding: 0.85rem 1.6rem; font-size: 0.88rem; }
     .platform-grid { grid-template-columns: 1fr 1fr; }
     .wh-steps { flex-direction: column; align-items: center; }
   }
@@ -443,25 +455,34 @@
 </head>
 <body>
 
-<!-- ====== NAVIGATION ====== -->
-<nav class="nav">
-  <a href="https://agentx.network" class="nav-logo">
+<!-- ====== HEADER ====== -->
+<header class="header">
+  <a href="https://agentx.network" class="header-logo">
     <img src="https://agentx.network/assets/images/logo.png" alt="AgentX">
-    <span>AgentX</span>
   </a>
-  <div class="nav-links">
-    <a href="https://agentx.network">Home</a>
-    <a href="https://install.agentx.network" class="active">CLI</a>
-    <a href="https://install.agentx.network/desktop/">Desktop</a>
-    <a href="https://github.com/Agentx-network/agentx" target="_blank">GitHub</a>
-    <a href="https://agentx.network" class="nav-cta">Get Started</a>
+  <div class="header-right">
+    <a href="https://install.agentx.network" class="header-nav-btn active">
+      <span>CLI</span>
+    </a>
+    <a href="https://install.agentx.network/desktop/" class="header-nav-btn">
+      <span>Desktop</span>
+    </a>
+    <a href="https://github.com/Agentx-network/agentx" target="_blank" class="header-nav-btn">
+      <span>GitHub</span>
+    </a>
+    <a href="https://agentx.network" class="cta-btn">
+      Get Started
+      <svg class="cta-btn-border" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <rect x="1" y="1" width="98" height="98" rx="5" ry="5"/>
+      </svg>
+    </a>
   </div>
-</nav>
+</header>
 
 <!-- ====== HERO ====== -->
 <section class="hero">
   <div class="hero-badge">v0.3 &mdash; Nexus Engine</div>
-  <h1>Install AgentX</h1>
+  <h1>Install <em>AgentX</em></h1>
   <p class="subtitle">Download the binary, double-click to run the setup wizard. No build tools required.</p>
 
   <div class="detect-card">
@@ -490,8 +511,10 @@
 
 <!-- ====== WHAT HAPPENS ====== -->
 <section class="what-happens">
-  <h2 class="section-title">What happens when you install</h2>
-  <p class="section-subtitle">Three steps to get running</p>
+  <div class="section-header">
+    <h2>What happens when you install</h2>
+    <p>Three steps to get running</p>
+  </div>
   <div class="wh-steps">
     <div class="wh-step">
       <div class="wh-num">1</div>
@@ -519,8 +542,10 @@
 
 <!-- ====== ALL PLATFORMS ====== -->
 <section class="platforms-section" id="all-platforms">
-  <h2 class="section-title">All Platforms</h2>
-  <p class="section-subtitle">Choose your operating system</p>
+  <div class="section-header">
+    <h2>All Platforms</h2>
+    <p>Choose your operating system</p>
+  </div>
   <div class="platform-grid" id="platformGrid"></div>
 </section>
 
@@ -559,7 +584,7 @@
 <!-- ====== DIVIDER ====== -->
 <div class="divider"><div class="divider-line"></div></div>
 
-<!-- ====== DESKTOP APP LINK ====== -->
+<!-- ====== DESKTOP LINK ====== -->
 <section class="desktop-link">
   <div class="desktop-link-card">
     <p>Want a full graphical dashboard? Try the Desktop app with built-in chat, config editor, and live dashboard.</p>
@@ -583,16 +608,12 @@
     <a href="https://agentx.network">Website</a>
     <a href="https://discord.gg/V4sAZ9XWpN">Discord</a>
     <a href="https://agentx.network/terms">Terms</a>
-    <a href="https://agentx.network/privacy">Privacy Policy</a>
+    <a href="https://agentx.network/privacy">Privacy</a>
   </div>
   &copy; 2024&ndash;2026 AgentX Network. All rights reserved.
 </footer>
 
 <script>
-/* ============================================================
-   Platform / arch definitions — matches ACTUAL release assets
-   Release naming: agentx-{os}-{arch}[.exe]
-   ============================================================ */
 var REPO = "https://github.com/Agentx-network/agentx/releases/latest/download/";
 
 var PLATFORMS = {
@@ -652,7 +673,6 @@ var PLATFORMS = {
   }
 };
 
-/* Detect platform */
 function detectPlatform() {
   var ua = navigator.userAgent || "";
   var plat = navigator.platform || "";
@@ -709,7 +729,6 @@ document.getElementById("archSelect").addEventListener("change", function() {
   updateDownloadLink();
 });
 
-/* All-platforms grid */
 (function() {
   var grid = document.getElementById("platformGrid");
   ["windows","macos","linux","android"].forEach(function(key) {
@@ -728,13 +747,11 @@ document.getElementById("archSelect").addEventListener("change", function() {
   });
 })();
 
-/* Advanced toggle */
 document.getElementById("advToggle").addEventListener("click", function() {
   this.classList.toggle("open");
   document.getElementById("advBody").classList.toggle("open");
 });
 
-/* Copy to clipboard */
 function copyCmd(btn) {
   var text = btn.parentElement.querySelector(".cmd").textContent;
   navigator.clipboard.writeText(text).then(function() {
