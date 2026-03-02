@@ -22,5 +22,6 @@ func updatePATH(dir string) error {
 	// Use PowerShell to add to user PATH via registry
 	cmd := exec.Command("powershell", "-Command",
 		`[Environment]::SetEnvironmentVariable("PATH", $env:PATH + ";`+dir+`", "User")`)
+	hideConsoleWindow(cmd)
 	return cmd.Run()
 }

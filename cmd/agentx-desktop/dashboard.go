@@ -128,6 +128,7 @@ func (d *DashboardService) StartGateway() error {
 			cmd := exec.Command(binPath, "gateway")
 			cmd.Stdout = nil
 			cmd.Stderr = nil
+			hideConsoleWindow(cmd)
 			return cmd.Start()
 		} else {
 			_ = out
@@ -139,6 +140,7 @@ func (d *DashboardService) StartGateway() error {
 			cmd := exec.Command(binPath, "gateway")
 			cmd.Stdout = nil
 			cmd.Stderr = nil
+			hideConsoleWindow(cmd)
 			return cmd.Start()
 		} else {
 			_ = out
@@ -149,6 +151,7 @@ func (d *DashboardService) StartGateway() error {
 	cmd := exec.Command(binPath, "gateway")
 	cmd.Stdout = nil
 	cmd.Stderr = nil
+	hideConsoleWindow(cmd)
 	return cmd.Start()
 }
 
