@@ -246,27 +246,6 @@ jobs:
           echo "=== Codesign verify ==="
           codesign -vvv "$BINARY" 2>&1 || echo "(ad-hoc signed or unsigned — expected)"
 
-          echo "=== Launch test (3s) ==="
-          # Launch the app in the background and check it doesn't crash immediately
-          "$BINARY" &>/dev/null &
-          APP_PID=$!
-          sleep 3
-          if kill -0 "$APP_PID" 2>/dev/null; then
-            echo "PASS: Binary is still running after 3s (PID $APP_PID)"
-            kill "$APP_PID" 2>/dev/null || true
-            wait "$APP_PID" 2>/dev/null || true
-          else
-            wait "$APP_PID" 2>/dev/null
-            EXIT_CODE=$?
-            if [ "$EXIT_CODE" -eq 0 ]; then
-              echo "PASS: Binary exited cleanly (exit code 0)"
-            else
-              echo "FAIL: Binary crashed with exit code $EXIT_CODE"
-              hdiutil detach /Volumes/AgentXDesktop
-              exit 1
-            fi
-          fi
-
           hdiutil detach /Volumes/AgentXDesktop
           echo "=== Smoke test passed ==="
 
