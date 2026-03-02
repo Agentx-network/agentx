@@ -4,65 +4,160 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Download AgentX — One-Click Install</title>
+<meta name="description" content="Download AgentX — the decentralized AI agent economy platform. One-click install for Windows, macOS, Linux, and Android.">
+<meta property="og:title" content="Download AgentX — One-Click Install">
+<meta property="og:description" content="Download the binary, double-click to run the setup wizard. No build tools required.">
+<meta property="og:image" content="https://agentx.network/assets/images/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Azeret+Mono:wght@400;700&family=IBM+Plex+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --pink: #FF0092;
-    --purple: #AE00FF;
-    --cyan: #00FFFF;
-    --green: #00FF88;
-    --bg: #0a0015;
-    --surface: #140025;
-    --surface2: #1c0035;
-    --border: #2a1045;
-    --border-light: #3d1868;
-    --text: #e0d0f0;
-    --text-dim: #9080a0;
-    --text-muted: #6a5a7a;
-    --glow-pink: rgba(255, 0, 146, 0.25);
-    --glow-cyan: rgba(0, 255, 255, 0.15);
+    --purple: #eb58ff;
+    --purple-dark: #d43ac2;
+    --blue: #5c74ff;
+    --pink: #f235a1;
+    --green: #17fb57;
+    --bg: #000;
+    --bg-elevated: #080808;
+    --surface: rgba(255,255,255,0.03);
+    --surface2: rgba(255,255,255,0.06);
+    --border: #706e6e;
+    --border-dim: rgba(112,110,110,0.4);
+    --text: #fff;
+    --text-secondary: hsla(0,0%,100%,0.85);
+    --text-dim: hsla(0,0%,100%,0.55);
+    --text-muted: hsla(0,0%,100%,0.35);
+    --glow-purple: rgba(235,88,255,0.35);
+    --glow-pink: rgba(242,53,161,0.3);
+    --glow-blue: rgba(92,116,255,0.3);
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     background: var(--bg);
     color: var(--text);
     min-height: 100vh;
     overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---- Navigation ---- */
+  .nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.2rem 2.5rem;
+    border-bottom: 1px solid var(--border-dim);
+    backdrop-filter: blur(20px);
+    background: rgba(0,0,0,0.7);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .nav-logo {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    text-decoration: none;
+    color: var(--text);
+  }
+  .nav-logo img {
+    height: 32px;
+    width: auto;
+  }
+  .nav-logo span {
+    font-family: 'Azeret Mono', monospace;
+    font-weight: 700;
+    font-size: 1.1rem;
+    letter-spacing: -0.02em;
+  }
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 1.8rem;
+  }
+  .nav-links a {
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: 0.82rem;
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.02em;
+    transition: color 0.3s;
+  }
+  .nav-links a:hover { color: var(--text); }
+  .nav-links a.active { color: var(--purple); }
+  .nav-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1.2rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    font-family: 'IBM Plex Mono', monospace;
+    color: #fff;
+    background: linear-gradient(180deg, var(--purple), var(--blue));
+    border: none;
+    border-radius: 5px;
+    text-decoration: none;
+    transition: box-shadow 0.3s, transform 0.2s;
+    box-shadow: 0 1px 10px rgba(236,88,255,0.35);
+  }
+  .nav-cta:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 1px 14px var(--purple);
   }
 
   /* ---- Hero ---- */
   .hero {
     text-align: center;
-    padding: 4rem 1.5rem 3rem;
-    background: radial-gradient(ellipse at 50% 0%, rgba(174,0,255,0.12) 0%, transparent 60%);
+    padding: 5rem 1.5rem 3.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -40%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 800px;
+    height: 800px;
+    background: radial-gradient(circle, rgba(235,88,255,0.08) 0%, rgba(92,116,255,0.04) 40%, transparent 70%);
+    pointer-events: none;
   }
   .hero-badge {
     display: inline-block;
-    padding: 0.3rem 0.9rem;
-    border: 1px solid var(--border-light);
-    border-radius: 99px;
-    font-size: 0.78rem;
-    color: var(--cyan);
-    background: var(--surface);
-    margin-bottom: 1.2rem;
-    letter-spacing: 0.03em;
+    padding: 0.35rem 1rem;
+    border: 1px solid var(--border-dim);
+    border-radius: 5px 0 5px 0;
+    font-size: 0.75rem;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--green);
+    background: rgba(23,251,87,0.06);
+    margin-bottom: 1.5rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
   }
   .hero h1 {
-    font-size: 3rem;
+    font-family: 'Inter', sans-serif;
+    font-size: 3.2rem;
     font-weight: 800;
-    background: linear-gradient(135deg, var(--pink), var(--purple), var(--cyan));
+    background: linear-gradient(180deg, var(--purple), var(--blue));
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    margin-bottom: 0.6rem;
-    line-height: 1.15;
+    margin-bottom: 0.8rem;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
   }
   .hero .subtitle {
-    font-size: 1.15rem;
+    font-size: 1rem;
     color: var(--text-dim);
     max-width: 520px;
     margin: 0 auto 2.5rem;
-    line-height: 1.5;
+    line-height: 1.6;
+    font-family: 'IBM Plex Mono', monospace;
   }
 
   /* ---- Main download card ---- */
@@ -70,126 +165,277 @@
     max-width: 540px;
     margin: 0 auto;
     background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
+    border: 1px solid var(--border-dim);
+    border-radius: 5px;
     padding: 2rem 2rem 1.8rem;
-    box-shadow: 0 0 40px var(--glow-pink), 0 0 80px var(--glow-cyan);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 0 40px rgba(235,88,255,0.08), 0 0 80px rgba(92,116,255,0.04);
+  }
+  .detect-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--pink), transparent);
   }
   .platform-icon { font-size: 3rem; margin-bottom: 0.5rem; }
-  .platform-label { font-size: 0.82rem; color: var(--text-dim); margin-bottom: 0.1rem; }
-  .platform-name { font-size: 1.5rem; font-weight: 700; margin-bottom: 1.2rem; }
+  .platform-label {
+    font-size: 0.75rem;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--text-muted);
+    margin-bottom: 0.1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .platform-name {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 1.2rem;
+    letter-spacing: -0.02em;
+  }
 
   .arch-row {
     display: flex; align-items: center; justify-content: center;
     gap: 0.5rem; margin-bottom: 1.3rem; flex-wrap: wrap;
   }
-  .arch-row label { font-size: 0.82rem; color: var(--text-dim); }
-  .arch-select {
-    background: var(--bg); color: var(--text); border: 1px solid var(--border-light);
-    border-radius: 6px; padding: 0.4rem 0.7rem; font-size: 0.85rem; cursor: pointer; outline: none;
+  .arch-row label {
+    font-size: 0.78rem;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--text-dim);
   }
-  .arch-select:focus { border-color: var(--cyan); }
+  .arch-select {
+    background: var(--bg); color: var(--text-secondary); border: 1px solid var(--border-dim);
+    border-radius: 5px; padding: 0.4rem 0.7rem; font-size: 0.8rem;
+    font-family: 'IBM Plex Mono', monospace;
+    cursor: pointer; outline: none; transition: border-color 0.3s;
+  }
+  .arch-select:focus { border-color: var(--purple); }
 
   .download-btn {
     display: inline-flex; align-items: center; gap: 0.6rem;
-    padding: 1rem 2.4rem; font-size: 1.15rem; font-weight: 700;
-    color: #fff; background: linear-gradient(135deg, var(--pink), var(--purple));
-    border: none; border-radius: 12px; cursor: pointer;
-    transition: transform 0.15s, box-shadow 0.15s;
-    text-decoration: none; box-shadow: 0 4px 24px var(--glow-pink);
+    padding: 1rem 2.4rem; font-size: 1rem; font-weight: 700;
+    font-family: 'IBM Plex Mono', monospace;
+    color: #fff; background: linear-gradient(180deg, var(--purple), var(--blue));
+    border: none; border-radius: 5px; cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.3s;
+    text-decoration: none; box-shadow: 0 1px 14px var(--glow-purple);
   }
-  .download-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 32px var(--glow-pink); }
+  .download-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 24px var(--glow-purple); }
   .download-btn:active { transform: translateY(0); }
-  .download-btn svg { width: 22px; height: 22px; fill: #fff; }
+  .download-btn svg { width: 20px; height: 20px; fill: #fff; }
 
-  .file-hint { margin-top: 0.7rem; font-size: 0.78rem; color: var(--text-muted); }
-  .installer-note { margin-top: 0.5rem; font-size: 0.78rem; color: var(--green); opacity: 0.8; }
+  .file-hint {
+    margin-top: 0.7rem; font-size: 0.72rem;
+    font-family: 'Azeret Mono', monospace; color: var(--text-muted);
+  }
+  .installer-note {
+    margin-top: 0.5rem; font-size: 0.72rem;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--green); opacity: 0.8;
+  }
 
   .switch-link {
-    display: inline-block; margin-top: 1.1rem; font-size: 0.82rem;
-    color: var(--cyan); cursor: pointer; text-decoration: none;
-    border-bottom: 1px dashed rgba(0,255,255,0.3);
+    display: inline-block; margin-top: 1.1rem; font-size: 0.78rem;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--purple); cursor: pointer; text-decoration: none;
+    border-bottom: 1px solid rgba(235,88,255,0.3);
+    transition: border-color 0.3s;
   }
-  .switch-link:hover { border-bottom-color: var(--cyan); }
+  .switch-link:hover { border-bottom-color: var(--purple); }
+
+  /* ---- Section titles ---- */
+  .section-title {
+    text-align: center;
+    font-size: 1.6rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.02em;
+  }
+  .section-subtitle {
+    text-align: center;
+    font-size: 0.82rem;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--text-dim);
+    margin-bottom: 2rem;
+  }
+
+  /* ---- Divider line ---- */
+  .divider {
+    max-width: 940px;
+    margin: 3.5rem auto;
+    padding: 0 1.5rem;
+  }
+  .divider-line {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border-dim), transparent);
+  }
 
   /* ---- What happens ---- */
-  .what-happens { max-width: 640px; margin: 3rem auto 0; padding: 0 1.5rem; }
-  .what-happens h2 { text-align: center; font-size: 1.3rem; margin-bottom: 1.8rem; }
-  .wh-steps { display: flex; gap: 1.5rem; justify-content: center; flex-wrap: wrap; }
+  .what-happens { max-width: 700px; margin: 0 auto; padding: 0 1.5rem; }
+  .wh-steps { display: flex; gap: 1.2rem; justify-content: center; flex-wrap: wrap; }
   .wh-step {
     flex: 1; min-width: 160px; max-width: 200px;
-    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    background: var(--surface); border: 1px solid var(--border-dim); border-radius: 5px;
     padding: 1.3rem 1rem; text-align: center;
+    transition: border-color 0.3s;
   }
+  .wh-step:hover { border-color: rgba(235,88,255,0.3); }
   .wh-step .wh-icon { font-size: 2rem; margin-bottom: 0.5rem; }
   .wh-step .wh-num {
-    display: inline-block; width: 26px; height: 26px; line-height: 26px;
-    border-radius: 50%; background: linear-gradient(135deg, var(--pink), var(--purple));
-    font-size: 0.8rem; font-weight: 800; color: #fff; margin-bottom: 0.5rem;
+    display: inline-block; width: 24px; height: 24px; line-height: 24px;
+    border-radius: 50%; background: linear-gradient(180deg, var(--purple), var(--blue));
+    font-size: 0.72rem; font-weight: 800; color: #fff; margin-bottom: 0.5rem;
   }
-  .wh-step h4 { font-size: 0.95rem; margin-bottom: 0.3rem; }
-  .wh-step p { font-size: 0.8rem; color: var(--text-dim); line-height: 1.45; }
+  .wh-step h4 { font-size: 0.9rem; margin-bottom: 0.3rem; font-weight: 700; }
+  .wh-step p {
+    font-size: 0.78rem; font-family: 'IBM Plex Mono', monospace;
+    color: var(--text-dim); line-height: 1.5;
+  }
 
   /* ---- All platforms ---- */
-  .platforms-section { max-width: 780px; margin: 3rem auto 0; padding: 0 1.5rem; }
-  .platforms-section h2 { text-align: center; font-size: 1.3rem; margin-bottom: 1.5rem; }
+  .platforms-section { max-width: 780px; margin: 0 auto; padding: 0 1.5rem; }
   .platform-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
   .platform-card {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    background: var(--surface); border: 1px solid var(--border-dim); border-radius: 5px;
     padding: 1.3rem; text-align: center; cursor: pointer;
-    transition: border-color 0.2s, box-shadow 0.2s;
+    transition: border-color 0.3s, box-shadow 0.3s, transform 0.2s;
   }
-  .platform-card:hover { border-color: var(--purple); box-shadow: 0 0 20px rgba(174,0,255,0.15); }
+  .platform-card:hover {
+    border-color: rgba(235,88,255,0.4);
+    box-shadow: 0 0 20px rgba(235,88,255,0.08);
+    transform: translateY(-2px);
+  }
   .platform-card .card-icon { font-size: 2rem; margin-bottom: 0.5rem; }
   .platform-card .card-name { font-weight: 700; font-size: 1rem; margin-bottom: 0.2rem; }
-  .platform-card .card-type { font-size: 0.75rem; color: var(--green); opacity: 0.8; margin-bottom: 0.15rem; }
-  .platform-card .card-arch { font-size: 0.75rem; color: var(--text-dim); }
+  .platform-card .card-type {
+    font-size: 0.72rem; font-family: 'IBM Plex Mono', monospace;
+    color: var(--green); opacity: 0.8; margin-bottom: 0.15rem;
+  }
+  .platform-card .card-arch {
+    font-size: 0.72rem; font-family: 'IBM Plex Mono', monospace;
+    color: var(--text-dim);
+  }
 
   /* ---- Advanced CLI ---- */
-  .advanced { max-width: 640px; margin: 3rem auto; padding: 0 1.5rem; }
+  .advanced { max-width: 640px; margin: 0 auto; padding: 0 1.5rem; }
   .advanced-toggle {
     display: flex; align-items: center; gap: 0.5rem; cursor: pointer;
-    color: var(--text-dim); font-size: 0.9rem; margin-bottom: 1rem; user-select: none;
+    color: var(--text-dim); font-size: 0.85rem; font-family: 'IBM Plex Mono', monospace;
+    margin-bottom: 1rem; user-select: none; transition: color 0.3s;
   }
   .advanced-toggle:hover { color: var(--text); }
   .advanced-toggle .arrow { transition: transform 0.2s; display: inline-block; font-size: 0.7rem; }
   .advanced-toggle.open .arrow { transform: rotate(90deg); }
   .advanced-body {
-    display: none; background: var(--surface); border: 1px solid var(--border);
-    border-radius: 10px; padding: 1.3rem;
+    display: none; background: var(--surface); border: 1px solid var(--border-dim);
+    border-radius: 5px; padding: 1.3rem;
   }
   .advanced-body.open { display: block; }
-  .advanced-body h4 { font-size: 0.88rem; color: var(--text-dim); margin-bottom: 0.6rem; margin-top: 1rem; }
+  .advanced-body h4 {
+    font-size: 0.82rem; color: var(--text-dim); font-family: 'IBM Plex Mono', monospace;
+    margin-bottom: 0.6rem; margin-top: 1rem;
+  }
   .advanced-body h4:first-child { margin-top: 0; }
   .cmd-box {
-    position: relative; background: #000; border: 1px solid var(--border); border-radius: 6px;
+    position: relative; background: rgba(235,88,255,0.04);
+    border: 1px solid rgba(235,88,255,0.15); border-radius: 5px;
     padding: 0.8rem 3.2rem 0.8rem 1rem;
-    font-family: "SF Mono","Fira Code","Cascadia Code",monospace;
-    font-size: 0.85rem; color: var(--cyan); overflow-x: auto; white-space: nowrap;
+    font-family: 'Azeret Mono', monospace;
+    font-size: 0.8rem; color: var(--purple); overflow-x: auto; white-space: nowrap;
   }
   .copy-btn {
     position: absolute; top: 50%; right: 0.5rem; transform: translateY(-50%);
-    background: var(--border); border: none; color: var(--text);
-    padding: 0.3rem 0.55rem; border-radius: 4px; cursor: pointer;
-    font-size: 0.75rem; transition: background 0.2s;
+    background: var(--border-dim); border: none; color: var(--text-secondary);
+    padding: 0.3rem 0.55rem; border-radius: 3px; cursor: pointer;
+    font-size: 0.72rem; font-family: 'IBM Plex Mono', monospace;
+    transition: background 0.2s;
   }
-  .copy-btn:hover { background: var(--purple); }
-  .copy-btn.copied { background: #00aa55; }
+  .copy-btn:hover { background: var(--purple); color: #fff; }
+  .copy-btn.copied { background: var(--green); color: #000; }
+
+  /* ---- Desktop app link ---- */
+  .desktop-link {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+    text-align: center;
+  }
+  .desktop-link-card {
+    background: var(--surface);
+    border: 1px solid var(--border-dim);
+    border-radius: 5px;
+    padding: 1.5rem 2rem;
+    transition: border-color 0.3s;
+  }
+  .desktop-link-card:hover { border-color: rgba(235,88,255,0.3); }
+  .desktop-link-card p {
+    font-size: 0.85rem; font-family: 'IBM Plex Mono', monospace;
+    color: var(--text-dim); margin-bottom: 0.6rem;
+  }
+  .desktop-link-card a {
+    color: var(--purple); text-decoration: none; font-weight: 600;
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.85rem;
+    border-bottom: 1px solid rgba(235,88,255,0.3);
+    transition: border-color 0.3s;
+  }
+  .desktop-link-card a:hover { border-bottom-color: var(--purple); }
 
   /* ---- Footer ---- */
   .footer {
-    text-align: center; padding: 3rem 1rem 2rem; color: var(--text-muted);
-    font-size: 0.82rem; border-top: 1px solid var(--border); margin-top: 2rem;
+    text-align: center;
+    padding: 3rem 1.5rem 2rem;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    font-family: 'IBM Plex Mono', monospace;
+    border-top: 1px solid var(--border-dim);
+    margin-top: 4rem;
   }
-  .footer a { color: var(--pink); text-decoration: none; }
-  .footer a:hover { text-decoration: underline; }
-  .footer-links { margin-bottom: 0.6rem; }
-  .footer-links a { margin: 0 0.6rem; }
+  .footer-logo {
+    margin-bottom: 1.2rem;
+  }
+  .footer-logo img {
+    height: 28px;
+    opacity: 0.5;
+  }
+  .footer-links {
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .footer-links a {
+    color: var(--text-dim);
+    text-decoration: none;
+    transition: color 0.3s;
+    font-size: 0.78rem;
+  }
+  .footer-links a:hover { color: var(--text); }
+  .footer-social {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 1.2rem;
+  }
+  .footer-social a {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.82rem;
+    transition: color 0.3s;
+  }
+  .footer-social a:hover { color: var(--purple); }
 
   @media (max-width: 600px) {
+    .nav { padding: 1rem 1.2rem; }
+    .nav-links { display: none; }
     .hero h1 { font-size: 2.2rem; }
+    .hero { padding: 3.5rem 1.2rem 3rem; }
     .detect-card { padding: 1.5rem 1.2rem; }
-    .download-btn { padding: 0.85rem 1.6rem; font-size: 1rem; }
+    .download-btn { padding: 0.85rem 1.6rem; font-size: 0.9rem; }
     .platform-grid { grid-template-columns: 1fr 1fr; }
     .wh-steps { flex-direction: column; align-items: center; }
   }
@@ -197,9 +443,24 @@
 </head>
 <body>
 
+<!-- ====== NAVIGATION ====== -->
+<nav class="nav">
+  <a href="https://agentx.network" class="nav-logo">
+    <img src="https://agentx.network/assets/images/logo.png" alt="AgentX">
+    <span>AgentX</span>
+  </a>
+  <div class="nav-links">
+    <a href="https://agentx.network">Home</a>
+    <a href="https://install.agentx.network" class="active">CLI</a>
+    <a href="https://install.agentx.network/desktop/">Desktop</a>
+    <a href="https://github.com/Agentx-network/agentx" target="_blank">GitHub</a>
+    <a href="https://agentx.network" class="nav-cta">Get Started</a>
+  </div>
+</nav>
+
 <!-- ====== HERO ====== -->
 <section class="hero">
-  <div class="hero-badge">v0.3 — Nexus Engine</div>
+  <div class="hero-badge">v0.3 &mdash; Nexus Engine</div>
   <h1>Install AgentX</h1>
   <p class="subtitle">Download the binary, double-click to run the setup wizard. No build tools required.</p>
 
@@ -224,9 +485,13 @@
   </div>
 </section>
 
+<!-- ====== DIVIDER ====== -->
+<div class="divider"><div class="divider-line"></div></div>
+
 <!-- ====== WHAT HAPPENS ====== -->
 <section class="what-happens">
-  <h2>What happens when you install</h2>
+  <h2 class="section-title">What happens when you install</h2>
+  <p class="section-subtitle">Three steps to get running</p>
   <div class="wh-steps">
     <div class="wh-step">
       <div class="wh-num">1</div>
@@ -249,11 +514,18 @@
   </div>
 </section>
 
+<!-- ====== DIVIDER ====== -->
+<div class="divider"><div class="divider-line"></div></div>
+
 <!-- ====== ALL PLATFORMS ====== -->
 <section class="platforms-section" id="all-platforms">
-  <h2>All Platforms</h2>
+  <h2 class="section-title">All Platforms</h2>
+  <p class="section-subtitle">Choose your operating system</p>
   <div class="platform-grid" id="platformGrid"></div>
 </section>
+
+<!-- ====== DIVIDER ====== -->
+<div class="divider"><div class="divider-line"></div></div>
 
 <!-- ====== ADVANCED CLI ====== -->
 <section class="advanced">
@@ -284,16 +556,37 @@
   </div>
 </section>
 
+<!-- ====== DIVIDER ====== -->
+<div class="divider"><div class="divider-line"></div></div>
+
+<!-- ====== DESKTOP APP LINK ====== -->
+<section class="desktop-link">
+  <div class="desktop-link-card">
+    <p>Want a full graphical dashboard? Try the Desktop app with built-in chat, config editor, and live dashboard.</p>
+    <a href="https://install.agentx.network/desktop/">Download AgentX Desktop &rarr;</a>
+  </div>
+</section>
+
 <!-- ====== FOOTER ====== -->
-<div class="footer">
+<footer class="footer">
+  <div class="footer-logo">
+    <img src="https://agentx.network/assets/images/logo.png" alt="AgentX">
+  </div>
+  <div class="footer-social">
+    <a href="https://x.com/AgentxNetwork" target="_blank">X</a>
+    <a href="https://t.me/agentxofficial" target="_blank">Telegram</a>
+    <a href="https://www.youtube.com/@AgentXNetwork" target="_blank">YouTube</a>
+    <a href="https://www.linkedin.com/company/agentxnetwork/" target="_blank">LinkedIn</a>
+  </div>
   <div class="footer-links">
     <a href="https://github.com/Agentx-network/agentx">GitHub</a>
     <a href="https://agentx.network">Website</a>
     <a href="https://discord.gg/V4sAZ9XWpN">Discord</a>
-    <a href="https://t.me/agentxofficial">Telegram</a>
+    <a href="https://agentx.network/terms">Terms</a>
+    <a href="https://agentx.network/privacy">Privacy Policy</a>
   </div>
   &copy; 2024&ndash;2026 AgentX Network. All rights reserved.
-</div>
+</footer>
 
 <script>
 /* ============================================================
@@ -306,7 +599,7 @@ var PLATFORMS = {
   windows: {
     label: "Windows",
     icon: "\uD83E\uDE9F",
-    installerNote: "Single .exe — no install wizard needed, just move it anywhere and run",
+    installerNote: "Single .exe \u2014 no install wizard needed, just move it anywhere and run",
     whIcon1: "\uD83D\uDCE5",
     whIcon2: "\uD83D\uDDB1\uFE0F",
     whTitle2: "Run it",
@@ -318,7 +611,7 @@ var PLATFORMS = {
   macos: {
     label: "macOS",
     icon: "\uD83C\uDF4E",
-    installerNote: "Single binary — move to /usr/local/bin or run directly",
+    installerNote: "Single binary \u2014 move to /usr/local/bin or run directly",
     whIcon1: "\uD83D\uDCE5",
     whIcon2: "\uD83D\uDCBB",
     whTitle2: "Move & allow",
@@ -331,7 +624,7 @@ var PLATFORMS = {
   linux: {
     label: "Linux",
     icon: "\uD83D\uDC27",
-    installerNote: "Single static binary — chmod +x and run, or use the install script",
+    installerNote: "Single static binary \u2014 chmod +x and run, or use the install script",
     whIcon1: "\uD83D\uDCE5",
     whIcon2: "\uD83D\uDCBB",
     whTitle2: "Make executable",
