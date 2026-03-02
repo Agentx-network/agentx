@@ -11,6 +11,7 @@ import { Toast } from "./components/ui/Toast";
 import type { Page, SetupState, ChatMessage } from "./lib/types";
 import agentHero from "./assets/agent-hero.gif";
 import posterBg from "./assets/poster-bg.jpg";
+import logo from "./assets/logo.png";
 
 declare global {
   interface Window {
@@ -212,10 +213,8 @@ export default function App() {
             alt=""
             className="w-20 h-20 mx-auto rounded-full border-2 border-neon-pink/40 shadow-[0_0_40px_rgba(255,0,128,0.35)] animate-pulse"
           />
-          <div className="space-y-2">
-            <h1 className="text-4xl font-bold text-white text-glow-pink uppercase tracking-[0.3em] drop-shadow-lg">
-              AgentX
-            </h1>
+          <div className="space-y-3">
+            <img src={logo} alt="AgentX" className="h-8 mx-auto drop-shadow-[0_0_12px_rgba(255,0,128,0.5)]" />
             <p className="text-neon-pink/60 text-sm uppercase tracking-widest animate-pulse">Loading...</p>
           </div>
         </div>
@@ -230,9 +229,10 @@ export default function App() {
       <div className="relative flex flex-col h-screen bg-bg">
         {ambientBg}
         <header className="relative flex items-center justify-between px-8 py-5 border-b-2 border-neon-pink/20">
-          <h1 className="text-xl font-bold text-white text-glow-pink uppercase tracking-[0.2em]">
-            AgentX Setup
-          </h1>
+          <div className="flex items-center gap-3">
+            <img src={logo} alt="AgentX" className="h-5 drop-shadow-[0_0_8px_rgba(255,0,128,0.4)]" />
+            <span className="text-xl font-bold text-white text-glow-pink uppercase tracking-[0.2em]">Setup</span>
+          </div>
           <div className="flex items-center gap-2">
             {wizardSteps.map((s, i) => (
               <div key={s.key} className="flex items-center gap-2">
