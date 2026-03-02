@@ -3,6 +3,7 @@ import type { PlatformInfo, DownloadProgress } from "../lib/types";
 import NeonButton from "../components/ui/NeonButton";
 import NeonCard from "../components/ui/NeonCard";
 import DownloadProgressBar from "../components/DownloadProgress";
+import logoImg from "../assets/logo.png";
 
 interface Props {
   showToast: (msg: string, type: "success" | "error") => void;
@@ -61,7 +62,10 @@ export default function InstallerPage({ showToast, onComplete }: Props) {
   return (
     <div className="max-w-xl mx-auto space-y-6">
       <div className="text-center space-y-2">
-        <h2 className="text-3xl font-bold uppercase tracking-[0.2em] text-glow-pink">Install AgentX</h2>
+        <div className="flex items-center justify-center gap-3">
+          <span className="text-3xl font-bold uppercase tracking-[0.2em] text-glow-pink">Install</span>
+          <img src={logoImg} alt="AgentX" className="h-7 drop-shadow-[0_0_8px_rgba(255,0,128,0.4)]" />
+        </div>
         <p className="text-white/35 text-sm">
           Download and install the AgentX gateway to get started.
         </p>
