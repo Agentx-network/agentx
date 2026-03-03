@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import type { GatewayStatus } from "../lib/types";
 import NeonButton from "../components/ui/NeonButton";
+import NeonCard from "../components/ui/NeonCard";
+import NeonInput from "../components/ui/NeonInput";
 import agentHero from "../assets/agent-hero.gif";
 
 interface Props {
@@ -21,6 +23,33 @@ interface SkillEntry {
   path: string;
 }
 
+interface TokenBalance {
+  symbol: string;
+  name: string;
+  contract: string;
+  balance: string;
+  decimals: number;
+}
+
+interface RegistryInfo {
+  registered: boolean;
+  agentName: string;
+  agentId: string;
+  address: string;
+  chain: string;
+  metadata: string;
+  txHash: string;
+  timestamp: string;
+}
+
+const TOKEN_ICONS: Record<string, string> = {
+  BNB: "🟡",
+  USDT: "🟢",
+  USDC: "🔵",
+  BUSD: "🟡",
+  DAI: "🟠",
+};
+
 export default function DashboardPage({ showToast }: Props) {
   const [status, setStatus] = useState<GatewayStatus | null>(null);
   const [logs, setLogs] = useState("");
@@ -29,6 +58,13 @@ export default function DashboardPage({ showToast }: Props) {
   const [skills, setSkills] = useState<SkillEntry[]>([]);
   const [showLogs, setShowLogs] = useState(true);
   const logRef = useRef<HTMLPreElement>(null);
+  const [walletAddr, setWalletAddr] = useState("");
+  const [balances, setBalances] = useState<TokenBalance[]>([]);
+  const [registry, setRegistry] = useState<RegistryInfo | null>(null);
+  const [registering, setRegistering] = useState(false);
+  const [regName, setRegName] = useState("");
+  const [fundModal, setFundModal] = useState<{ error: string } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const fetchStatus = async () => {
     try {
@@ -63,10 +99,32 @@ export default function DashboardPage({ showToast }: Props) {
     } catch { /* noop */ }
   };
 
+  const loadWallet = async () => {
+    try {
+      const w = await window.go.main.WalletService.GetWallet();
+      if (w?.address) {
+        setWalletAddr(w.address);
+        try {
+          const b = await window.go.main.WalletService.GetAllBalances();
+          setBalances(b || []);
+        } catch { /* noop */ }
+      }
+    } catch { /* no wallet */ }
+  };
+
+  const loadRegistry = async () => {
+    try {
+      const r = await window.go.main.RegistryService.GetRegistration();
+      setRegistry(r);
+    } catch { /* noop */ }
+  };
+
   useEffect(() => {
     fetchStatus();
     fetchLogs();
     loadAgent();
+    loadWallet();
+    loadRegistry();
     const statusInterval = setInterval(fetchStatus, 5000);
     const logInterval = setInterval(fetchLogs, 15000);
     return () => { clearInterval(statusInterval); clearInterval(logInterval); };
@@ -107,6 +165,29 @@ export default function DashboardPage({ showToast }: Props) {
     }
   };
 
+  const handleRegister = async () => {
+    const name = regName.trim() || agentName;
+    setRegistering(true);
+    try {
+      const identityContents: Record<string, string> = {};
+      for (const f of identityFiles) {
+        identityContents[f.name] = f.content;
+      }
+      const metadata = JSON.stringify({
+        skills: skills.map(s => s.name),
+        channels: activeChannels.map(c => c.name),
+        identity: identityContents,
+      });
+      const r = await window.go.main.RegistryService.RegisterAgent(name, metadata);
+      setRegistry(r);
+      showToast("Agent registered in ERC-8004 registry!", "success");
+    } catch (e: any) {
+      setFundModal({ error: String(e).replace(/^Error:\s*/i, "") });
+    } finally {
+      setRegistering(false);
+    }
+  };
+
   const running = status?.running ?? false;
   const activeChannels = status?.channels?.filter(c => c.enabled) ?? [];
   const configuredModels = status?.models?.filter(m => m.hasKey) ?? [];
@@ -135,6 +216,102 @@ export default function DashboardPage({ showToast }: Props) {
           )}
         </div>
       </div>
+
+      {/* ERC-8004 Agent Registry */}
+      <NeonCard variant={registry?.registered ? "cyan" : "pink"} glow>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-neon-purple/10 border border-neon-purple/20 flex items-center justify-center">
+                <span className="text-lg drop-shadow-[0_0_8px_rgba(174,0,255,0.6)]">&#9671;</span>
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-widest text-neon-purple/80 font-bold">ERC-8004 Agent Registry</div>
+                <div className="text-[10px] text-white/30">On-chain agent identity &amp; capability registration</div>
+              </div>
+            </div>
+            {registry?.registered ? (
+              <div className="text-[10px] uppercase tracking-widest text-neon-green/70 bg-neon-green/10 border border-neon-green/20 px-2.5 py-1 rounded-full font-bold">
+                Registered
+              </div>
+            ) : (
+              <div className="text-[10px] uppercase tracking-widest text-yellow-400/70 bg-yellow-400/10 border border-yellow-400/20 px-2.5 py-1 rounded-full font-bold">
+                Not Registered
+              </div>
+            )}
+          </div>
+
+          {registry?.registered ? (
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-black/30 rounded-lg px-3 py-2 border border-white/[0.04]">
+                  <div className="text-[10px] uppercase tracking-widest text-white/30">Agent Name</div>
+                  <div className="text-sm text-white/80 font-bold">{registry.agentName}</div>
+                </div>
+                <div className="bg-black/30 rounded-lg px-3 py-2 border border-white/[0.04]">
+                  <div className="text-[10px] uppercase tracking-widest text-white/30">Chain</div>
+                  <div className="text-sm text-white/80 font-bold">{registry.chain}</div>
+                </div>
+              </div>
+              <div className="bg-black/30 rounded-lg px-3 py-2 border border-white/[0.04]">
+                <div className="text-[10px] uppercase tracking-widest text-white/30">Wallet Address</div>
+                <div className="text-xs text-neon-cyan/70 font-mono break-all">{registry.address}</div>
+              </div>
+              {registry.metadata && (
+                <div className="bg-black/30 rounded-lg px-3 py-2 border border-neon-purple/10">
+                  <div className="text-[10px] uppercase tracking-widest text-white/30">IPFS Metadata</div>
+                  <button
+                    onClick={() => window.runtime.BrowserOpenURL(`https://ipfs.agentx.network/ipfs/${registry.metadata.replace("ipfs://", "")}`)}
+                    className="text-xs text-neon-purple/70 font-mono break-all hover:text-neon-purple transition-colors cursor-pointer text-left"
+                  >
+                    {registry.metadata}
+                  </button>
+                </div>
+              )}
+              {registry.txHash && (
+                <div className="bg-black/30 rounded-lg px-3 py-2 border border-neon-green/10">
+                  <div className="text-[10px] uppercase tracking-widest text-white/30">Transaction Hash</div>
+                  <button
+                    onClick={() => window.runtime.BrowserOpenURL(`https://bscscan.com/tx/${registry.txHash}`)}
+                    className="text-xs text-neon-green/70 font-mono break-all hover:text-neon-green transition-colors cursor-pointer text-left"
+                  >
+                    {registry.txHash}
+                  </button>
+                </div>
+              )}
+              <div className="flex items-center justify-between text-[10px] text-white/25 px-1">
+                <span>Registered {new Date(registry.timestamp).toLocaleString()}</span>
+                <span className="font-mono">ERC-8004 · IPFS · BSC</span>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {!walletAddr ? (
+                <div className="text-xs text-red-400/60 bg-red-400/5 border border-red-400/10 rounded-lg px-3 py-2">
+                  Wallet required — generate one from the Wallet page first.
+                </div>
+              ) : (
+                <>
+                  <div className="text-xs text-white/40">
+                    Register your agent on-chain to enable discovery, reputation tracking, and payment capabilities.
+                    Metadata is pinned to IPFS and the URI is stored on-chain via ERC-8004.
+                  </div>
+                  <div className="flex gap-2">
+                    <NeonInput
+                      value={regName}
+                      onChange={setRegName}
+                      placeholder={`Agent name (default: ${agentName})`}
+                    />
+                    <NeonButton onClick={handleRegister} disabled={registering} size="sm">
+                      {registering ? "Registering..." : "Register Agent"}
+                    </NeonButton>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </NeonCard>
 
       {/* Hero status card */}
       <div className={`relative overflow-hidden rounded-xl border p-5 ${
@@ -236,6 +413,29 @@ export default function DashboardPage({ showToast }: Props) {
         </div>
       </div>
 
+      {/* Wallet & Token Balances */}
+      {walletAddr && (
+        <div className="glass-card p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="text-[11px] uppercase tracking-widest text-white/45 font-medium">Wallet Balances</div>
+            <div className="text-[11px] font-mono text-neon-cyan/50 truncate max-w-[200px]" title={walletAddr}>
+              {walletAddr.slice(0, 6)}...{walletAddr.slice(-4)} · BSC
+            </div>
+          </div>
+          <div className="grid grid-cols-5 gap-2">
+            {balances.map((tok) => (
+              <div key={tok.symbol + tok.contract} className="bg-black/20 rounded-lg px-3 py-2.5 border border-white/[0.04]">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span className="text-sm">{TOKEN_ICONS[tok.symbol] || "🪙"}</span>
+                  <span className="text-[11px] font-bold text-white/70">{tok.symbol}</span>
+                </div>
+                <div className="text-xs font-mono text-white/50">{tok.balance}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Models configured */}
       {configuredModels.length > 1 && (
         <div className="glass-card p-4">
@@ -284,6 +484,92 @@ export default function DashboardPage({ showToast }: Props) {
           </pre>
         )}
       </div>
+      {/* Fund Wallet Modal */}
+      {fundModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="bg-[#0e0e1a] border border-red-500/20 rounded-2xl p-6 max-w-md w-full mx-4 shadow-[0_0_40px_rgba(255,0,80,0.15)]">
+            {/* Header */}
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+                <span className="text-lg">&#9888;</span>
+              </div>
+              <div>
+                <div className="text-sm font-bold text-white">Registration Failed</div>
+                <div className="text-[10px] text-white/40 uppercase tracking-widest">Insufficient BNB for gas</div>
+              </div>
+            </div>
+
+            {/* Error message */}
+            <div className="bg-red-500/5 border border-red-500/10 rounded-lg px-3 py-2 mb-4">
+              <div className="text-xs text-red-400/80 break-all">{fundModal.error}</div>
+            </div>
+
+            {/* Info */}
+            <div className="text-xs text-white/50 mb-4">
+              Send BNB to your wallet address below to cover gas fees for on-chain registration. A small amount (0.001–0.005 BNB) is enough.
+            </div>
+
+            {/* Wallet address - copyable */}
+            <div className="mb-3">
+              <div className="text-[10px] uppercase tracking-widest text-white/30 mb-1.5">Your BSC Wallet Address</div>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(walletAddr);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+                className="w-full bg-black/40 border border-neon-cyan/20 rounded-lg px-3 py-3 text-left hover:border-neon-cyan/40 transition-colors group cursor-pointer"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-neon-cyan/80 font-mono break-all">{walletAddr}</span>
+                  <span className="text-[10px] text-white/30 group-hover:text-neon-cyan/60 ml-2 shrink-0 uppercase tracking-widest transition-colors">
+                    {copied ? "Copied!" : "Copy"}
+                  </span>
+                </div>
+              </button>
+            </div>
+
+            {/* Current BNB balance */}
+            {balances.length > 0 && (
+              <div className="bg-black/30 border border-white/[0.04] rounded-lg px-3 py-2 mb-4">
+                <div className="text-[10px] uppercase tracking-widest text-white/30 mb-1">Current Balance</div>
+                <div className="flex items-center gap-4">
+                  {balances.filter(b => b.symbol === "BNB").map(b => (
+                    <div key={b.symbol} className="flex items-center gap-1.5">
+                      <span className="text-sm">{TOKEN_ICONS[b.symbol] || "🪙"}</span>
+                      <span className="text-xs font-bold text-white/70">{b.balance} {b.symbol}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex gap-2">
+              <NeonButton
+                onClick={() => {
+                  setFundModal(null);
+                  loadWallet();
+                }}
+                variant="ghost"
+                size="sm"
+              >
+                Close
+              </NeonButton>
+              <NeonButton
+                onClick={() => {
+                  setFundModal(null);
+                  loadWallet();
+                  setTimeout(() => handleRegister(), 500);
+                }}
+                size="sm"
+              >
+                Retry Registration
+              </NeonButton>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

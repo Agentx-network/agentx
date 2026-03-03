@@ -19,6 +19,8 @@ func main() {
 	configSvc := NewConfigService()
 	chatSvc := NewChatService()
 	agentSetup := NewAgentSetupService()
+	walletSvc := NewWalletService()
+	registrySvc := NewRegistryService()
 
 	err := wails.Run(&options.App{
 		Title:  "AgentX Desktop",
@@ -34,6 +36,8 @@ func main() {
 			configSvc.startup(ctx)
 			chatSvc.startup(ctx)
 			agentSetup.startup(ctx)
+			walletSvc.startup(ctx)
+			registrySvc.startup(ctx)
 		},
 		Bind: []interface{}{
 			app,
@@ -42,6 +46,8 @@ func main() {
 			configSvc,
 			chatSvc,
 			agentSetup,
+			walletSvc,
+			registrySvc,
 		},
 	})
 	if err != nil {

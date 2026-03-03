@@ -105,4 +105,4 @@ export interface ChatMessage {
   timestamp: number;
 }
 
-export type Page = "installer" | "onboard" | "channels" | "agent" | "dashboard" | "config" | "chat";
+export type Page = "installer" | "onboard" | "channels" | "agent" | "dashboard" | "config" | "chat" | "wallet";

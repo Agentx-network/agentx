@@ -1349,6 +1349,32 @@ export namespace main {
 	        this.needsKey = source["needsKey"];
 	    }
 	}
+	export class RegistryInfo {
+	    registered: boolean;
+	    agentName: string;
+	    agentId: string;
+	    address: string;
+	    chain: string;
+	    metadata: string;
+	    txHash: string;
+	    timestamp: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new RegistryInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.registered = source["registered"];
+	        this.agentName = source["agentName"];
+	        this.agentId = source["agentId"];
+	        this.address = source["address"];
+	        this.chain = source["chain"];
+	        this.metadata = source["metadata"];
+	        this.txHash = source["txHash"];
+	        this.timestamp = source["timestamp"];
+	    }
+	}
 	export class SetupState {
 	    binaryInstalled: boolean;
 	    configExists: boolean;
@@ -1405,6 +1431,60 @@ export namespace main {
 	        this.version = source["version"];
 	        this.registry = source["registry"];
 	        this.score = source["score"];
+	    }
+	}
+	export class TokenBalance {
+	    symbol: string;
+	    name: string;
+	    contract: string;
+	    balance: string;
+	    decimals: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new TokenBalance(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.symbol = source["symbol"];
+	        this.name = source["name"];
+	        this.contract = source["contract"];
+	        this.balance = source["balance"];
+	        this.decimals = source["decimals"];
+	    }
+	}
+	export class TokenConfig {
+	    symbol: string;
+	    name: string;
+	    contract: string;
+	    decimals: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new TokenConfig(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.symbol = source["symbol"];
+	        this.name = source["name"];
+	        this.contract = source["contract"];
+	        this.decimals = source["decimals"];
+	    }
+	}
+	export class WalletInfo {
+	    address: string;
+	    chain: string;
+	    createdAt: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new WalletInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.address = source["address"];
+	        this.chain = source["chain"];
+	        this.createdAt = source["createdAt"];
 	    }
 	}
 

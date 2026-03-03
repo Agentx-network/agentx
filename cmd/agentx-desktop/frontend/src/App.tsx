@@ -7,6 +7,7 @@ import AgentSetupPage from "./pages/AgentSetupPage";
 import DashboardPage from "./pages/DashboardPage";
 import ConfigPage from "./pages/ConfigPage";
 import ChatPage from "./pages/ChatPage";
+import WalletPage from "./pages/WalletPage";
 import { Toast } from "./components/ui/Toast";
 import type { Page, SetupState, ChatMessage } from "./lib/types";
 import agentHero from "./assets/agent-hero.gif";
@@ -70,11 +71,26 @@ declare global {
           SearchSkills(query: string): Promise<{ slug: string; displayName: string; summary: string; version: string; registry: string; score: number }[]>;
           InstallFromRegistry(slug: string): Promise<void>;
         };
+        WalletService: {
+          GenerateWallet(): Promise<{ address: string; chain: string; createdAt: string }>;
+          GetWallet(): Promise<{ address: string; chain: string; createdAt: string }>;
+          GetBalance(): Promise<string>;
+          GetAllBalances(): Promise<{ symbol: string; name: string; contract: string; balance: string; decimals: number }[]>;
+          GetTokens(): Promise<{ symbol: string; name: string; contract: string; decimals: number }[]>;
+          AddToken(symbol: string, name: string, contract: string, decimals: number): Promise<void>;
+          RemoveToken(contract: string): Promise<void>;
+        };
+        RegistryService: {
+          GetRegistration(): Promise<{ registered: boolean; agentName: string; agentId: string; address: string; chain: string; metadata: string; txHash: string; timestamp: string }>;
+          RegisterAgent(agentName: string, metadata: string): Promise<{ registered: boolean; agentName: string; agentId: string; address: string; chain: string; metadata: string; txHash: string; timestamp: string }>;
+          UnregisterAgent(): Promise<void>;
+        };
       };
     };
     runtime: {
       EventsOn(event: string, callback: (...args: any[]) => void): void;
       EventsOff(event: string): void;
+      BrowserOpenURL(url: string): void;
       Quit(): void;
     };
   }
@@ -271,6 +287,7 @@ export default function App() {
         {page === "dashboard" && <DashboardPage showToast={showToast} />}
         {page === "chat" && <ChatPage showToast={showToast} messages={chatMessages} setMessages={setChatMessages} />}
         {page === "config" && <ConfigPage showToast={showToast} />}
+        {page === "wallet" && <WalletPage showToast={showToast} />}
         {page === "installer" && <InstallerPage showToast={showToast} onComplete={onStepComplete} />}
       </main>
       {toast && <Toast message={toast.message} type={toast.type} />}
