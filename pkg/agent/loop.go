@@ -142,6 +142,11 @@ func registerSharedTools(
 		agent.Tools.Register(tools.NewFindSkillsTool(registryMgr, searchCache))
 		agent.Tools.Register(tools.NewInstallSkillTool(registryMgr, agent.Workspace))
 
+		// Wallet tools (secure — private key never exposed to the agent)
+		agent.Tools.Register(tools.NewWalletAddressTool())
+		agent.Tools.Register(tools.NewWalletBalanceTool())
+		agent.Tools.Register(tools.NewWalletSendTool())
+
 		// Spawn tool with allowlist checker
 		subagentManager := tools.NewSubagentManager(provider, agent.Model, agent.Workspace, msgBus)
 		subagentManager.SetLLMOptions(agent.MaxTokens, agent.Temperature)
