@@ -14,9 +14,9 @@ permissions:
   contents: write
 
 jobs:
-  # ─── Windows .exe installer (Inno Setup) ───
+  # ─── CLI: Windows .exe installer (Inno Setup) ───
   windows-installer:
-    name: Windows Installer
+    name: CLI Installer (Windows)
     runs-on: windows-latest
     env:
       RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
@@ -48,47 +48,6 @@ jobs:
           tag="${{ env.RELEASE_TAG }}"
           installer=$(find . -name "AgentX-Setup-*.exe" -type f | head -1)
           gh release upload "$tag" "$installer" --clobber
-
-  # ─── macOS .pkg installers ───
-  macos-installer:
-    name: macOS Installer (${{ matrix.arch }})
-    runs-on: macos-latest
-    env:
-      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
-    strategy:
-      matrix:
-        include:
-          - arch: arm64
-            asset: agentx-darwin-arm64
-          - arch: amd64
-            asset: agentx-darwin-amd64
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Download macOS binary from release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          tag="${{ env.RELEASE_TAG }}"
-          url="https://github.com/${{ github.repository }}/releases/download/${tag}/${{ matrix.asset }}"
-          curl -fsSL "$url" -o agentx
-          chmod +x agentx
-
-      - name: Build .pkg installer
-        run: |
-          chmod +x installer/macos/build-pkg.sh
-          version="${{ env.RELEASE_TAG }}"
-          version="${version#v}"
-          ./installer/macos/build-pkg.sh ./agentx "$version" "${{ matrix.arch }}"
-
-      - name: Upload .pkg to release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          tag="${{ env.RELEASE_TAG }}"
-          pkg=$(find . -name "AgentX-*.pkg" -type f | head -1)
-          gh release upload "$tag" "$pkg" --clobber
 
   # ─── Desktop App: Windows Setup.exe (NSIS via Wails) ───
   desktop-windows:
@@ -205,7 +164,6 @@ jobs:
                 -ov -format UDZO "${{ matrix.asset }}"
             fi
           }
-          # Retry up to 3 times — hdiutil can fail with "Resource busy" on CI
           for i in 1 2 3; do
             if create_dmg; then
               echo "DMG created successfully on attempt $i"
@@ -219,39 +177,23 @@ jobs:
 
       - name: Smoke test — mount DMG and verify binary
         run: |
-          echo "=== Mounting DMG ==="
           hdiutil attach "${{ matrix.asset }}" -mountpoint /Volumes/AgentXDesktop -nobrowse
-
-          echo "=== DMG contents ==="
-          ls -la /Volumes/AgentXDesktop/
-
           APP_PATH="/Volumes/AgentXDesktop/agentx-desktop.app"
           BIN_PATH="/Volumes/AgentXDesktop/agentx-desktop"
-
           if [ -d "$APP_PATH" ]; then
             BINARY="$APP_PATH/Contents/MacOS/agentx-desktop"
-            echo "=== App bundle found ==="
-            ls -la "$APP_PATH/Contents/MacOS/"
           elif [ -f "$BIN_PATH" ]; then
             BINARY="$BIN_PATH"
-            echo "=== Standalone binary found ==="
           else
             echo "ERROR: No binary found in DMG"
             ls -laR /Volumes/AgentXDesktop/
             hdiutil detach /Volumes/AgentXDesktop
             exit 1
           fi
-
-          echo "=== Binary info ==="
           file "$BINARY"
-          echo "=== Architecture ==="
           lipo -info "$BINARY" || true
-
-          echo "=== Codesign verify ==="
-          codesign -vvv "$BINARY" 2>&1 || echo "(ad-hoc signed or unsigned — expected)"
-
+          codesign -vvv "$BINARY" 2>&1 || echo "(ad-hoc signed — expected)"
           hdiutil detach /Volumes/AgentXDesktop
-          echo "=== Smoke test passed ==="
 
       - name: Upload to release
         env:
