@@ -1,4 +1,4 @@
-name: Build Native Installers
+name: "Release: Desktop App & Installers"
 
 on:
   release:
