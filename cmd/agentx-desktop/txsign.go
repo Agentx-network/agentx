@@ -1,8 +1,6 @@
 package main
 
 import (
-	"crypto/aes"
-	"crypto/cipher"
 	"encoding/hex"
 	"fmt"
 	"math/big"
@@ -11,40 +9,20 @@ import (
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4/ecdsa"
 	"golang.org/x/crypto/sha3"
+
+	"github.com/Agentx-network/agentx/pkg/wallet"
 )
 
 // BSC mainnet chain ID
 const bscChainID = 56
 
-// decryptKey decrypts the stored private key using AES-256-GCM.
-func decryptKey(ciphertext []byte) ([]byte, error) {
-	block, err := aes.NewCipher(deriveEncryptionKey())
-	if err != nil {
-		return nil, err
-	}
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, err
-	}
-	nonceSize := gcm.NonceSize()
-	if len(ciphertext) < nonceSize {
-		return nil, fmt.Errorf("ciphertext too short")
-	}
-	nonce, ct := ciphertext[:nonceSize], ciphertext[nonceSize:]
-	return gcm.Open(nil, nonce, ct, nil)
-}
-
-// loadPrivateKey loads and decrypts the private key from wallet.json.
+// loadPrivateKey loads and decrypts the private key from wallet.json via pkg/wallet.
 func loadPrivateKey() (*secp256k1.PrivateKey, error) {
-	wf, err := loadWallet()
+	encryptedHex, _, err := wallet.LoadEncryptedKey()
 	if err != nil {
-		return nil, fmt.Errorf("no wallet found: %w", err)
+		return nil, err
 	}
-	encrypted, err := hex.DecodeString(wf.EncryptedKey)
-	if err != nil {
-		return nil, fmt.Errorf("invalid encrypted key: %w", err)
-	}
-	keyBytes, err := decryptKey(encrypted)
+	keyBytes, err := wallet.DecryptPrivateKey(encryptedHex)
 	if err != nil {
 		return nil, fmt.Errorf("decryption failed: %w", err)
 	}
@@ -116,18 +94,13 @@ func signTransaction(
 // --- ABI encoding helpers ---
 
 // abiEncodeRegister encodes a call to register(string agentURI).
-// Method selector: keccak256("register(string)")[:4]
 func abiEncodeRegister(agentURI string) []byte {
-	// Method ID for register(string)
 	methodSig := keccak256([]byte("register(string)"))[:4]
 
-	// ABI encode the string parameter:
-	// offset (32 bytes) + length (32 bytes) + padded string data
 	uriBytes := []byte(agentURI)
-	offset := padLeft(big.NewInt(32).Bytes(), 32)    // offset to string data = 0x20
+	offset := padLeft(big.NewInt(32).Bytes(), 32)
 	length := padLeft(big.NewInt(int64(len(uriBytes))).Bytes(), 32)
 
-	// Pad string to 32-byte boundary
 	paddedLen := ((len(uriBytes) + 31) / 32) * 32
 	paddedStr := make([]byte, paddedLen)
 	copy(paddedStr, uriBytes)

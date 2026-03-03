@@ -21,6 +21,7 @@ import (
 	"github.com/Agentx-network/agentx/cmd/agentx/internal/onboard"
 	"github.com/Agentx-network/agentx/cmd/agentx/internal/uninstall"
 	"github.com/Agentx-network/agentx/cmd/agentx/internal/skills"
+	walletcmd "github.com/Agentx-network/agentx/cmd/agentx/internal/wallet"
 	"github.com/Agentx-network/agentx/cmd/agentx/internal/status"
 	"github.com/Agentx-network/agentx/cmd/agentx/internal/version"
 )
@@ -43,6 +44,7 @@ func NewAgentxCommand() *cobra.Command {
 		cron.NewCronCommand(),
 		migrate.NewMigrateCommand(),
 		skills.NewSkillsCommand(),
+		walletcmd.NewWalletCommand(),
 		version.NewVersionCommand(),
 		uninstall.NewUninstallCommand(),
 	)

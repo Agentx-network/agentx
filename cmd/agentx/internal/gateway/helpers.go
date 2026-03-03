@@ -22,6 +22,7 @@ import (
 	"github.com/Agentx-network/agentx/pkg/health"
 	"github.com/Agentx-network/agentx/pkg/heartbeat"
 	"github.com/Agentx-network/agentx/pkg/logger"
+	"github.com/Agentx-network/agentx/pkg/skills/builtin"
 	"github.com/Agentx-network/agentx/pkg/state"
 	"github.com/Agentx-network/agentx/pkg/tools"
 	"github.com/Agentx-network/agentx/pkg/voice"
@@ -49,6 +50,15 @@ func gatewayCmd(debug bool) error {
 	cfg, err := internal.LoadConfig()
 	if err != nil {
 		return fmt.Errorf("error loading config: %w", err)
+	}
+
+	// Auto-install builtin skills (wallet, etc.) to workspace so they appear
+	// in the system prompt and the LLM knows when to call the tools.
+	workspaceSkillsDir := filepath.Join(cfg.WorkspacePath(), "skills")
+	if installed, err := builtin.InstallAll(workspaceSkillsDir, false); err != nil {
+		fmt.Printf("Warning: failed to install builtin skills: %v\n", err)
+	} else if len(installed) > 0 {
+		fmt.Printf("✓ Installed builtin skills: %s\n", strings.Join(installed, ", "))
 	}
 
 	msgBus := bus.NewMessageBus()

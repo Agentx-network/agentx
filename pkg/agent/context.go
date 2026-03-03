@@ -44,10 +44,10 @@ func getGlobalConfigDir() string {
 }
 
 func NewContextBuilder(workspace string) *ContextBuilder {
-	// builtin skills: skills directory in current project
-	// Use the skills/ directory under the current working directory
-	wd, _ := os.Getwd()
-	builtinSkillsDir := filepath.Join(wd, "skills")
+	// Builtin skills are auto-installed to the workspace skills dir at gateway
+	// startup, so the workspace search path picks them up. The builtin dir
+	// serves as a last-resort fallback (global config dir).
+	builtinSkillsDir := filepath.Join(getGlobalConfigDir(), "agentx", "skills")
 	globalSkillsDir := filepath.Join(getGlobalConfigDir(), "skills")
 
 	return &ContextBuilder{
@@ -72,7 +72,7 @@ Your workspace is at: %s
 
 ## Important Rules
 
-1. **ALWAYS use tools** - When you need to perform an action (schedule reminders, send messages, execute commands, etc.), you MUST call the appropriate tool. Do NOT just say you'll do it or pretend to do it.
+1. **ALWAYS use tools** - When you need to perform an action (schedule reminders, send messages, check wallet balances, execute commands, etc.), you MUST call the appropriate tool in your response. Do NOT reply with text like "let me check" or "I'll do that" — instead, actually invoke the tool. If a user asks about their wallet balance, call wallet_balance. If they ask for their address, call wallet_address. Never describe what you would do — do it by calling the tool.
 
 2. **Be helpful and accurate** - When using tools, briefly explain what you're doing.
 

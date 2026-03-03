@@ -1,59 +1,39 @@
 ---
 name: wallet
 description: Manage the agent's BSC wallet — check balances and send BNB/tokens securely
+inline: true
 ---
 
 # Wallet Management
 
-Securely manage the agent's BSC (BNB Smart Chain) wallet. You have three wallet tools available.
+You have three wallet tools available. ALWAYS call them directly — do NOT guess or assume the wallet state.
 
-## Security Model
+## Rules
 
-- Your wallet's **private key is never exposed** to you. All signing happens internally.
-- You can freely check the address and balances — these are read-only operations.
-- For **sending transactions**, you MUST always confirm with the user first before executing.
-- Never ask the user for their private key. You do not need it — signing is handled securely by the system.
+1. When the user asks about their wallet address → call `wallet_address` immediately
+2. When the user asks about their balance → call `wallet_balance` immediately
+3. When the user asks to send funds → call `wallet_balance` first, confirm with user, then call `wallet_send`
+4. NEVER say "wallet not configured" or "set up required" without first calling the tool and getting an error back
+5. Your private key is never exposed to you. All signing is internal. Never ask the user for their private key.
+6. For sending, ALWAYS confirm with the user before executing `wallet_send`
 
-## Available Tools
+## Tools
 
 ### `wallet_address`
-Returns the wallet's public BSC address. Use this when:
-- The user asks "what's my wallet address?"
-- You need to share the address for receiving funds
-- Verifying which wallet is active
+Returns the wallet's public BSC address. Call with no parameters.
 
 ### `wallet_balance`
-Returns all token balances (BNB + USDT, USDC, BUSD, DAI, and any custom tokens). Use when:
-- The user asks about their balance
-- Before sending a transaction (to verify sufficient funds)
-- Periodic balance checks
+Returns BNB + all tracked token balances (USDT, USDC, BUSD, DAI, etc). Call with no parameters.
 
 ### `wallet_send`
 Sends BNB or a BEP-20 token. Parameters:
 - `to` — recipient BSC address (required)
-- `amount` — amount to send as a decimal string, e.g. "0.01" (required)
-- `token` — "BNB" for native, or a symbol like "USDT", "USDC" (optional, defaults to BNB)
+- `amount` — decimal string e.g. "0.01" (required)
+- `token` — "BNB" (default) or symbol like "USDT", "USDC"
 
-**CRITICAL: Always follow this flow before sending:**
-1. Check the wallet balance first to ensure sufficient funds
-2. Clearly show the user: recipient address, amount, and token
-3. Ask the user to explicitly confirm: "Send X TOKEN to 0x...?"
-4. Only execute `wallet_send` after user confirmation
-5. Report the transaction hash and BscScan link after success
-
-## Examples
-
-**User: "What's my balance?"**
-→ Use `wallet_balance`, then format the results clearly.
-
-**User: "Send 0.01 BNB to 0xABC..."**
-→ First use `wallet_balance` to check funds, then confirm with the user, then use `wallet_send`.
-
-**User: "Send 10 USDT to 0xABC..."**
-→ Use `wallet_balance`, confirm sufficient USDT, confirm with user, use `wallet_send` with token="USDT".
-
-## Important Notes
-- All transactions are on **BSC Mainnet** (Chain ID 56)
-- Gas fees are paid in BNB — ensure there's enough BNB for gas even when sending tokens
-- Transaction links: `https://bscscan.com/tx/{hash}`
-- If no wallet exists, tell the user to set one up via the desktop app's Wallet page
+## Send Flow
+1. Call `wallet_balance` to check funds
+2. Show user: recipient, amount, token
+3. Ask user to confirm
+4. Call `wallet_send` only after confirmation
+5. Report tx hash and BscScan link: `https://bscscan.com/tx/{hash}`

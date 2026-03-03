@@ -1,0 +1,131 @@
+---
+version: 2
+interactions:
+- id: 0
+  request:
+    proto: HTTP/1.1
+    proto_major: 1
+    proto_minor: 1
+    content_length: 552
+    host: generativelanguage.googleapis.com
+    body: |
+      {"contents":[{"parts":[{"text":"What's the weather in Florence, Italy?"}],"role":"user"}],"generationConfig":{"thinkingConfig":{"includeThoughts":true,"thinkingLevel":"HIGH"}},"systemInstruction":{"parts":[{"text":"You are a helpful assistant"}],"role":"user"},"toolConfig":{"functionCallingConfig":{"mode":"AUTO"}},"tools":[{"functionDeclarations":[{"description":"Get weather information for a location","name":"weather","parameters":{"properties":{"location":{"description":"the city","type":"STRING"}},"required":["location"],"type":"OBJECT"}}]}]}
+    headers:
+      Content-Type:
+      - application/json
+      User-Agent:
+      - google-genai-sdk/1.47.0 gl-go/go1.26.0
+    url: https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent
+    method: POST
+  response:
+    proto: HTTP/2.0
+    proto_major: 2
+    proto_minor: 0
+    content_length: -1
+    uncompressed: true
+    body: |
+      {
+        "candidates": [
+          {
+            "content": {
+              "parts": [
+                {
+                  "text": "**My Approach to Gathering Weather Information**\n\nOkay, so the user wants the weather for Florence, Italy. My primary task here is to find the most efficient way to get that information. I immediately recognize the need for a weather data retrieval tool; that's the obvious starting point. I quickly scan my available tools and, from what I see, the `weather` tool seems like the most relevant option. That's a good sign.\n\nNow, I need to ensure I'm using this tool correctly. It takes a `location` parameter, which is exactly what I need to specify the city. Excellent, that aligns perfectly with the user's request for Florence. Therefore, the logical action is to call the `weather` tool and pass \"Florence, Italy\" as the value for the `location` parameter. The structure will be `weather(location=\"Florence, Italy\")`. That should provide the user with the weather details they're after.\n\n\n",
+                  "thought": true
+                },
+                {
+                  "functionCall": {
+                    "name": "weather",
+                    "args": {
+                      "location": "Florence, Italy"
+                    }
+                  },
+                  "thoughtSignature": "EoMDCoADAb4+9vvcql04LjFTQa1nTMMudhrlpmFSqgQWtecZs9Gzm8GC6izmq42etV5ICgg5qr/h5KO05LHjo7OT/Y/O6zTq5vweOOvvAZHK3IDBgU7FBiCW5bW+nI6TjhgDHSNPn/Uk14iuv5RGXrH1QgxQ2ApBiLQlEmkjzmzmBUgI0gRmjRX+sDMF0IJu66tmZfkaqvR9Tp2xxEZjJitWL7P6jZvql6JE54UmL8dI02Dk/xnNS76rZiipzg8013aXxfIEgTEHMnsRvzK7QCGaukQ+/DU8GnomhZRYZPEW32OxQEjUyqm10c8o62WPtThyfIUmUBHwc8oojkH/2IT5fRy2nJwvUar3O82/of2miqe/9z7TNTKNK83wl9Gy5R3Gbc/XjI7A+LrwlYTynsVRqXFg3YURlzRnfFcGt4KEUcd2wLKqpeCNSngzS0VgiEqK5j9RTPedm3S2/oTgtl8jt2gff3NEDkJe8xUlXLS+l28rJ22Loc9BooDebKZYBBHvL9qu"
+                }
+              ],
+              "role": "model"
+            },
+            "finishReason": "STOP",
+            "index": 0,
+            "finishMessage": "Model generated function call(s)."
+          }
+        ],
+        "usageMetadata": {
+          "promptTokenCount": 65,
+          "candidatesTokenCount": 16,
+          "totalTokenCount": 161,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 65
+            }
+          ],
+          "thoughtsTokenCount": 80
+        },
+        "modelVersion": "gemini-3-pro-preview",
+        "responseId": "cf-dacuQCbPoz7IPiZ25mAE"
+      }
+    headers:
+      Content-Type:
+      - application/json; charset=UTF-8
+    status: 200 OK
+    code: 200
+    duration: 4.104216583s
+- id: 1
+  request:
+    proto: HTTP/1.1
+    proto_major: 1
+    proto_minor: 1
+    content_length: 1308
+    host: generativelanguage.googleapis.com
+    body: |
+      {"contents":[{"parts":[{"text":"What's the weather in Florence, Italy?"}],"role":"user"},{"parts":[{"functionCall":{"args":{"location":"Florence, Italy"},"id":"1","name":"weather"},"thoughtSignature":"EoMDCoADAb4+9vvcql04LjFTQa1nTMMudhrlpmFSqgQWtecZs9Gzm8GC6izmq42etV5ICgg5qr/h5KO05LHjo7OT/Y/O6zTq5vweOOvvAZHK3IDBgU7FBiCW5bW+nI6TjhgDHSNPn/Uk14iuv5RGXrH1QgxQ2ApBiLQlEmkjzmzmBUgI0gRmjRX+sDMF0IJu66tmZfkaqvR9Tp2xxEZjJitWL7P6jZvql6JE54UmL8dI02Dk/xnNS76rZiipzg8013aXxfIEgTEHMnsRvzK7QCGaukQ+/DU8GnomhZRYZPEW32OxQEjUyqm10c8o62WPtThyfIUmUBHwc8oojkH/2IT5fRy2nJwvUar3O82/of2miqe/9z7TNTKNK83wl9Gy5R3Gbc/XjI7A+LrwlYTynsVRqXFg3YURlzRnfFcGt4KEUcd2wLKqpeCNSngzS0VgiEqK5j9RTPedm3S2/oTgtl8jt2gff3NEDkJe8xUlXLS+l28rJ22Loc9BooDebKZYBBHvL9qu"}],"role":"model"},{"parts":[{"functionResponse":{"id":"1","name":"weather","response":{"result":"40 C"}}}],"role":"user"}],"generationConfig":{"thinkingConfig":{"includeThoughts":true,"thinkingLevel":"HIGH"}},"systemInstruction":{"parts":[{"text":"You are a helpful assistant"}],"role":"user"},"toolConfig":{"functionCallingConfig":{"mode":"AUTO"}},"tools":[{"functionDeclarations":[{"description":"Get weather information for a location","name":"weather","parameters":{"properties":{"location":{"description":"the city","type":"STRING"}},"required":["location"],"type":"OBJECT"}}]}]}
+    headers:
+      Content-Type:
+      - application/json
+      User-Agent:
+      - google-genai-sdk/1.47.0 gl-go/go1.26.0
+    url: https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent
+    method: POST
+  response:
+    proto: HTTP/2.0
+    proto_major: 2
+    proto_minor: 0
+    content_length: -1
+    uncompressed: true
+    body: |
+      {
+        "candidates": [
+          {
+            "content": {
+              "parts": [
+                {
+                  "text": "The weather in Florence, Italy is currently 40 degrees Celsius."
+                }
+              ],
+              "role": "model"
+            },
+            "finishReason": "STOP",
+            "index": 0
+          }
+        ],
+        "usageMetadata": {
+          "promptTokenCount": 175,
+          "candidatesTokenCount": 14,
+          "totalTokenCount": 189,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 175
+            }
+          ]
+        },
+        "modelVersion": "gemini-3-pro-preview",
+        "responseId": "c_-daaKZE47oz7IP_YXG8AY"
+      }
+    headers:
+      Content-Type:
+      - application/json; charset=UTF-8
+    status: 200 OK
+    code: 200
+    duration: 2.255511958s

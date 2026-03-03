@@ -5,10 +5,12 @@ package wallet
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math/big"
 	"net/http"
 	"os"
@@ -88,6 +90,163 @@ func GetInfo() (*WalletInfo, error) {
 		Chain:     strings.ToUpper(wf.Chain),
 		CreatedAt: wf.CreatedAt,
 	}, nil
+}
+
+// GenerateWallet creates a new secp256k1 keypair and stores the encrypted
+// private key in ~/.agentx/wallet.json. Returns error if wallet already exists.
+func GenerateWallet() (*WalletInfo, error) {
+	if _, err := loadWallet(); err == nil {
+		return nil, fmt.Errorf("wallet already exists — use ImportPrivateKey to replace it")
+	}
+
+	privKey, err := secp256k1.GeneratePrivateKey()
+	if err != nil {
+		return nil, fmt.Errorf("key generation failed: %w", err)
+	}
+
+	return saveNewKey(privKey)
+}
+
+// ImportPrivateKey takes a hex-encoded private key, derives the BSC address,
+// encrypts the key, and saves a new wallet. Overwrites any existing wallet.
+func ImportPrivateKey(hexKey string) (*WalletInfo, error) {
+	privBytes, err := hex.DecodeString(strings.TrimPrefix(hexKey, "0x"))
+	if err != nil {
+		return nil, fmt.Errorf("invalid hex key: %w", err)
+	}
+	if len(privBytes) != 32 {
+		return nil, fmt.Errorf("invalid key length: expected 32 bytes, got %d", len(privBytes))
+	}
+
+	privKey := secp256k1.PrivKeyFromBytes(privBytes)
+	return saveNewKey(privKey)
+}
+
+// ExportPrivateKey decrypts and returns the stored private key as a hex string.
+func ExportPrivateKey() (string, error) {
+	wf, err := loadWallet()
+	if err != nil {
+		return "", fmt.Errorf("no wallet found")
+	}
+
+	encrypted, err := hex.DecodeString(wf.EncryptedKey)
+	if err != nil {
+		return "", fmt.Errorf("corrupted wallet data")
+	}
+
+	privBytes, err := decryptKey(encrypted)
+	if err != nil {
+		return "", fmt.Errorf("decryption failed: %w", err)
+	}
+	defer zeroBytes(privBytes)
+
+	return hex.EncodeToString(privBytes), nil
+}
+
+// saveNewKey encrypts a private key and saves the wallet file.
+func saveNewKey(privKey *secp256k1.PrivateKey) (*WalletInfo, error) {
+	pubBytes := privKey.PubKey().SerializeUncompressed()
+	hash := sha3.NewLegacyKeccak256()
+	hash.Write(pubBytes[1:])
+	addrBytes := hash.Sum(nil)[12:]
+	address := toChecksumAddress(addrBytes)
+
+	encrypted, err := encryptKey(privKey.Serialize())
+	if err != nil {
+		return nil, fmt.Errorf("encryption failed: %w", err)
+	}
+
+	wf := walletFile{
+		Address:      address,
+		EncryptedKey: hex.EncodeToString(encrypted),
+		Chain:        "bsc",
+		CreatedAt:    time.Now().UTC().Format(time.RFC3339),
+	}
+	if err := saveWallet(wf); err != nil {
+		return nil, err
+	}
+
+	ensureDefaultTokens()
+
+	return &WalletInfo{
+		Address:   address,
+		Chain:     "BSC",
+		CreatedAt: wf.CreatedAt,
+	}, nil
+}
+
+// Exists returns true if a wallet file exists.
+func Exists() bool {
+	_, err := loadWallet()
+	return err == nil
+}
+
+// LoadEncryptedKey returns the encrypted key hex and address from the wallet file.
+// Used by desktop registry/signing code that needs direct access.
+func LoadEncryptedKey() (encryptedKeyHex string, address string, err error) {
+	wf, err := loadWallet()
+	if err != nil {
+		return "", "", fmt.Errorf("no wallet found")
+	}
+	return wf.EncryptedKey, wf.Address, nil
+}
+
+// DecryptPrivateKey decrypts an encrypted key hex string and returns the raw bytes.
+// The caller MUST zero the returned bytes when done.
+func DecryptPrivateKey(encryptedKeyHex string) ([]byte, error) {
+	encrypted, err := hex.DecodeString(encryptedKeyHex)
+	if err != nil {
+		return nil, fmt.Errorf("invalid encrypted key")
+	}
+	return decryptKey(encrypted)
+}
+
+// GetTokens returns the list of tracked tokens.
+func GetTokens() []TokenConfig {
+	ensureDefaultTokens()
+	return loadTokens()
+}
+
+// AddToken adds a custom token to track.
+func AddToken(symbol, name, contract string, decimals int) error {
+	if symbol == "" || contract == "" {
+		return fmt.Errorf("symbol and contract are required")
+	}
+	if decimals <= 0 {
+		decimals = 18
+	}
+
+	ensureDefaultTokens()
+	tokens := loadTokens()
+
+	lower := strings.ToLower(contract)
+	for _, t := range tokens {
+		if strings.ToLower(t.Contract) == lower {
+			return fmt.Errorf("token %s already tracked", t.Symbol)
+		}
+	}
+
+	tokens = append(tokens, TokenConfig{
+		Symbol:   strings.ToUpper(symbol),
+		Name:     name,
+		Contract: contract,
+		Decimals: decimals,
+	})
+
+	return saveTokens(tokens)
+}
+
+// RemoveToken removes a tracked token by contract address.
+func RemoveToken(contract string) error {
+	tokens := loadTokens()
+	lower := strings.ToLower(contract)
+	var filtered []TokenConfig
+	for _, t := range tokens {
+		if strings.ToLower(t.Contract) != lower {
+			filtered = append(filtered, t)
+		}
+	}
+	return saveTokens(filtered)
 }
 
 // GetAllBalances returns BNB + all tracked token balances.
@@ -450,6 +609,78 @@ func decryptKey(ciphertext []byte) ([]byte, error) {
 	}
 	nonce, ct := ciphertext[:nonceSize], ciphertext[nonceSize:]
 	return gcm.Open(nil, nonce, ct, nil)
+}
+
+func encryptKey(plaintext []byte) ([]byte, error) {
+	block, err := aes.NewCipher(deriveEncryptionKey())
+	if err != nil {
+		return nil, err
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, err
+	}
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+		return nil, err
+	}
+	return gcm.Seal(nonce, nonce, plaintext, nil), nil
+}
+
+func saveWallet(wf walletFile) error {
+	p := walletPath()
+	if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(wf, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(p, data, 0o600)
+}
+
+func ensureDefaultTokens() {
+	p := tokensPath()
+	if _, err := os.Stat(p); err == nil {
+		return
+	}
+	_ = saveTokens(defaultTokens)
+}
+
+func saveTokens(tokens []TokenConfig) error {
+	p := tokensPath()
+	if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(tokensFile{Tokens: tokens}, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(p, data, 0o600)
+}
+
+func toChecksumAddress(addr []byte) string {
+	hexAddr := hex.EncodeToString(addr)
+	hash := sha3.NewLegacyKeccak256()
+	hash.Write([]byte(hexAddr))
+	hashBytes := hash.Sum(nil)
+
+	var b strings.Builder
+	b.WriteString("0x")
+	for i, c := range hexAddr {
+		nibble := hashBytes[i/2]
+		if i%2 == 0 {
+			nibble >>= 4
+		} else {
+			nibble &= 0x0f
+		}
+		if c >= 'a' && c <= 'f' && nibble >= 8 {
+			b.WriteByte(byte(c) - 32)
+		} else {
+			b.WriteByte(byte(c))
+		}
+	}
+	return b.String()
 }
 
 // --- Internal: encoding helpers ---

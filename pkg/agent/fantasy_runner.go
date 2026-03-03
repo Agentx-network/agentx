@@ -73,6 +73,17 @@ func (al *AgentLoop) runFantasyIteration(
 
 	fantasyTools := tools.AdaptToolsForFantasy(agent.Tools, forUserSink)
 
+	// Log tool count for debugging
+	toolNames := make([]string, 0, len(fantasyTools))
+	for _, ft := range fantasyTools {
+		toolNames = append(toolNames, ft.Info().Name)
+	}
+	logger.InfoCF("agent", fmt.Sprintf("Fantasy agent tools: %d", len(fantasyTools)),
+		map[string]any{
+			"agent_id": agent.ID,
+			"tools":    toolNames,
+		})
+
 	// Create agent with options
 	maxTokens := int64(agent.MaxTokens)
 	temperature := agent.Temperature

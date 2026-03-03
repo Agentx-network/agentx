@@ -43,6 +43,7 @@ func TestNewAgentxCommand(t *testing.T) {
 		"status",
 		"uninstall",
 		"version",
+		"wallet",
 	}
 
 	subcommands := cmd.Commands()

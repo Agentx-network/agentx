@@ -148,3 +148,5 @@ require (
 	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
 )
+
+replace charm.land/fantasy v0.11.0 => ./patches/fantasy

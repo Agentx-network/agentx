@@ -27,6 +27,7 @@ const (
 type SkillMetadata struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
+	Inline      bool   `json:"inline"`
 }
 
 type SkillInfo struct {
@@ -34,6 +35,7 @@ type SkillInfo struct {
 	Path        string `json:"path"`
 	Source      string `json:"source"`
 	Description string `json:"description"`
+	Inline      bool   `json:"inline"` // when true, full content is included in system prompt
 }
 
 func (info SkillInfo) validate() error {
@@ -102,6 +104,7 @@ func (sl *SkillsLoader) ListSkills() []SkillInfo {
 			if metadata != nil {
 				info.Description = metadata.Description
 				info.Name = metadata.Name
+				info.Inline = metadata.Inline
 			}
 			if err := info.validate(); err != nil {
 				slog.Warn("invalid skill from "+source, "name", info.Name, "error", err)
@@ -174,20 +177,41 @@ func (sl *SkillsLoader) BuildSkillsSummary() string {
 	}
 
 	var lines []string
+	var inlinedParts []string
+
 	lines = append(lines, "<skills>")
 	for _, s := range allSkills {
 		escapedName := escapeXML(s.Name)
 		escapedDesc := escapeXML(s.Description)
 		escapedPath := escapeXML(s.Path)
 
-		lines = append(lines, fmt.Sprintf("  <skill>"))
-		lines = append(lines, fmt.Sprintf("    <name>%s</name>", escapedName))
-		lines = append(lines, fmt.Sprintf("    <description>%s</description>", escapedDesc))
-		lines = append(lines, fmt.Sprintf("    <location>%s</location>", escapedPath))
-		lines = append(lines, fmt.Sprintf("    <source>%s</source>", s.Source))
-		lines = append(lines, "  </skill>")
+		if s.Inline {
+			// Inline skill: include full content in the system prompt
+			if content, ok := sl.LoadSkill(s.Name); ok {
+				inlinedParts = append(inlinedParts, fmt.Sprintf("## Skill: %s\n\n%s", s.Name, content))
+			}
+			// Still list it in the XML so the agent knows it exists
+			lines = append(lines, "  <skill>")
+			lines = append(lines, fmt.Sprintf("    <name>%s</name>", escapedName))
+			lines = append(lines, fmt.Sprintf("    <description>%s</description>", escapedDesc))
+			lines = append(lines, fmt.Sprintf("    <inline>true</inline>"))
+			lines = append(lines, "  </skill>")
+		} else {
+			lines = append(lines, "  <skill>")
+			lines = append(lines, fmt.Sprintf("    <name>%s</name>", escapedName))
+			lines = append(lines, fmt.Sprintf("    <description>%s</description>", escapedDesc))
+			lines = append(lines, fmt.Sprintf("    <location>%s</location>", escapedPath))
+			lines = append(lines, fmt.Sprintf("    <source>%s</source>", s.Source))
+			lines = append(lines, "  </skill>")
+		}
 	}
 	lines = append(lines, "</skills>")
+
+	// Append inlined skill content after the summary
+	if len(inlinedParts) > 0 {
+		lines = append(lines, "")
+		lines = append(lines, strings.Join(inlinedParts, "\n\n---\n\n"))
+	}
 
 	return strings.Join(lines, "\n")
 }
@@ -214,11 +238,13 @@ func (sl *SkillsLoader) getSkillMetadata(skillPath string) *SkillMetadata {
 	var jsonMeta struct {
 		Name        string `json:"name"`
 		Description string `json:"description"`
+		Inline      bool   `json:"inline"`
 	}
 	if err := json.Unmarshal([]byte(frontmatter), &jsonMeta); err == nil {
 		return &SkillMetadata{
 			Name:        jsonMeta.Name,
 			Description: jsonMeta.Description,
+			Inline:      jsonMeta.Inline,
 		}
 	}
 
@@ -227,6 +253,7 @@ func (sl *SkillsLoader) getSkillMetadata(skillPath string) *SkillMetadata {
 	return &SkillMetadata{
 		Name:        yamlMeta["name"],
 		Description: yamlMeta["description"],
+		Inline:      yamlMeta["inline"] == "true",
 	}
 }
 

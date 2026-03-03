@@ -17,7 +17,7 @@ func NewWalletAddressTool() *WalletAddressTool { return &WalletAddressTool{} }
 func (t *WalletAddressTool) Name() string { return "wallet_address" }
 
 func (t *WalletAddressTool) Description() string {
-	return "Get the agent's BSC wallet address. Returns the public address only — no private key is ever exposed."
+	return `Get the agent's BSC wallet address. Call this tool immediately when the user asks about their wallet address, crypto address, or BSC address. Returns the public address only — no private key is ever exposed. No parameters required.`
 }
 
 func (t *WalletAddressTool) Parameters() map[string]any {
@@ -44,7 +44,7 @@ func NewWalletBalanceTool() *WalletBalanceTool { return &WalletBalanceTool{} }
 func (t *WalletBalanceTool) Name() string { return "wallet_balance" }
 
 func (t *WalletBalanceTool) Description() string {
-	return "Check the agent's BSC wallet balances — native BNB and all tracked BEP-20 tokens (USDT, USDC, BUSD, DAI, etc). No private key is exposed."
+	return `Check the agent's BSC wallet balances. Call this tool immediately when the user asks about their balance, funds, how much BNB or tokens they have, or anything related to wallet balances. Returns native BNB and all tracked BEP-20 token balances (USDT, USDC, BUSD, DAI, etc). No parameters required.`
 }
 
 func (t *WalletBalanceTool) Parameters() map[string]any {
@@ -77,9 +77,9 @@ func NewWalletSendTool() *WalletSendTool { return &WalletSendTool{} }
 func (t *WalletSendTool) Name() string { return "wallet_send" }
 
 func (t *WalletSendTool) Description() string {
-	return `Send BNB or a BEP-20 token from the agent's wallet. The private key is handled securely — it is decrypted internally for signing and immediately wiped from memory. The agent never sees or receives the private key. Only the transaction hash is returned.
+	return `Send BNB or a BEP-20 token from the agent's BSC wallet. Call this when the user asks to send, transfer, or pay crypto. The private key is handled securely — it is decrypted internally for signing and immediately wiped from memory. Only the transaction hash is returned.
 
-IMPORTANT: Always confirm with the user before sending any transaction. Show them the recipient, amount, and token before executing.`
+IMPORTANT: Before calling this tool, you MUST first call wallet_balance to check funds, then show the user the recipient, amount, and token, and ask for explicit confirmation. Only call wallet_send after the user confirms.`
 }
 
 func (t *WalletSendTool) Parameters() map[string]any {
