@@ -130,6 +130,73 @@ func (w *WalletService) RegenerateWallet() (*WalletInfo, error) {
 	return w.GenerateWallet()
 }
 
+// ExportPrivateKey decrypts and returns the stored private key as a hex string.
+// This is used during the uninstall export flow so the user can back up their key.
+func (w *WalletService) ExportPrivateKey() (string, error) {
+	wf, err := loadWallet()
+	if err != nil {
+		return "", fmt.Errorf("no wallet found: %w", err)
+	}
+
+	encrypted, err := hex.DecodeString(wf.EncryptedKey)
+	if err != nil {
+		return "", fmt.Errorf("corrupted wallet data: %w", err)
+	}
+
+	privBytes, err := decryptKey(encrypted)
+	if err != nil {
+		return "", fmt.Errorf("decryption failed: %w", err)
+	}
+
+	return hex.EncodeToString(privBytes), nil
+}
+
+// ImportPrivateKey takes a hex-encoded private key, derives the BSC address,
+// encrypts the key with the current machine's encryption key, and saves a new wallet.
+// If a wallet already exists it is overwritten.
+func (w *WalletService) ImportPrivateKey(hexKey string) (*WalletInfo, error) {
+	privBytes, err := hex.DecodeString(strings.TrimPrefix(hexKey, "0x"))
+	if err != nil {
+		return nil, fmt.Errorf("invalid hex key: %w", err)
+	}
+
+	if len(privBytes) != 32 {
+		return nil, fmt.Errorf("invalid key length: expected 32 bytes, got %d", len(privBytes))
+	}
+
+	privKey := secp256k1.PrivKeyFromBytes(privBytes)
+	pubBytes := privKey.PubKey().SerializeUncompressed()
+
+	hash := sha3.NewLegacyKeccak256()
+	hash.Write(pubBytes[1:])
+	addrBytes := hash.Sum(nil)[12:]
+
+	address := toChecksumAddress(addrBytes)
+
+	encrypted, err := encryptKey(privKey.Serialize())
+	if err != nil {
+		return nil, fmt.Errorf("encryption failed: %w", err)
+	}
+
+	wf := walletFile{
+		Address:      address,
+		EncryptedKey: hex.EncodeToString(encrypted),
+		Chain:        "bsc",
+		CreatedAt:    time.Now().UTC().Format(time.RFC3339),
+	}
+	if err := saveWallet(wf); err != nil {
+		return nil, err
+	}
+
+	ensureDefaultTokens()
+
+	return &WalletInfo{
+		Address:   address,
+		Chain:     "BSC",
+		CreatedAt: wf.CreatedAt,
+	}, nil
+}
+
 // GetWallet returns the stored wallet information (no private key).
 func (w *WalletService) GetWallet() (*WalletInfo, error) {
 	wf, err := loadWallet()

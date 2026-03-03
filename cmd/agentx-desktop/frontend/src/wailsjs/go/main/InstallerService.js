@@ -14,6 +14,10 @@ export function GetLatestRelease() {
   return window['go']['main']['InstallerService']['GetLatestRelease']();
 }
 
+export function HasWallet() {
+  return window['go']['main']['InstallerService']['HasWallet']();
+}
+
 export function InstallBinary() {
   return window['go']['main']['InstallerService']['InstallBinary']();
 }

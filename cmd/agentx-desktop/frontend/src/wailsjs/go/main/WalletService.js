@@ -6,6 +6,10 @@ export function AddToken(arg1, arg2, arg3, arg4) {
   return window['go']['main']['WalletService']['AddToken'](arg1, arg2, arg3, arg4);
 }
 
+export function ExportPrivateKey() {
+  return window['go']['main']['WalletService']['ExportPrivateKey']();
+}
+
 export function GenerateWallet() {
   return window['go']['main']['WalletService']['GenerateWallet']();
 }
@@ -24,6 +28,10 @@ export function GetTokens() {
 
 export function GetWallet() {
   return window['go']['main']['WalletService']['GetWallet']();
+}
+
+export function ImportPrivateKey(arg1) {
+  return window['go']['main']['WalletService']['ImportPrivateKey'](arg1);
 }
 
 export function RegenerateWallet() {

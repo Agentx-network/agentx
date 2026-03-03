@@ -8,6 +8,8 @@ export function FullUninstall():Promise<void>;
 
 export function GetLatestRelease():Promise<string>;
 
+export function HasWallet():Promise<boolean>;
+
 export function InstallBinary():Promise<void>;
 
 export function InstallService():Promise<void>;

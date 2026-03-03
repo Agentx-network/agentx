@@ -32,6 +32,7 @@ declare global {
           UninstallService(): Promise<void>;
           FullUninstall(): Promise<void>;
           IsServiceRunning(): Promise<boolean>;
+          HasWallet(): Promise<boolean>;
         };
         DashboardService: {
           GetStatus(): Promise<any>;
@@ -79,6 +80,8 @@ declare global {
           GetTokens(): Promise<{ symbol: string; name: string; contract: string; decimals: number }[]>;
           AddToken(symbol: string, name: string, contract: string, decimals: number): Promise<void>;
           RemoveToken(contract: string): Promise<void>;
+          ExportPrivateKey(): Promise<string>;
+          ImportPrivateKey(hexKey: string): Promise<{ address: string; chain: string; createdAt: string }>;
         };
         RegistryService: {
           GetRegistration(): Promise<{ registered: boolean; agentName: string; agentId: string; address: string; chain: string; metadata: string; txHash: string; timestamp: string }>;

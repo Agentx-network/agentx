@@ -64,6 +64,17 @@ func (s *InstallerService) InstallService() error {
 	}
 }
 
+// HasWallet returns whether a wallet.json file exists in ~/.agentx.
+// The frontend uses this to decide whether to show the export step before uninstall.
+func (s *InstallerService) HasWallet() bool {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return false
+	}
+	_, err = os.Stat(filepath.Join(home, ".agentx", "wallet.json"))
+	return err == nil
+}
+
 func (s *InstallerService) FullUninstall() error {
 	// 1. Remove gateway service (best-effort).
 	s.UninstallService()

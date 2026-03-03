@@ -105,6 +105,9 @@ function WalletStep({
   const [autoStarted, setAutoStarted] = useState(false);
   const [addingToken, setAddingToken] = useState(false);
   const [newToken, setNewToken] = useState({ symbol: "", name: "", contract: "", decimals: "18" });
+  const [importMode, setImportMode] = useState(false);
+  const [importKey, setImportKey] = useState("");
+  const [importing, setImporting] = useState(false);
   const entropyRef = useRef<number | null>(null);
   const realAddrRef = useRef("");
 
@@ -133,12 +136,12 @@ function WalletStep({
   };
 
   useEffect(() => {
-    if (!wallet && !generating && !autoStarted) {
+    if (!wallet && !generating && !autoStarted && !importMode) {
       setAutoStarted(true);
       const t = setTimeout(() => handleGenerate(), 600);
       return () => clearTimeout(t);
     }
-  }, [wallet]);
+  }, [wallet, importMode]);
 
   const startEntropy = useCallback(() => {
     entropyRef.current = window.setInterval(() => {
@@ -248,6 +251,24 @@ function WalletStep({
       loadBalances();
     } catch (e: any) {
       showToast(`Failed: ${e}`, "error");
+    }
+  };
+
+  const handleImportKey = async () => {
+    if (!importKey.trim()) return;
+    setImporting(true);
+    try {
+      const result = await window.go.main.WalletService.ImportPrivateKey(importKey.trim());
+      setWallet(result);
+      setDisplayAddr(result.address);
+      showToast("Wallet imported!", "success");
+      setImportMode(false);
+      setImportKey("");
+      loadBalances();
+    } catch (e: any) {
+      showToast(`Import failed: ${e}`, "error");
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -403,6 +424,52 @@ function WalletStep({
     );
   }
 
+  // ── Import mode ──
+  if (importMode && !generating) {
+    return (
+      <div className="space-y-4">
+        <NeonCard variant="cyan" glow>
+          <div className="space-y-4 py-2">
+            <div className="text-center space-y-2">
+              <div className="w-14 h-14 mx-auto rounded-2xl bg-neon-cyan/10 border border-neon-cyan/20 flex items-center justify-center">
+                <span className="text-2xl text-neon-cyan/60 drop-shadow-[0_0_8px_rgba(0,255,255,0.6)]">&#9670;</span>
+              </div>
+              <h3 className="text-sm font-bold uppercase tracking-widest text-white/70">Import Existing Key</h3>
+              <p className="text-xs text-white/35 max-w-xs mx-auto">
+                Paste your hex-encoded private key to restore a previously exported wallet.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <NeonInput
+                value={importKey}
+                onChange={setImportKey}
+                placeholder="Private key (hex, 64 characters)"
+              />
+              <div className="flex gap-2">
+                <NeonButton
+                  onClick={handleImportKey}
+                  disabled={!importKey.trim() || importing}
+                  size="lg"
+                  className="flex-1"
+                >
+                  {importing ? "Importing..." : "Import Wallet"}
+                </NeonButton>
+                <NeonButton
+                  onClick={() => { setImportMode(false); setImportKey(""); setAutoStarted(false); }}
+                  variant="ghost"
+                  size="lg"
+                >
+                  Cancel
+                </NeonButton>
+              </div>
+            </div>
+          </div>
+        </NeonCard>
+      </div>
+    );
+  }
+
   // ── Generating animation ──
   return (
     <div className="space-y-4">
@@ -511,6 +578,16 @@ function WalletStep({
           </div>
         </div>
       </NeonCard>
+
+      {/* Import existing key link — shown during/after generation */}
+      {!generating && phase < 0 && (
+        <button
+          onClick={() => { setImportMode(true); setAutoStarted(true); }}
+          className="w-full text-[11px] uppercase tracking-widest text-white/25 hover:text-neon-cyan/60 py-2 border border-dashed border-white/10 hover:border-neon-cyan/20 rounded-lg transition-all"
+        >
+          Import Existing Key Instead
+        </button>
+      )}
     </div>
   );
 }
