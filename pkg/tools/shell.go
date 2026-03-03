@@ -295,9 +295,45 @@ func (t *ExecTool) Execute(ctx context.Context, args map[string]any) *ToolResult
 	}
 }
 
+// nativeToolNames lists built-in tool names that must NEVER be run as shell
+// commands. When the LLM accidentally calls exec({"command":"wallet_balance"})
+// instead of calling wallet_balance as a native tool, we catch it here and
+// return a clear error so the LLM self-corrects on the next turn.
+var nativeToolNames = map[string]bool{
+	"wallet_balance": true,
+	"wallet_address": true,
+	"wallet_send":    true,
+	"web_search":     true,
+	"web_fetch":      true,
+	"read_file":      true,
+	"write_file":     true,
+	"edit_file":      true,
+	"list_dir":       true,
+	"append_file":    true,
+	"find_skills":    true,
+	"install_skill":  true,
+	"send_message":   true,
+	"spawn":          true,
+	"cron":           true,
+	"i2c":            true,
+	"spi":            true,
+}
+
 func (t *ExecTool) guardCommand(command, cwd string) string {
 	cmd := strings.TrimSpace(command)
 	lower := strings.ToLower(cmd)
+
+	// Check if the LLM is trying to run a native tool as a shell command.
+	// Extract the first word (the "binary" name) and check against known tools.
+	firstWord := strings.Fields(lower)
+	if len(firstWord) > 0 {
+		if nativeToolNames[firstWord[0]] {
+			return fmt.Sprintf(
+				"%q is a native AgentX tool, not a shell command. "+
+					"Call it directly as a tool (e.g. use the %s tool) instead of exec.",
+				firstWord[0], firstWord[0])
+		}
+	}
 
 	for _, pattern := range t.denyPatterns {
 		if pattern.MatchString(lower) {

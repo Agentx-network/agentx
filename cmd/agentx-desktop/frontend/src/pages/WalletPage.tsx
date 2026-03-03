@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import NeonButton from "../components/ui/NeonButton";
 import NeonCard from "../components/ui/NeonCard";
 import NeonInput from "../components/ui/NeonInput";
+import GlowCard from "../components/ui/GlowCard";
 
 interface WalletData {
   address: string;
@@ -381,8 +382,8 @@ export default function WalletPage({ showToast }: Props) {
       )}
 
       {/* Wallet card */}
-      <NeonCard variant="cyan" glow>
-        <div className="space-y-4">
+      <GlowCard className="border-2 border-neon-cyan/30 bg-bg-card rounded-xl" color="rgba(0, 255, 255, 0.3)">
+        <div className="p-5 space-y-4">
           {/* Header row */}
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-neon-cyan/10 border border-neon-cyan/20 flex items-center justify-center text-xl">
@@ -412,7 +413,7 @@ export default function WalletPage({ showToast }: Props) {
                 {showFullAddr ? wallet.address : truncateAddr(wallet.address)}
               </span>
               <span className="ml-3 text-[10px] uppercase tracking-widest text-white/30 group-hover:text-neon-cyan/80 transition-colors whitespace-nowrap">
-                {copied ? "✓ Copied" : "Click to copy"}
+                {copied ? <span className="animate-check-pop inline-block">✓ Copied</span> : "Click to copy"}
               </span>
             </div>
             {showFullAddr && (
@@ -439,7 +440,7 @@ export default function WalletPage({ showToast }: Props) {
             <span className="font-mono">{wallet.chain}</span>
           </div>
         </div>
-      </NeonCard>
+      </GlowCard>
 
       {/* Token balances */}
       <div className="space-y-3">

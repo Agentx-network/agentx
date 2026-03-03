@@ -3,6 +3,9 @@ import type { GatewayStatus } from "../lib/types";
 import NeonButton from "../components/ui/NeonButton";
 import NeonCard from "../components/ui/NeonCard";
 import NeonInput from "../components/ui/NeonInput";
+import GlowCard from "../components/ui/GlowCard";
+import { useStaggeredEntrance } from "../hooks/useStaggeredEntrance";
+import { useCountUp } from "../hooks/useCountUp";
 import agentHero from "../assets/agent-hero.gif";
 
 interface Props {
@@ -50,6 +53,27 @@ const TOKEN_ICONS: Record<string, string> = {
   DAI: "🟠",
 };
 
+function PulseRing({ color }: { color: string }) {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+      <div
+        className="absolute w-3.5 h-3.5 rounded-full"
+        style={{
+          border: `1.5px solid ${color}`,
+          animation: "pulse-ring 2s ease-out infinite",
+        }}
+      />
+      <div
+        className="absolute w-3.5 h-3.5 rounded-full"
+        style={{
+          border: `1.5px solid ${color}`,
+          animation: "pulse-ring 2s ease-out infinite 0.5s",
+        }}
+      />
+    </div>
+  );
+}
+
 export default function DashboardPage({ showToast }: Props) {
   const [status, setStatus] = useState<GatewayStatus | null>(null);
   const [logs, setLogs] = useState("");
@@ -65,6 +89,10 @@ export default function DashboardPage({ showToast }: Props) {
   const [regName, setRegName] = useState("");
   const [fundModal, setFundModal] = useState<{ error: string } | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Staggered entrance for the 6 major dashboard sections
+  const sectionCount = 6;
+  const visibleSections = useStaggeredEntrance(sectionCount, 100);
 
   const fetchStatus = async () => {
     try {
@@ -200,10 +228,25 @@ export default function DashboardPage({ showToast }: Props) {
     ? (identityFile.content.match(/^#\s*(.+)/m)?.[1] || "AgentX")
     : "AgentX";
 
+  // Count-up animations for stats
+  const channelCount = useCountUp(activeChannels.length);
+  const skillCount = useCountUp(skills.length);
+  const modelCount = useCountUp(configuredModels.length);
+
+  // Helper for staggered section style
+  const sectionStyle = (index: number) => ({
+    opacity: visibleSections > index ? 1 : 0,
+    transform: visibleSections > index ? "translateY(0) scale(1)" : "translateY(20px) scale(0.97)",
+    transition: "opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)",
+  });
+
+  // Split logs into lines for staggered animation
+  const logLines = logs ? logs.split("\n").slice(-50) : [];
+
   return (
     <div className="space-y-5 overflow-y-auto">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between" style={sectionStyle(0)}>
         <h2 className="text-2xl font-bold uppercase tracking-[0.2em] text-glow-pink">Dashboard</h2>
         <div className="flex gap-2">
           {!running ? (
@@ -218,152 +261,164 @@ export default function DashboardPage({ showToast }: Props) {
       </div>
 
       {/* ERC-8004 Agent Registry */}
-      <NeonCard variant={registry?.registered ? "cyan" : "pink"} glow>
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-neon-purple/10 border border-neon-purple/20 flex items-center justify-center">
-                <span className="text-lg drop-shadow-[0_0_8px_rgba(174,0,255,0.6)]">&#9671;</span>
+      <div style={sectionStyle(1)}>
+        <NeonCard variant={registry?.registered ? "cyan" : "pink"} glow>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-neon-purple/10 border border-neon-purple/20 flex items-center justify-center">
+                  <span className="text-lg drop-shadow-[0_0_8px_rgba(174,0,255,0.6)]">&#9671;</span>
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-widest text-neon-purple/80 font-bold">ERC-8004 Agent Registry</div>
+                  <div className="text-[10px] text-white/30">On-chain agent identity &amp; capability registration</div>
+                </div>
               </div>
-              <div>
-                <div className="text-xs uppercase tracking-widest text-neon-purple/80 font-bold">ERC-8004 Agent Registry</div>
-                <div className="text-[10px] text-white/30">On-chain agent identity &amp; capability registration</div>
-              </div>
+              {registry?.registered ? (
+                <div className="text-[10px] uppercase tracking-widest text-neon-green/70 bg-neon-green/10 border border-neon-green/20 px-2.5 py-1 rounded-full font-bold">
+                  Registered
+                </div>
+              ) : (
+                <div className="text-[10px] uppercase tracking-widest text-yellow-400/70 bg-yellow-400/10 border border-yellow-400/20 px-2.5 py-1 rounded-full font-bold">
+                  Not Registered
+                </div>
+              )}
             </div>
+
             {registry?.registered ? (
-              <div className="text-[10px] uppercase tracking-widest text-neon-green/70 bg-neon-green/10 border border-neon-green/20 px-2.5 py-1 rounded-full font-bold">
-                Registered
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-black/30 rounded-lg px-3 py-2 border border-white/[0.04]">
+                    <div className="text-[10px] uppercase tracking-widest text-white/30">Agent Name</div>
+                    <div className="text-sm text-white/80 font-bold">{registry.agentName}</div>
+                  </div>
+                  <div className="bg-black/30 rounded-lg px-3 py-2 border border-white/[0.04]">
+                    <div className="text-[10px] uppercase tracking-widest text-white/30">Chain</div>
+                    <div className="text-sm text-white/80 font-bold">{registry.chain}</div>
+                  </div>
+                </div>
+                <div className="bg-black/30 rounded-lg px-3 py-2 border border-white/[0.04]">
+                  <div className="text-[10px] uppercase tracking-widest text-white/30">Wallet Address</div>
+                  <div className="text-xs text-neon-cyan/70 font-mono break-all">{registry.address}</div>
+                </div>
+                {registry.metadata && (
+                  <div className="bg-black/30 rounded-lg px-3 py-2 border border-neon-purple/10">
+                    <div className="text-[10px] uppercase tracking-widest text-white/30">IPFS Metadata</div>
+                    <button
+                      onClick={() => window.runtime.BrowserOpenURL(`https://ipfs.agentx.network/ipfs/${registry.metadata.replace("ipfs://", "")}`)}
+                      className="text-xs text-neon-purple/70 font-mono break-all hover:text-neon-purple transition-colors cursor-pointer text-left"
+                    >
+                      {registry.metadata}
+                    </button>
+                  </div>
+                )}
+                {registry.txHash && (
+                  <div className="bg-black/30 rounded-lg px-3 py-2 border border-neon-green/10">
+                    <div className="text-[10px] uppercase tracking-widest text-white/30">Transaction Hash</div>
+                    <button
+                      onClick={() => window.runtime.BrowserOpenURL(`https://bscscan.com/tx/${registry.txHash}`)}
+                      className="text-xs text-neon-green/70 font-mono break-all hover:text-neon-green transition-colors cursor-pointer text-left"
+                    >
+                      {registry.txHash}
+                    </button>
+                  </div>
+                )}
+                <div className="flex items-center justify-between text-[10px] text-white/25 px-1">
+                  <span>Registered {new Date(registry.timestamp).toLocaleString()}</span>
+                  <span className="font-mono">ERC-8004 · IPFS · BSC</span>
+                </div>
               </div>
             ) : (
-              <div className="text-[10px] uppercase tracking-widest text-yellow-400/70 bg-yellow-400/10 border border-yellow-400/20 px-2.5 py-1 rounded-full font-bold">
-                Not Registered
+              <div className="space-y-3">
+                {!walletAddr ? (
+                  <div className="text-xs text-red-400/60 bg-red-400/5 border border-red-400/10 rounded-lg px-3 py-2">
+                    Wallet required — generate one from the Wallet page first.
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-xs text-white/40">
+                      Register your agent on-chain to enable discovery, reputation tracking, and payment capabilities.
+                      Metadata is pinned to IPFS and the URI is stored on-chain via ERC-8004.
+                    </div>
+                    <div className="flex gap-2">
+                      <NeonInput
+                        value={regName}
+                        onChange={setRegName}
+                        placeholder={`Agent name (default: ${agentName})`}
+                      />
+                      <NeonButton onClick={handleRegister} disabled={registering} size="sm">
+                        {registering ? "Registering..." : "Register Agent"}
+                      </NeonButton>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
-
-          {registry?.registered ? (
-            <div className="space-y-2">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-black/30 rounded-lg px-3 py-2 border border-white/[0.04]">
-                  <div className="text-[10px] uppercase tracking-widest text-white/30">Agent Name</div>
-                  <div className="text-sm text-white/80 font-bold">{registry.agentName}</div>
-                </div>
-                <div className="bg-black/30 rounded-lg px-3 py-2 border border-white/[0.04]">
-                  <div className="text-[10px] uppercase tracking-widest text-white/30">Chain</div>
-                  <div className="text-sm text-white/80 font-bold">{registry.chain}</div>
-                </div>
-              </div>
-              <div className="bg-black/30 rounded-lg px-3 py-2 border border-white/[0.04]">
-                <div className="text-[10px] uppercase tracking-widest text-white/30">Wallet Address</div>
-                <div className="text-xs text-neon-cyan/70 font-mono break-all">{registry.address}</div>
-              </div>
-              {registry.metadata && (
-                <div className="bg-black/30 rounded-lg px-3 py-2 border border-neon-purple/10">
-                  <div className="text-[10px] uppercase tracking-widest text-white/30">IPFS Metadata</div>
-                  <button
-                    onClick={() => window.runtime.BrowserOpenURL(`https://ipfs.agentx.network/ipfs/${registry.metadata.replace("ipfs://", "")}`)}
-                    className="text-xs text-neon-purple/70 font-mono break-all hover:text-neon-purple transition-colors cursor-pointer text-left"
-                  >
-                    {registry.metadata}
-                  </button>
-                </div>
-              )}
-              {registry.txHash && (
-                <div className="bg-black/30 rounded-lg px-3 py-2 border border-neon-green/10">
-                  <div className="text-[10px] uppercase tracking-widest text-white/30">Transaction Hash</div>
-                  <button
-                    onClick={() => window.runtime.BrowserOpenURL(`https://bscscan.com/tx/${registry.txHash}`)}
-                    className="text-xs text-neon-green/70 font-mono break-all hover:text-neon-green transition-colors cursor-pointer text-left"
-                  >
-                    {registry.txHash}
-                  </button>
-                </div>
-              )}
-              <div className="flex items-center justify-between text-[10px] text-white/25 px-1">
-                <span>Registered {new Date(registry.timestamp).toLocaleString()}</span>
-                <span className="font-mono">ERC-8004 · IPFS · BSC</span>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {!walletAddr ? (
-                <div className="text-xs text-red-400/60 bg-red-400/5 border border-red-400/10 rounded-lg px-3 py-2">
-                  Wallet required — generate one from the Wallet page first.
-                </div>
-              ) : (
-                <>
-                  <div className="text-xs text-white/40">
-                    Register your agent on-chain to enable discovery, reputation tracking, and payment capabilities.
-                    Metadata is pinned to IPFS and the URI is stored on-chain via ERC-8004.
-                  </div>
-                  <div className="flex gap-2">
-                    <NeonInput
-                      value={regName}
-                      onChange={setRegName}
-                      placeholder={`Agent name (default: ${agentName})`}
-                    />
-                    <NeonButton onClick={handleRegister} disabled={registering} size="sm">
-                      {registering ? "Registering..." : "Register Agent"}
-                    </NeonButton>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-      </NeonCard>
+        </NeonCard>
+      </div>
 
       {/* Hero status card */}
-      <div className={`relative overflow-hidden rounded-xl border p-5 ${
-        running
-          ? "bg-gradient-to-br from-neon-green/[0.04] to-neon-cyan/[0.02] border-neon-green/20"
-          : "bg-gradient-to-br from-red-500/[0.04] to-white/[0.01] border-red-500/20"
-      }`}>
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <img src={agentHero} alt="" className={`w-12 h-12 rounded-xl border ${
-              running
-                ? "border-neon-green/30 shadow-[0_0_20px_rgba(0,255,65,0.2)]"
-                : "border-red-500/20 opacity-60 grayscale"
-            }`} />
-            <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-[#0a0a12] ${
-              running
-                ? "bg-neon-green shadow-[0_0_8px_rgba(0,255,65,0.6)] animate-pulse"
-                : "bg-red-500/60"
-            }`} />
-          </div>
-          <div className="flex-1">
-            <div className="text-lg font-bold text-white">{agentName}</div>
-            <div className="text-xs text-white/40">
-              {running ? (
-                <span className="text-neon-green/70">
-                  Online {status?.health?.uptime ? `· ${status.health.uptime}` : ""}
-                </span>
-              ) : (
-                <span className="text-red-400/70">Offline</span>
-              )}
+      <div style={sectionStyle(2)}>
+        <GlowCard
+          className={`border p-5 ${
+            running
+              ? "bg-gradient-to-br from-neon-green/[0.04] to-neon-cyan/[0.02] border-neon-green/20"
+              : "bg-gradient-to-br from-red-500/[0.04] to-white/[0.01] border-red-500/20"
+          }`}
+          color={running ? "rgba(0, 255, 65, 0.25)" : "rgba(255, 50, 50, 0.2)"}
+        >
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <img src={agentHero} alt="" className={`w-12 h-12 rounded-xl border ${
+                running
+                  ? "border-neon-green/30 shadow-[0_0_20px_rgba(0,255,65,0.2)]"
+                  : "border-red-500/20 opacity-60 grayscale"
+              }`} />
+              <div className="relative">
+                <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-[#0a0a12] ${
+                  running
+                    ? "bg-neon-green shadow-[0_0_8px_rgba(0,255,65,0.6)]"
+                    : "bg-red-500/60"
+                }`} />
+                {running && <PulseRing color="rgba(0, 255, 65, 0.4)" />}
+              </div>
             </div>
-          </div>
-          {activeModel && (
-            <div className="text-right">
-              <div className="text-[11px] uppercase tracking-widest text-white/45">Model</div>
-              <div className="text-sm text-white/80 font-medium">{activeModel.modelName}</div>
-              <div className="text-[11px] text-white/35 font-mono">{activeModel.model}</div>
+            <div className="flex-1">
+              <div className="text-lg font-bold text-white">{agentName}</div>
+              <div className="text-xs text-white/40">
+                {running ? (
+                  <span className="text-neon-green/70">
+                    Online {status?.health?.uptime ? `· ${status.health.uptime}` : ""}
+                  </span>
+                ) : (
+                  <span className="text-red-400/70">Offline</span>
+                )}
+              </div>
             </div>
-          )}
-        </div>
+            {activeModel && (
+              <div className="text-right">
+                <div className="text-[11px] uppercase tracking-widest text-white/45">Model</div>
+                <div className="text-sm text-white/80 font-medium">{activeModel.modelName}</div>
+                <div className="text-[11px] text-white/35 font-mono">{activeModel.model}</div>
+              </div>
+            )}
+          </div>
+        </GlowCard>
       </div>
 
       {/* Info grid */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-3" style={sectionStyle(3)}>
         {/* Channels */}
         <div className="glass-card p-4">
-          <div className="text-[11px] uppercase tracking-widest text-white/45 mb-2 font-medium">Channels</div>
+          <div className="text-[11px] uppercase tracking-widest text-white/45 mb-2 font-medium">
+            Channels <span className="text-neon-cyan/60">({channelCount})</span>
+          </div>
           {activeChannels.length > 0 ? (
             <div className="space-y-1.5">
               {activeChannels.map(ch => (
                 <div key={ch.name} className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-neon-cyan shadow-[0_0_6px_rgba(0,255,255,0.4)]" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-neon-cyan text-neon-cyan animate-dot-breathe" />
                   <span className="text-xs text-white/70">{ch.name}</span>
                 </div>
               ))}
@@ -393,7 +448,7 @@ export default function DashboardPage({ showToast }: Props) {
         {/* Skills */}
         <div className="glass-card p-4">
           <div className="text-[11px] uppercase tracking-widest text-white/45 mb-2 font-medium">
-            Skills <span className="text-neon-cyan/60">({skills.length})</span>
+            Skills <span className="text-neon-cyan/60">({skillCount})</span>
           </div>
           {skills.length > 0 ? (
             <div className="space-y-1.5">
@@ -415,7 +470,7 @@ export default function DashboardPage({ showToast }: Props) {
 
       {/* Wallet & Token Balances */}
       {walletAddr && (
-        <div className="glass-card p-4 space-y-3">
+        <div className="glass-card p-4 space-y-3" style={sectionStyle(4)}>
           <div className="flex items-center justify-between">
             <div className="text-[11px] uppercase tracking-widest text-white/45 font-medium">Wallet Balances</div>
             <div className="text-[11px] font-mono text-neon-cyan/50 truncate max-w-[200px]" title={walletAddr}>
@@ -438,9 +493,9 @@ export default function DashboardPage({ showToast }: Props) {
 
       {/* Models configured */}
       {configuredModels.length > 1 && (
-        <div className="glass-card p-4">
+        <div className="glass-card p-4" style={sectionStyle(4)}>
           <div className="text-[11px] uppercase tracking-widest text-white/45 mb-2 font-medium">
-            Models <span className="text-neon-green/60">({configuredModels.length})</span>
+            Models <span className="text-neon-green/60">({modelCount})</span>
           </div>
           <div className="flex flex-wrap gap-2">
             {configuredModels.map(m => (
@@ -454,7 +509,7 @@ export default function DashboardPage({ showToast }: Props) {
       )}
 
       {/* Logs - collapsible */}
-      <div className="glass-card overflow-hidden">
+      <div className="glass-card overflow-hidden" style={sectionStyle(5)}>
         <button
           onClick={() => { setShowLogs(!showLogs); if (!showLogs) fetchLogs(); }}
           className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/[0.02] transition-colors"
@@ -470,7 +525,7 @@ export default function DashboardPage({ showToast }: Props) {
                 {logsLoading ? "..." : "Refresh"}
               </button>
             )}
-            <span className={`text-white/40 text-xs transition-transform ${showLogs ? "rotate-180" : ""}`}>
+            <span className={`text-white/40 text-xs transition-transform duration-200 ${showLogs ? "rotate-180" : ""}`}>
               ▼
             </span>
           </div>
@@ -480,14 +535,25 @@ export default function DashboardPage({ showToast }: Props) {
             ref={logRef}
             className="px-4 py-3 text-xs text-neon-green/70 font-mono whitespace-pre-wrap leading-relaxed overflow-auto max-h-64 border-t border-white/[0.04]"
           >
-            {logs || "No logs available"}
+            {logLines.length > 0
+              ? logLines.map((line, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      animation: `log-line-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) ${Math.min(i * 30, 1500)}ms both`,
+                    }}
+                  >
+                    {line}
+                  </div>
+                ))
+              : "No logs available"}
           </pre>
         )}
       </div>
       {/* Fund Wallet Modal */}
       {fundModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="bg-[#0e0e1a] border border-red-500/20 rounded-2xl p-6 max-w-md w-full mx-4 shadow-[0_0_40px_rgba(255,0,80,0.15)]">
+          <div className="bg-[#0e0e1a] border border-red-500/20 rounded-2xl p-6 max-w-md w-full mx-4 shadow-[0_0_40px_rgba(255,0,80,0.15)] animate-card-enter">
             {/* Header */}
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
@@ -523,7 +589,7 @@ export default function DashboardPage({ showToast }: Props) {
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-neon-cyan/80 font-mono break-all">{walletAddr}</span>
                   <span className="text-[10px] text-white/30 group-hover:text-neon-cyan/60 ml-2 shrink-0 uppercase tracking-widest transition-colors">
-                    {copied ? "Copied!" : "Copy"}
+                    {copied ? <span className="animate-check-pop inline-block">✓ Copied</span> : "Copy"}
                   </span>
                 </div>
               </button>

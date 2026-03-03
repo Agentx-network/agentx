@@ -5,7 +5,7 @@ interface Props {
 
 export function Toast({ message, type }: Props) {
   return (
-    <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-4">
+    <div className="fixed bottom-6 right-6 z-50 animate-toast-in">
       <div
         className={`px-5 py-3 rounded-lg text-sm font-bold uppercase tracking-wide border-2 ${
           type === "success"

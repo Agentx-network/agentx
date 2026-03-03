@@ -84,9 +84,9 @@ export default function Sidebar({ currentPage, onNavigate, onRunWizard, version 
             <button
               key={item.id}
               onClick={() => onNavigate(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm uppercase tracking-widest transition-all ${
+              className={`sidebar-item-hover w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm uppercase tracking-widest transition-all ${
                 active
-                  ? "bg-neon-pink/15 text-neon-pink border-l-[3px] border-neon-pink shadow-glow-pink-sm"
+                  ? "bg-neon-pink/15 text-neon-pink border-l-[3px] border-neon-pink sidebar-glow-bar"
                   : "text-white/55 hover:text-white/80 hover:bg-white/5 border-l-[3px] border-transparent"
               }`}
             >
@@ -100,7 +100,7 @@ export default function Sidebar({ currentPage, onNavigate, onRunWizard, version 
         {onRunWizard && (
           <button
             onClick={onRunWizard}
-            className="w-full text-[11px] text-neon-pink/60 hover:text-neon-pink hover:bg-neon-pink/10 uppercase tracking-widest font-bold py-2 px-3 rounded-lg border border-neon-pink/20 hover:border-neon-pink/30 transition-all"
+            className="sidebar-item-hover w-full text-[11px] text-neon-pink/60 hover:text-neon-pink hover:bg-neon-pink/10 uppercase tracking-widest font-bold py-2 px-3 rounded-lg border border-neon-pink/20 hover:border-neon-pink/30 transition-all"
           >
             Run Setup Wizard
           </button>

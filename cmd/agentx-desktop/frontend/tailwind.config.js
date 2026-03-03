@@ -16,6 +16,10 @@ export default {
           cyan: "#00FFFF",
         },
       },
+      animation: {
+        "card-enter": "card-enter 0.5s cubic-bezier(0.16,1,0.3,1) both",
+        "page-enter": "page-enter 0.3s cubic-bezier(0.16,1,0.3,1) both",
+      },
       boxShadow: {
         "neon-pink": "0 0 15px rgba(255,0,146,0.4), 0 0 40px rgba(255,0,146,0.15), inset 0 0 15px rgba(255,0,146,0.05)",
         "neon-green": "0 0 15px rgba(0,255,65,0.4), 0 0 40px rgba(0,255,65,0.15), inset 0 0 15px rgba(0,255,65,0.05)",

@@ -15,6 +15,7 @@ export default function ChatPage({ showToast, messages, setMessages }: Props) {
   const [sending, setSending] = useState(false);
   const [connected, setConnected] = useState<boolean | null>(null);
   const [streamingText, setStreamingText] = useState("");
+  const [ripple, setRipple] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -60,6 +61,10 @@ export default function ChatPage({ showToast, messages, setMessages }: Props) {
   const sendMessage = async () => {
     const text = input.trim();
     if (!text || sending) return;
+
+    // Trigger ripple effect
+    setRipple(true);
+    setTimeout(() => setRipple(false), 500);
 
     const userMsg: ChatMessage = {
       id: `msg-${++messageIdCounter}`,
@@ -160,7 +165,7 @@ export default function ChatPage({ showToast, messages, setMessages }: Props) {
 
         {/* Streaming assistant message */}
         {sending && (
-          <div className="flex justify-start">
+          <div className="flex justify-start animate-msg-left">
             <div className="max-w-[80%] rounded-xl px-4 py-3 bg-white/[0.04] border border-white/10 text-white/80">
               {streamingText ? (
                 <div className="text-sm whitespace-pre-wrap break-words leading-relaxed">
@@ -168,11 +173,7 @@ export default function ChatPage({ showToast, messages, setMessages }: Props) {
                   <span className="inline-block w-1.5 h-4 bg-neon-pink/60 ml-0.5 animate-pulse" />
                 </div>
               ) : (
-                <div className="flex items-center gap-2 text-sm text-white/40">
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-neon-pink animate-pulse" />
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-neon-pink animate-pulse [animation-delay:0.2s]" />
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-neon-pink animate-pulse [animation-delay:0.4s]" />
-                </div>
+                <TypingDots />
               )}
             </div>
           </div>
@@ -196,14 +197,32 @@ export default function ChatPage({ showToast, messages, setMessages }: Props) {
             }
             disabled={sending || connected === false}
             rows={1}
-            className="flex-1 bg-white/[0.04] border-2 border-neon-purple/20 rounded-xl px-4 py-3 text-sm text-white placeholder-white/25 focus:outline-none focus:border-neon-pink/50 focus:shadow-neon-pink transition-all resize-none disabled:opacity-40"
+            className="flex-1 bg-white/[0.04] border-2 border-neon-purple/20 rounded-xl px-4 py-3 text-sm text-white placeholder-white/25 focus:outline-none focus:border-neon-pink/50 transition-all resize-none disabled:opacity-40"
+            style={{
+              boxShadow: "none",
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.boxShadow = "0 0 20px rgba(255,0,146,0.15), 0 0 40px rgba(255,0,146,0.05)";
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.boxShadow = "none";
+            }}
           />
           <button
             onClick={sendMessage}
             disabled={!input.trim() || sending || connected === false}
-            className="px-5 bg-neon-pink text-white font-bold uppercase tracking-wider text-xs rounded-xl border border-neon-pink/60 hover:shadow-neon-pink active:scale-[0.97] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            className="relative overflow-hidden px-5 bg-neon-pink text-white font-bold uppercase tracking-wider text-xs rounded-xl border border-neon-pink/60 hover:shadow-neon-pink active:scale-[0.97] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
           >
             {sending ? "..." : "Send"}
+            {ripple && (
+              <span
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background: "radial-gradient(circle, rgba(255,255,255,0.3), transparent 70%)",
+                  animation: "ripple-out 0.5s ease-out forwards",
+                }}
+              />
+            )}
           </button>
         </div>
         <p className="text-[10px] text-white/15 mt-2 text-center uppercase tracking-widest">
@@ -214,19 +233,36 @@ export default function ChatPage({ showToast, messages, setMessages }: Props) {
   );
 }
 
+function TypingDots() {
+  return (
+    <div className="flex items-center gap-1.5 py-1 px-1">
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="inline-block w-1.5 h-1.5 rounded-full bg-neon-pink"
+          style={{
+            animation: `typing-wave 1.2s ease-in-out ${i * 0.15}s infinite`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 function MessageBubble({ msg }: { msg: ChatMessage }) {
+  const isUser = msg.role === "user";
   return (
     <div
       className={`flex items-end gap-2 ${
-        msg.role === "user" ? "justify-end" : "justify-start"
-      }`}
+        isUser ? "justify-end" : "justify-start"
+      } ${isUser ? "animate-msg-right" : "animate-msg-left"}`}
     >
       {msg.role === "assistant" && (
         <img src={agentHero} alt="" className="w-7 h-7 rounded-full border border-neon-pink/20 flex-shrink-0 mb-1" />
       )}
       <div
         className={`max-w-[75%] rounded-xl px-4 py-3 ${
-          msg.role === "user"
+          isUser
             ? "bg-neon-pink/15 border border-neon-pink/30 text-white"
             : "bg-white/[0.04] border border-white/10 text-white/80"
         }`}
@@ -236,7 +272,7 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
         </div>
         <div
           className={`text-[10px] mt-1.5 ${
-            msg.role === "user" ? "text-neon-pink/40" : "text-white/20"
+            isUser ? "text-neon-pink/40" : "text-white/20"
           }`}
         >
           {new Date(msg.timestamp).toLocaleTimeString()}

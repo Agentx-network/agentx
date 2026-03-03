@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Sidebar from "./components/Sidebar";
+import AmbientBackground from "./components/AmbientBackground";
+import PageTransition from "./components/PageTransition";
 import InstallerPage from "./pages/InstallerPage";
 import OnboardPage from "./pages/OnboardPage";
 import ChannelSetupPage from "./pages/ChannelSetupPage";
@@ -210,9 +212,12 @@ export default function App() {
 
   // Subtle ambient poster background — shared across all screens
   const ambientBg = (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden">
-      <img src={posterBg} alt="" className="w-full h-full object-cover opacity-[0.12]" />
-    </div>
+    <>
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <img src={posterBg} alt="" className="w-full h-full object-cover opacity-[0.07]" />
+      </div>
+      <AmbientBackground />
+    </>
   );
 
   if (mode === "loading") {
@@ -287,11 +292,13 @@ export default function App() {
       {ambientBg}
       <Sidebar currentPage={page} onNavigate={setPage} onRunWizard={() => { setPage("installer"); setMode("wizard"); }} version={appVersion} />
       <main className={`relative flex-1 p-6 ${page === "chat" ? "overflow-hidden flex flex-col" : "overflow-y-auto"}`}>
-        {page === "dashboard" && <DashboardPage showToast={showToast} />}
-        {page === "chat" && <ChatPage showToast={showToast} messages={chatMessages} setMessages={setChatMessages} />}
-        {page === "config" && <ConfigPage showToast={showToast} />}
-        {page === "wallet" && <WalletPage showToast={showToast} />}
-        {page === "installer" && <InstallerPage showToast={showToast} onComplete={onStepComplete} />}
+        <PageTransition pageKey={page}>
+          {page === "dashboard" && <DashboardPage showToast={showToast} />}
+          {page === "chat" && <ChatPage showToast={showToast} messages={chatMessages} setMessages={setChatMessages} />}
+          {page === "config" && <ConfigPage showToast={showToast} />}
+          {page === "wallet" && <WalletPage showToast={showToast} />}
+          {page === "installer" && <InstallerPage showToast={showToast} onComplete={onStepComplete} />}
+        </PageTransition>
       </main>
       {toast && <Toast message={toast.message} type={toast.type} />}
     </div>

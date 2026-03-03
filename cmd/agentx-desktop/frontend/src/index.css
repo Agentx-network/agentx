@@ -97,3 +97,176 @@ body {
 .animate-border-glow {
   animation: border-glow 3s ease-in-out infinite;
 }
+
+/* ── Ambient grid ── Tron-style perspective scrolling grid */
+@keyframes grid-scroll {
+  0% { background-position-y: 0; }
+  100% { background-position-y: 60px; }
+}
+
+/* ── Scanline overlay ── */
+@keyframes scanlines {
+  0% { background-position-y: 0; }
+  100% { background-position-y: 4px; }
+}
+
+/* ── Page transitions ── */
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes page-exit {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-8px); }
+}
+
+/* ── Card entrance ── staggered slide-up */
+@keyframes card-enter {
+  from { opacity: 0; transform: translateY(20px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Status dot pulse rings ── */
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+/* ── Channel dot breathing ── */
+@keyframes dot-breathe {
+  0%, 100% { box-shadow: 0 0 4px currentColor; opacity: 0.8; }
+  50% { box-shadow: 0 0 10px currentColor, 0 0 20px currentColor; opacity: 1; }
+}
+
+/* ── Log line fade-in ── */
+@keyframes log-line-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* ── Typing wave dots ── */
+@keyframes typing-wave {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-6px); }
+}
+
+/* ── Message bubble slide ── */
+@keyframes msg-slide-left {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes msg-slide-right {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* ── Send button ripple ── */
+@keyframes ripple-out {
+  from { transform: scale(0); opacity: 0.5; }
+  to { transform: scale(2.5); opacity: 0; }
+}
+
+/* ── Input focus glow ── */
+@keyframes focus-glow {
+  from { box-shadow: 0 0 0 rgba(255, 0, 146, 0); }
+  to { box-shadow: 0 0 20px rgba(255, 0, 146, 0.15), 0 0 40px rgba(255, 0, 146, 0.05); }
+}
+
+/* ── Toggle spark ── */
+@keyframes toggle-spark {
+  0% { opacity: 1; transform: scale(0) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.2) rotate(180deg); }
+  100% { opacity: 0; transform: scale(0.8) rotate(360deg); }
+}
+
+/* ── Checkmark pop ── */
+@keyframes check-pop {
+  0% { transform: scale(0); opacity: 0; }
+  50% { transform: scale(1.3); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ── Toast entrance ── */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(16px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Sidebar active glow bar ── */
+@keyframes sidebar-glow {
+  0%, 100% { box-shadow: 0 0 8px rgba(255, 0, 146, 0.4), 0 0 20px rgba(255, 0, 146, 0.15); }
+  50% { box-shadow: 0 0 14px rgba(255, 0, 146, 0.6), 0 0 30px rgba(255, 0, 146, 0.25); }
+}
+
+/* ── Sidebar hover neon sweep ── */
+@keyframes neon-sweep {
+  from { left: -100%; }
+  to { left: 100%; }
+}
+
+/* ── Utility classes ── */
+.animate-card-enter {
+  animation: card-enter 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.animate-page-enter {
+  animation: page-enter 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.animate-page-exit {
+  animation: page-exit 0.15s ease-in both;
+}
+.animate-toast-in {
+  animation: toast-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.animate-msg-left {
+  animation: msg-slide-left 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.animate-msg-right {
+  animation: msg-slide-right 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.animate-check-pop {
+  animation: check-pop 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ── Glass card hover lift ── */
+.glass-card {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
+}
+.glass-card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 0 20px rgba(255, 0, 146, 0.25),
+    0 0 50px rgba(255, 0, 146, 0.1),
+    0 8px 24px rgba(0, 0, 0, 0.3),
+    inset 0 0 20px rgba(255, 0, 146, 0.03);
+}
+
+/* ── Dot breathing utility ── */
+.animate-dot-breathe {
+  animation: dot-breathe 2s ease-in-out infinite;
+}
+
+/* ── Sidebar glow bar ── */
+.sidebar-glow-bar {
+  animation: sidebar-glow 2.5s ease-in-out infinite;
+}
+
+/* ── Sidebar neon sweep on hover ── */
+.sidebar-item-hover {
+  position: relative;
+  overflow: hidden;
+}
+.sidebar-item-hover::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  left: -100%;
+  width: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 0, 146, 0.06), transparent);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.sidebar-item-hover:hover::after {
+  opacity: 1;
+  animation: neon-sweep 0.6s ease-out;
+}
