@@ -4,6 +4,8 @@ import {main} from '../models';
 
 export function AddToken(arg1:string,arg2:string,arg3:string,arg4:number):Promise<void>;
 
+export function ExportPrivateKey():Promise<string>;
+
 export function GenerateWallet():Promise<main.WalletInfo>;
 
 export function GetAllBalances():Promise<Array<main.TokenBalance>>;
@@ -13,6 +15,8 @@ export function GetBalance():Promise<string>;
 export function GetTokens():Promise<Array<main.TokenConfig>>;
 
 export function GetWallet():Promise<main.WalletInfo>;
+
+export function ImportPrivateKey(arg1:string):Promise<main.WalletInfo>;
 
 export function RegenerateWallet():Promise<main.WalletInfo>;
 

@@ -43,6 +43,12 @@ export default function WalletPage({ showToast }: Props) {
   const [showFullAddr, setShowFullAddr] = useState(false);
   const [addingToken, setAddingToken] = useState(false);
   const [newToken, setNewToken] = useState({ symbol: "", name: "", contract: "", decimals: "18" });
+  const [importMode, setImportMode] = useState(false);
+  const [importStep, setImportStep] = useState(0); // 0=warn, 1=export, 2=import
+  const [exportedKey, setExportedKey] = useState("");
+  const [exportCopied, setExportCopied] = useState(false);
+  const [importKey, setImportKey] = useState("");
+  const [importing, setImporting] = useState(false);
 
   const loadWallet = useCallback(async () => {
     try {
@@ -134,6 +140,54 @@ export default function WalletPage({ showToast }: Props) {
     );
   }
 
+  const resetImport = () => {
+    setImportMode(false);
+    setImportStep(0);
+    setExportedKey("");
+    setExportCopied(false);
+    setImportKey("");
+  };
+
+  const handleStartImport = () => {
+    setImportMode(true);
+    setImportStep(0);
+    setExportedKey("");
+    setExportCopied(false);
+    setImportKey("");
+  };
+
+  const handleExportCurrentKey = async () => {
+    try {
+      const key = await window.go.main.WalletService.ExportPrivateKey();
+      setExportedKey(key);
+      setImportStep(1);
+    } catch (e: any) {
+      showToast(`Export failed: ${e}`, "error");
+    }
+  };
+
+  const handleCopyExportedKey = () => {
+    navigator.clipboard.writeText(exportedKey);
+    setExportCopied(true);
+    showToast("Private key copied — store it safely!", "success");
+  };
+
+  const handleImportKey = async () => {
+    if (!importKey.trim()) return;
+    setImporting(true);
+    try {
+      const w = await window.go.main.WalletService.ImportPrivateKey(importKey.trim());
+      setWallet(w);
+      showToast("Wallet imported!", "success");
+      resetImport();
+      await loadBalances();
+    } catch (e: any) {
+      showToast(`Import failed: ${e}`, "error");
+    } finally {
+      setImporting(false);
+    }
+  };
+
   // No wallet yet — show generate prompt
   if (!wallet) {
     return (
@@ -143,11 +197,49 @@ export default function WalletPage({ showToast }: Props) {
             <span className="text-4xl text-neon-cyan/40 drop-shadow-[0_0_12px_rgba(0,255,255,0.4)]">&#9670;</span>
           </div>
           <h2 className="text-2xl font-bold uppercase tracking-[0.2em] text-glow-pink">Wallet</h2>
-          <p className="text-white/35 text-sm">No wallet found. Generate one to enable on-chain features.</p>
+          <p className="text-white/35 text-sm">No wallet found. Generate one or import an existing key.</p>
         </div>
         <NeonButton onClick={handleGenerate} size="lg" className="w-full">
           Generate Wallet
         </NeonButton>
+
+        {!importMode ? (
+          <button
+            onClick={() => setImportMode(true)}
+            className="w-full text-[11px] uppercase tracking-widest text-white/25 hover:text-neon-cyan/60 py-2 border border-dashed border-white/10 hover:border-neon-cyan/20 rounded-lg transition-all"
+          >
+            Import Existing Key
+          </button>
+        ) : (
+          <NeonCard variant="cyan" glow>
+            <div className="space-y-3">
+              <h3 className="text-sm font-bold uppercase tracking-widest text-neon-cyan">Import Private Key</h3>
+              <p className="text-xs text-white/40">Paste your hex-encoded private key to restore a previously exported wallet.</p>
+              <NeonInput
+                value={importKey}
+                onChange={setImportKey}
+                placeholder="Private key (hex, 64 characters)"
+              />
+              <div className="flex gap-2">
+                <NeonButton
+                  onClick={handleImportKey}
+                  disabled={!importKey.trim() || importing}
+                  size="lg"
+                  className="flex-1"
+                >
+                  {importing ? "Importing..." : "Import Wallet"}
+                </NeonButton>
+                <NeonButton
+                  onClick={() => { setImportMode(false); setImportKey(""); }}
+                  variant="danger"
+                  size="lg"
+                >
+                  Cancel
+                </NeonButton>
+              </div>
+            </div>
+          </NeonCard>
+        )}
       </div>
     );
   }
@@ -161,10 +253,132 @@ export default function WalletPage({ showToast }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold uppercase tracking-[0.2em] text-glow-pink">Wallet</h2>
-        <NeonButton onClick={handleRefresh} variant="ghost" size="sm" disabled={refreshing}>
-          {refreshing ? "Refreshing..." : "Refresh Balances"}
-        </NeonButton>
+        <div className="flex items-center gap-2">
+          <NeonButton onClick={handleStartImport} variant="ghost" size="sm">
+            Import Wallet
+          </NeonButton>
+          <NeonButton onClick={handleRefresh} variant="ghost" size="sm" disabled={refreshing}>
+            {refreshing ? "Refreshing..." : "Refresh Balances"}
+          </NeonButton>
+        </div>
       </div>
+
+      {/* Import wallet — strict multi-step flow */}
+      {importMode && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="w-full max-w-md mx-4">
+            {/* Step 0: Warning */}
+            {importStep === 0 && (
+              <NeonCard variant="pink" glow>
+                <div className="space-y-4 py-2">
+                  <div className="text-center space-y-2">
+                    <div className="w-14 h-14 mx-auto rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center">
+                      <span className="text-2xl">&#9888;</span>
+                    </div>
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-red-400">Replace Current Wallet?</h3>
+                    <p className="text-xs text-white/50 leading-relaxed max-w-sm mx-auto">
+                      Importing a new private key will <span className="text-red-400 font-bold">permanently replace</span> your current wallet.
+                      You <span className="text-white/80 font-bold">must</span> export and back up your current private key before proceeding.
+                    </p>
+                    <p className="text-[10px] text-white/30 font-mono">
+                      Current: {wallet?.address ? truncateAddr(wallet.address) : "—"}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <NeonButton onClick={handleExportCurrentKey} size="lg" className="flex-1">
+                      Export Current Key &rarr;
+                    </NeonButton>
+                    <NeonButton onClick={resetImport} variant="danger" size="lg">
+                      Cancel
+                    </NeonButton>
+                  </div>
+                </div>
+              </NeonCard>
+            )}
+
+            {/* Step 1: Export — must copy before proceeding */}
+            {importStep === 1 && (
+              <NeonCard variant="cyan" glow>
+                <div className="space-y-4 py-2">
+                  <div className="text-center space-y-2">
+                    <div className="w-14 h-14 mx-auto rounded-2xl bg-neon-cyan/10 border border-neon-cyan/20 flex items-center justify-center">
+                      <span className="text-2xl text-neon-cyan/60">&#128274;</span>
+                    </div>
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-neon-cyan">Back Up Your Key</h3>
+                    <p className="text-xs text-white/50 leading-relaxed max-w-sm mx-auto">
+                      Copy and store this private key somewhere safe. You will <span className="text-red-400 font-bold">lose access</span> to this wallet if you don't back it up.
+                    </p>
+                  </div>
+                  <div
+                    onClick={handleCopyExportedKey}
+                    className="bg-black/60 border border-neon-cyan/20 rounded-lg px-4 py-3 font-mono text-xs text-neon-cyan/80 break-all cursor-pointer hover:border-neon-cyan/40 hover:shadow-[0_0_20px_rgba(0,255,255,0.1)] transition-all select-all"
+                  >
+                    {exportedKey}
+                  </div>
+                  <button
+                    onClick={handleCopyExportedKey}
+                    className={`w-full text-xs uppercase tracking-widest py-2 rounded-lg border transition-all ${
+                      exportCopied
+                        ? "text-neon-green/80 border-neon-green/30 bg-neon-green/5"
+                        : "text-white/40 border-white/10 hover:text-neon-cyan/60 hover:border-neon-cyan/20"
+                    }`}
+                  >
+                    {exportCopied ? "✓ Key Copied" : "Click to Copy Key"}
+                  </button>
+                  <div className="flex gap-2">
+                    <NeonButton
+                      onClick={() => setImportStep(2)}
+                      disabled={!exportCopied}
+                      size="lg"
+                      className="flex-1"
+                    >
+                      {exportCopied ? "Continue to Import →" : "Copy Key First"}
+                    </NeonButton>
+                    <NeonButton onClick={resetImport} variant="danger" size="lg">
+                      Cancel
+                    </NeonButton>
+                  </div>
+                </div>
+              </NeonCard>
+            )}
+
+            {/* Step 2: Paste new key */}
+            {importStep === 2 && (
+              <NeonCard variant="cyan" glow>
+                <div className="space-y-4 py-2">
+                  <div className="text-center space-y-2">
+                    <div className="w-14 h-14 mx-auto rounded-2xl bg-neon-cyan/10 border border-neon-cyan/20 flex items-center justify-center">
+                      <span className="text-2xl text-neon-cyan/60">&#9670;</span>
+                    </div>
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-neon-cyan">Import New Wallet</h3>
+                    <p className="text-xs text-white/50 leading-relaxed max-w-sm mx-auto">
+                      Paste the hex-encoded private key of the wallet you want to import.
+                    </p>
+                  </div>
+                  <NeonInput
+                    value={importKey}
+                    onChange={setImportKey}
+                    placeholder="Private key (hex, 64 characters)"
+                  />
+                  <div className="flex gap-2">
+                    <NeonButton
+                      onClick={handleImportKey}
+                      disabled={!importKey.trim() || importing}
+                      size="lg"
+                      className="flex-1"
+                    >
+                      {importing ? "Importing..." : "Replace Wallet"}
+                    </NeonButton>
+                    <NeonButton onClick={resetImport} variant="danger" size="lg">
+                      Cancel
+                    </NeonButton>
+                  </div>
+                </div>
+              </NeonCard>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Wallet card */}
       <NeonCard variant="cyan" glow>

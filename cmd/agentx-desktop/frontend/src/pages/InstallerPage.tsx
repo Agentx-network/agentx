@@ -18,6 +18,13 @@ export default function InstallerPage({ showToast, onComplete }: Props) {
   const [installed, setInstalled] = useState(false);
   const [uninstalling, setUninstalling] = useState(false);
   const [confirmUninstall, setConfirmUninstall] = useState(false);
+  // Wallet export modal state
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [walletAddress, setWalletAddress] = useState("");
+  const [exportedKey, setExportedKey] = useState("");
+  const [keyCopied, setKeyCopied] = useState(false);
+  const [keySaved, setKeySaved] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -124,16 +131,160 @@ export default function InstallerPage({ showToast, onComplete }: Props) {
         <NeonCard>
           <div className="space-y-3">
             <p className="text-xs text-white/30 uppercase tracking-wide">Danger Zone</p>
-            {!confirmUninstall ? (
+            {!confirmUninstall && !showExportModal ? (
               <NeonButton
                 variant="danger"
                 size="md"
                 className="w-full"
-                onClick={() => setConfirmUninstall(true)}
+                onClick={async () => {
+                  try {
+                    const hasWallet = await window.go.main.InstallerService.HasWallet();
+                    if (hasWallet) {
+                      // Load wallet address for display
+                      try {
+                        const w = await window.go.main.WalletService.GetWallet();
+                        setWalletAddress(w.address);
+                      } catch { /* noop */ }
+                      setExportedKey("");
+                      setKeyCopied(false);
+                      setKeySaved(false);
+                      setShowExportModal(true);
+                    } else {
+                      setConfirmUninstall(true);
+                    }
+                  } catch {
+                    setConfirmUninstall(true);
+                  }
+                }}
               >
                 Uninstall AgentX
               </NeonButton>
+            ) : showExportModal ? (
+              /* ── Mandatory wallet export modal ── */
+              <div className="space-y-4">
+                <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 space-y-2">
+                  <p className="text-sm font-bold text-red-400 uppercase tracking-wide">
+                    Warning: Wallet Will Be Deleted
+                  </p>
+                  <p className="text-xs text-red-300/70">
+                    Uninstalling will permanently delete your wallet private key.
+                    You must export and save it to retain access to any on-chain assets.
+                  </p>
+                </div>
+
+                {walletAddress && (
+                  <div className="bg-black/30 border border-white/[0.06] rounded-lg px-4 py-2.5">
+                    <div className="text-[10px] uppercase tracking-widest text-white/30 mb-1">Wallet Address</div>
+                    <div className="font-mono text-sm text-neon-cyan/80 break-all">{walletAddress}</div>
+                  </div>
+                )}
+
+                {!exportedKey ? (
+                  <NeonButton
+                    variant="danger"
+                    size="md"
+                    className="w-full"
+                    disabled={exporting}
+                    onClick={async () => {
+                      setExporting(true);
+                      try {
+                        const key = await window.go.main.WalletService.ExportPrivateKey();
+                        setExportedKey(key);
+                      } catch (e: any) {
+                        showToast(`Export failed: ${e}`, "error");
+                      } finally {
+                        setExporting(false);
+                      }
+                    }}
+                  >
+                    {exporting ? "Decrypting..." : "Export Private Key"}
+                  </NeonButton>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="bg-black/50 border border-red-500/20 rounded-lg px-4 py-3 space-y-2">
+                      <div className="text-[10px] uppercase tracking-widest text-red-400/60 font-bold">Private Key</div>
+                      <div className="font-mono text-xs text-white/80 break-all select-all leading-relaxed bg-black/40 rounded px-3 py-2">
+                        {exportedKey}
+                      </div>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(exportedKey);
+                          setKeyCopied(true);
+                          showToast("Private key copied!", "success");
+                        }}
+                        className={`text-xs uppercase tracking-widest px-3 py-1.5 rounded border transition-all ${
+                          keyCopied
+                            ? "text-neon-green/80 border-neon-green/30 bg-neon-green/10"
+                            : "text-white/50 border-white/10 hover:border-white/30 hover:text-white/80"
+                        }`}
+                      >
+                        {keyCopied ? "✓ Copied" : "Copy to Clipboard"}
+                      </button>
+                    </div>
+
+                    <label className="flex items-center gap-3 cursor-pointer px-1">
+                      <input
+                        type="checkbox"
+                        checked={keySaved}
+                        onChange={(e) => setKeySaved(e.target.checked)}
+                        className="w-4 h-4 rounded border-white/20 bg-black/40 accent-neon-pink"
+                      />
+                      <span className="text-xs text-white/60">I have saved my private key in a secure location</span>
+                    </label>
+
+                    <div className="flex gap-3">
+                      <NeonButton
+                        variant="danger"
+                        size="md"
+                        className="flex-1"
+                        disabled={!keySaved || uninstalling}
+                        onClick={async () => {
+                          setUninstalling(true);
+                          try {
+                            await window.go.main.InstallerService.FullUninstall();
+                            showToast("AgentX uninstalled. Closing app...", "success");
+                            setTimeout(() => window.runtime.Quit(), 1500);
+                          } catch (e: any) {
+                            showToast(`Uninstall failed: ${e}`, "error");
+                            setUninstalling(false);
+                          }
+                        }}
+                      >
+                        {uninstalling ? "Uninstalling..." : "Proceed with Uninstall"}
+                      </NeonButton>
+                      <NeonButton
+                        variant="ghost"
+                        size="md"
+                        className="flex-1"
+                        onClick={() => {
+                          setShowExportModal(false);
+                          setExportedKey("");
+                          setKeyCopied(false);
+                          setKeySaved(false);
+                        }}
+                      >
+                        Cancel
+                      </NeonButton>
+                    </div>
+                  </div>
+                )}
+
+                {!exportedKey && (
+                  <NeonButton
+                    variant="ghost"
+                    size="md"
+                    className="w-full"
+                    onClick={() => {
+                      setShowExportModal(false);
+                      setExportedKey("");
+                    }}
+                  >
+                    Cancel
+                  </NeonButton>
+                )}
+              </div>
             ) : (
+              /* ── Simple confirmation (no wallet) ── */
               <div className="space-y-3">
                 <p className="text-sm text-red-400">
                   This will remove the gateway binary, service, and all data (~/.agentx). Are you sure?
