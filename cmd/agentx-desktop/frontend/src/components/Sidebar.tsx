@@ -44,6 +44,18 @@ const navItems: { id: Page; label: string; icon: (active: boolean) => JSX.Elemen
     ),
   },
   {
+    id: "wallet",
+    label: "Wallet",
+    icon: (a) => (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className={a ? "text-neon-pink" : "text-current"}>
+        <rect x="1.5" y="3.5" width="13" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M1.5 6.5h13" stroke="currentColor" strokeWidth="1.5" />
+        <circle cx="11.5" cy="9.5" r="1" fill="currentColor" />
+        <path d="M4 3.5V2.5a1 1 0 011-1h6a1 1 0 011 1v1" stroke="currentColor" strokeWidth="1.5" />
+      </svg>
+    ),
+  },
+  {
     id: "installer",
     label: "Installer",
     icon: (a) => (
