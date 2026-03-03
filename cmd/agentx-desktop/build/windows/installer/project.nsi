@@ -3,7 +3,7 @@ Unicode true
 !define INFO_PROJECTNAME    "agentx-desktop"
 !define INFO_COMPANYNAME    "AgentX Network"
 !define INFO_PRODUCTNAME    "AgentX Desktop"
-!define INFO_PRODUCTVERSION "0.8.15"
+!define INFO_PRODUCTVERSION "0.8.16"
 !define INFO_COPYRIGHT      "Copyright 2026 AgentX Network"
 
 !include "wails_tools.nsh"
