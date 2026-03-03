@@ -20,6 +20,7 @@ func main() {
 	chatSvc := NewChatService()
 	agentSetup := NewAgentSetupService()
 	walletSvc := NewWalletService()
+	walletSvc.SetDashboard(dashboard)
 	registrySvc := NewRegistryService()
 
 	err := wails.Run(&options.App{

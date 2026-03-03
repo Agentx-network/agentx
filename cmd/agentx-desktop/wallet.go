@@ -11,7 +11,8 @@ import (
 // WalletService manages the agent's on-chain wallet.
 // All operations delegate to the shared pkg/wallet package.
 type WalletService struct {
-	ctx context.Context
+	ctx       context.Context
+	dashboard *DashboardService
 }
 
 func NewWalletService() *WalletService {
@@ -22,20 +23,48 @@ func (w *WalletService) startup(ctx context.Context) {
 	w.ctx = ctx
 }
 
+// SetDashboard wires the dashboard service so we can restart the gateway
+// after wallet generation — the gateway must restart to pick up the new wallet.
+func (w *WalletService) SetDashboard(d *DashboardService) {
+	w.dashboard = d
+}
+
+// restartGateway silently restarts the gateway in the background so it picks
+// up the newly created/regenerated wallet. Without this, wallet tools in the
+// gateway won't work until the user manually restarts.
+func (w *WalletService) restartGateway() {
+	if w.dashboard == nil {
+		return
+	}
+	go func() {
+		_ = w.dashboard.RestartGateway()
+	}()
+}
+
 // GenerateWallet creates a new wallet or returns the existing one.
 func (w *WalletService) GenerateWallet() (*wallet.WalletInfo, error) {
-	// If wallet already exists, return it (desktop behavior: don't error)
+	// If wallet already exists, return it (no restart needed)
 	if info, err := wallet.GetInfo(); err == nil {
 		return info, nil
 	}
-	return wallet.GenerateWallet()
+	info, err := wallet.GenerateWallet()
+	if err != nil {
+		return nil, err
+	}
+	w.restartGateway()
+	return info, nil
 }
 
 // RegenerateWallet deletes the existing wallet and creates a fresh one.
 func (w *WalletService) RegenerateWallet() (*wallet.WalletInfo, error) {
 	home, _ := os.UserHomeDir()
 	_ = os.Remove(filepath.Join(home, ".agentx", "wallet.json"))
-	return wallet.GenerateWallet()
+	info, err := wallet.GenerateWallet()
+	if err != nil {
+		return nil, err
+	}
+	w.restartGateway()
+	return info, nil
 }
 
 // ExportPrivateKey decrypts and returns the stored private key as hex.
@@ -45,7 +74,12 @@ func (w *WalletService) ExportPrivateKey() (string, error) {
 
 // ImportPrivateKey imports a wallet from hex-encoded private key.
 func (w *WalletService) ImportPrivateKey(hexKey string) (*wallet.WalletInfo, error) {
-	return wallet.ImportPrivateKey(hexKey)
+	info, err := wallet.ImportPrivateKey(hexKey)
+	if err != nil {
+		return nil, err
+	}
+	w.restartGateway()
+	return info, nil
 }
 
 // GetWallet returns the stored wallet info (no private key).
