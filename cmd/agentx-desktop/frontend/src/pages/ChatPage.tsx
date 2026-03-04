@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { ChatMessage } from "../lib/types";
 import agentHero from "../assets/agent-hero.gif";
 
@@ -163,8 +165,8 @@ export default function ChatPage({ showToast, messages, setMessages }: Props) {
           <div className="flex justify-start">
             <div className="max-w-[80%] rounded-xl px-4 py-3 bg-white/[0.04] border border-white/10 text-white/80">
               {streamingText ? (
-                <div className="text-sm whitespace-pre-wrap break-words leading-relaxed">
-                  {streamingText}
+                <div className="text-sm break-words leading-relaxed chat-markdown">
+                  <MarkdownContent content={streamingText} />
                   <span className="inline-block w-1.5 h-4 bg-neon-pink/60 ml-0.5 animate-pulse" />
                 </div>
               ) : (
@@ -214,6 +216,60 @@ export default function ChatPage({ showToast, messages, setMessages }: Props) {
   );
 }
 
+function MarkdownContent({ content }: { content: string }) {
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={{
+        p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+        strong: ({ children }) => <strong className="font-bold text-white">{children}</strong>,
+        em: ({ children }) => <em className="italic">{children}</em>,
+        h1: ({ children }) => <h1 className="text-lg font-bold text-white mb-2">{children}</h1>,
+        h2: ({ children }) => <h2 className="text-base font-bold text-white mb-2">{children}</h2>,
+        h3: ({ children }) => <h3 className="text-sm font-bold text-white mb-1">{children}</h3>,
+        ul: ({ children }) => <ul className="list-disc list-inside mb-2 space-y-0.5">{children}</ul>,
+        ol: ({ children }) => <ol className="list-decimal list-inside mb-2 space-y-0.5">{children}</ol>,
+        li: ({ children }) => <li className="text-sm">{children}</li>,
+        code: ({ className, children }) => {
+          const isBlock = className?.includes("language-");
+          if (isBlock) {
+            return (
+              <code className="block bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono overflow-x-auto my-2">
+                {children}
+              </code>
+            );
+          }
+          return (
+            <code className="bg-white/10 px-1.5 py-0.5 rounded text-xs font-mono text-neon-pink/80">
+              {children}
+            </code>
+          );
+        },
+        pre: ({ children }) => <pre className="my-2">{children}</pre>,
+        a: ({ href, children }) => (
+          <a href={href} target="_blank" rel="noopener noreferrer" className="text-neon-pink underline hover:text-neon-pink/80">
+            {children}
+          </a>
+        ),
+        hr: () => <hr className="border-white/10 my-3" />,
+        blockquote: ({ children }) => (
+          <blockquote className="border-l-2 border-neon-pink/30 pl-3 my-2 text-white/60 italic">{children}</blockquote>
+        ),
+        table: ({ children }) => (
+          <div className="overflow-x-auto my-2">
+            <table className="w-full text-xs border-collapse">{children}</table>
+          </div>
+        ),
+        thead: ({ children }) => <thead className="border-b border-white/20">{children}</thead>,
+        th: ({ children }) => <th className="text-left px-2 py-1.5 font-bold text-white/80 text-xs">{children}</th>,
+        td: ({ children }) => <td className="px-2 py-1.5 border-b border-white/5 text-xs">{children}</td>,
+      }}
+    >
+      {content}
+    </ReactMarkdown>
+  );
+}
+
 function MessageBubble({ msg }: { msg: ChatMessage }) {
   return (
     <div
@@ -231,9 +287,15 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
             : "bg-white/[0.04] border border-white/10 text-white/80"
         }`}
       >
-        <div className="text-sm whitespace-pre-wrap break-words leading-relaxed">
-          {msg.content}
-        </div>
+        {msg.role === "assistant" ? (
+          <div className="text-sm break-words leading-relaxed chat-markdown">
+            <MarkdownContent content={msg.content} />
+          </div>
+        ) : (
+          <div className="text-sm whitespace-pre-wrap break-words leading-relaxed">
+            {msg.content}
+          </div>
+        )}
         <div
           className={`text-[10px] mt-1.5 ${
             msg.role === "user" ? "text-neon-pink/40" : "text-white/20"
