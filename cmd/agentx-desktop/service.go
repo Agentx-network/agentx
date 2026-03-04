@@ -84,9 +84,42 @@ func (s *InstallerService) FullUninstall() error {
 		os.RemoveAll(filepath.Join(home, ".agentx"))
 	}
 
-	// 3. Remove the CLI binary.
+	// 3. Remove the CLI binary (all known locations).
 	if binPath, err := findBinary(); err == nil {
 		os.Remove(binPath)
+	}
+	if home, err := os.UserHomeDir(); err == nil {
+		// Remove from ~/go/bin/ (go install location)
+		os.Remove(filepath.Join(home, "go", "bin", "agentx"))
+		// Remove from ~/.local/bin/ (Linux desktop install)
+		os.Remove(filepath.Join(home, ".local", "bin", "agentx"))
+	}
+
+	// 4. Remove the desktop app package and leftover files.
+	switch runtime.GOOS {
+	case "linux":
+		// Remove .deb package — needs elevated privileges, use pkexec for GUI prompt
+		exec.Command("pkexec", "dpkg", "--purge", "agentx-desktop").Run()
+		// Clean up leftover files in case dpkg missed them
+		exec.Command("pkexec", "rm", "-f",
+			"/usr/bin/agentx-desktop",
+			"/usr/share/applications/agentx-desktop.desktop",
+			"/usr/share/icons/hicolor/256x256/apps/agentx-desktop.png",
+		).Run()
+	case "darwin":
+		// Remove .app bundle from /Applications
+		os.RemoveAll("/Applications/AgentX Desktop.app")
+		os.RemoveAll("/Applications/agentx-desktop.app")
+	case "windows":
+		// Windows NSIS installer has its own uninstaller; try to invoke it
+		if home, err := os.UserHomeDir(); err == nil {
+			uninstaller := filepath.Join(home, "AppData", "Local", "Programs", "agentx-desktop", "uninstall.exe")
+			if _, err := os.Stat(uninstaller); err == nil {
+				cmd := exec.Command(uninstaller, "/S")
+				hideConsoleWindow(cmd)
+				cmd.Run()
+			}
+		}
 	}
 
 	return nil
