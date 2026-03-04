@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"time"
 )
 
 const desktopServiceTemplate = `[Unit]
@@ -84,18 +85,31 @@ func (s *InstallerService) FullUninstall() error {
 		os.RemoveAll(filepath.Join(home, ".agentx"))
 	}
 
-	// 3. Remove the CLI binary (all known locations).
+	// 3. Wait briefly for process termination on Windows.
+	if runtime.GOOS == "windows" {
+		time.Sleep(2 * time.Second)
+	}
+
+	// 4. Remove the CLI binary (all known locations).
 	if binPath, err := findBinary(); err == nil {
 		os.Remove(binPath)
 	}
 	if home, err := os.UserHomeDir(); err == nil {
 		// Remove from ~/go/bin/ (go install location)
 		os.Remove(filepath.Join(home, "go", "bin", "agentx"))
-		// Remove from ~/.local/bin/ (Linux desktop install)
+		os.Remove(filepath.Join(home, "go", "bin", "agentx.exe"))
+		// Remove from ~/.local/bin/
 		os.Remove(filepath.Join(home, ".local", "bin", "agentx"))
+		os.Remove(filepath.Join(home, ".local", "bin", "agentx.exe"))
+		// Windows Inno Setup locations
+		os.RemoveAll(filepath.Join(home, "AppData", "Local", "Programs", "AgentX"))
+		os.RemoveAll(filepath.Join(home, "AppData", "Local", "AgentX"))
+	}
+	if pf := os.Getenv("ProgramFiles"); pf != "" {
+		os.RemoveAll(filepath.Join(pf, "AgentX"))
 	}
 
-	// 4. Remove the desktop app package and leftover files.
+	// 5. Remove the desktop app package and leftover files.
 	switch runtime.GOOS {
 	case "linux":
 		// Remove .deb package — needs elevated privileges, use pkexec for GUI prompt
@@ -122,7 +136,7 @@ func (s *InstallerService) FullUninstall() error {
 		}
 	}
 
-	// 5. Retry .agentx removal — on Windows the first attempt may fail
+	// 6. Retry .agentx removal — on Windows the first attempt may fail
 	// if gateway process had files locked.
 	if home, err := os.UserHomeDir(); err == nil {
 		os.RemoveAll(filepath.Join(home, ".agentx"))
