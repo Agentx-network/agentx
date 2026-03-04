@@ -1,4 +1,4 @@
-name: Create Tag and Release
+name: "Release: CLI Binaries"
 
 on:
   workflow_dispatch:
