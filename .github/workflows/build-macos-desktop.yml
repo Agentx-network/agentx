@@ -1,0 +1,157 @@
+name: "Release: macOS Desktop (Signed + Notarized)"
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. v0.8.19)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  desktop-macos:
+    name: macOS Desktop (${{ matrix.arch }})
+    runs-on: macos-latest
+    timeout-minutes: 4320  # 3 days
+    env:
+      RELEASE_TAG: ${{ inputs.tag }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            platform: darwin/arm64
+            asset: AgentX-Desktop-arm64.dmg
+          - arch: x86_64
+            platform: darwin/amd64
+            asset: AgentX-Desktop-x86_64.dmg
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Import Apple Developer ID certificate
+        env:
+          P12_BASE64: ${{ secrets.APPLE_APP_CERTIFICATE_P12 }}
+          P12_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          echo "$P12_BASE64" | base64 --decode > /tmp/certificate.p12
+          KEYCHAIN_PATH="/tmp/build.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -base64 16)"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import /tmp/certificate.p12 -P "$P12_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+          rm -f /tmp/certificate.p12
+
+      - name: Build macOS desktop app
+        working-directory: cmd/agentx-desktop
+        run: |
+          VERSION="${RELEASE_TAG#v}"
+          wails build -clean -platform ${{ matrix.platform }} -ldflags="-s -w -X main.version=${VERSION}"
+
+      - name: Codesign with Developer ID
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          APP_PATH="cmd/agentx-desktop/build/bin/agentx-desktop.app"
+          BIN_PATH="cmd/agentx-desktop/build/bin/agentx-desktop"
+          IDENTITY="Developer ID Application: salman nasiri ($APPLE_TEAM_ID)"
+          if [ -d "$APP_PATH" ]; then
+            codesign --force --deep --options runtime \
+              --sign "$IDENTITY" --timestamp "$APP_PATH"
+            codesign -vvv "$APP_PATH"
+          elif [ -f "$BIN_PATH" ]; then
+            codesign --force --options runtime \
+              --sign "$IDENTITY" --timestamp "$BIN_PATH"
+            codesign -vvv "$BIN_PATH"
+          fi
+
+      - name: Create DMG
+        run: |
+          APP_PATH="cmd/agentx-desktop/build/bin/agentx-desktop.app"
+          create_dmg() {
+            if [ -d "$APP_PATH" ]; then
+              hdiutil create -volname "AgentX Desktop" -srcfolder "$APP_PATH" \
+                -ov -format UDZO "${{ matrix.asset }}"
+            else
+              mkdir -p dmg_staging
+              cp cmd/agentx-desktop/build/bin/agentx-desktop dmg_staging/
+              ln -s -f /Applications dmg_staging/Applications
+              hdiutil create -volname "AgentX Desktop" -srcfolder dmg_staging \
+                -ov -format UDZO "${{ matrix.asset }}"
+            fi
+          }
+          for i in 1 2 3; do
+            if create_dmg; then
+              echo "DMG created successfully on attempt $i"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying in 5s..."
+            sleep 5
+          done
+          echo "Failed to create DMG after 3 attempts"
+          exit 1
+
+      - name: Codesign DMG
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          IDENTITY="Developer ID Application: salman nasiri ($APPLE_TEAM_ID)"
+          codesign --force --sign "$IDENTITY" --timestamp "${{ matrix.asset }}"
+          codesign -vvv "${{ matrix.asset }}"
+
+      - name: Notarize DMG (no timeout — waits until Apple finishes)
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          echo "Submitting DMG for notarization (will wait up to 3 days)..."
+          xcrun notarytool submit "${{ matrix.asset }}" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --verbose \
+            --wait --timeout 72h
+
+          echo "Stapling notarization ticket..."
+          xcrun stapler staple "${{ matrix.asset }}"
+
+          echo "Verifying notarization..."
+          spctl --assess --type open --context context:primary-signature "${{ matrix.asset }}" || true
+
+      - name: Cleanup keychain
+        if: always()
+        run: |
+          KEYCHAIN_PATH="/tmp/build.keychain-db"
+          if [ -f "$KEYCHAIN_PATH" ]; then
+            security delete-keychain "$KEYCHAIN_PATH" || true
+          fi
+
+      - name: Upload to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ env.RELEASE_TAG }}" "${{ matrix.asset }}" --clobber
