@@ -67,6 +67,27 @@ const navItems: { id: Page; label: string; icon: (active: boolean) => JSX.Elemen
   },
 ];
 
+const comingSoonItems: { label: string; icon: JSX.Element }[] = [
+  {
+    label: "Prediction",
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-current">
+        <path d="M2 13l3-4 3 2 4-6 2 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="13" cy="3" r="1.5" stroke="currentColor" strokeWidth="1.2" />
+      </svg>
+    ),
+  },
+  {
+    label: "Trading",
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-current">
+        <path d="M2 11V5l3 3 3-4 3 3 3-4v10H2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+        <path d="M12 3l2-1m-2 1l1 2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+];
+
 export default function Sidebar({ currentPage, onNavigate, onRunWizard, version }: Props) {
   return (
     <aside className="w-56 border-r-2 border-neon-pink/20 bg-bg-sidebar flex flex-col">
@@ -95,6 +116,20 @@ export default function Sidebar({ currentPage, onNavigate, onRunWizard, version 
             </button>
           );
         })}
+        {comingSoonItems.length > 0 && (
+          <div className="pt-3 mt-2 border-t border-white/5">
+            {comingSoonItems.map((item) => (
+              <div
+                key={item.label}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/25 border-l-[3px] border-transparent cursor-default"
+              >
+                {item.icon}
+                <span className="font-bold text-xs uppercase tracking-widest">{item.label}</span>
+                <span className="ml-auto text-[9px] uppercase tracking-widest font-bold bg-neon-pink/10 text-neon-pink/50 px-1.5 py-0.5 rounded">Soon</span>
+              </div>
+            ))}
+          </div>
+        )}
       </nav>
       <div className="p-4 border-t-2 border-neon-pink/20 space-y-3">
         {onRunWizard && (
