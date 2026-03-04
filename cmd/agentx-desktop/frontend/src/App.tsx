@@ -291,7 +291,13 @@ export default function App() {
         {page === "chat" && <ChatPage showToast={showToast} messages={chatMessages} setMessages={setChatMessages} />}
         {page === "config" && <ConfigPage showToast={showToast} />}
         {page === "wallet" && <WalletPage showToast={showToast} />}
-        {page === "installer" && <InstallerPage showToast={showToast} onComplete={onStepComplete} />}
+        {page === "installer" && (
+          <div className="flex items-center justify-center min-h-full">
+            <div className="w-full">
+              <InstallerPage showToast={showToast} onComplete={onStepComplete} />
+            </div>
+          </div>
+        )}
       </main>
       {toast && <Toast message={toast.message} type={toast.type} />}
     </div>
