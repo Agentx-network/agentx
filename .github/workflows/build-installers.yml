@@ -100,7 +100,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload "${{ env.RELEASE_TAG }}" "AgentX-Desktop-Setup.exe" --clobber
 
-  # ─── Desktop App: macOS .dmg ───
+  # ─── Desktop App: macOS .dmg (signed + notarized) ───
   desktop-macos:
     name: Desktop App (macOS ${{ matrix.arch }})
     runs-on: macos-latest
@@ -133,20 +133,66 @@ jobs:
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
+      - name: Import Apple Developer ID certificate
+        env:
+          P12_BASE64: ${{ secrets.APPLE_APP_CERTIFICATE_P12 }}
+          P12_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          # Decode the .p12 certificate
+          echo "$P12_BASE64" | base64 --decode > /tmp/certificate.p12
+
+          # Create a temporary keychain
+          KEYCHAIN_PATH="/tmp/build.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -base64 16)"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # Import the certificate
+          security import /tmp/certificate.p12 -P "$P12_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+
+          # Allow codesign to access the keychain without prompt
+          security set-key-partition-list -S apple-tool:,apple: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # Add to search list
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
+
+          # Verify identity is available
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+
+          # Clean up the .p12 file
+          rm -f /tmp/certificate.p12
+
       - name: Build macOS desktop app
         working-directory: cmd/agentx-desktop
         run: |
           VERSION="${RELEASE_TAG#v}"
           wails build -clean -platform ${{ matrix.platform }} -ldflags="-s -w -X main.version=${VERSION}"
 
-      - name: Ad-hoc codesign (required for Apple Silicon)
+      - name: Codesign with Developer ID
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           APP_PATH="cmd/agentx-desktop/build/bin/agentx-desktop.app"
           BIN_PATH="cmd/agentx-desktop/build/bin/agentx-desktop"
+          IDENTITY="Developer ID Application: salman nasiri ($APPLE_TEAM_ID)"
+
           if [ -d "$APP_PATH" ]; then
-            codesign --force --deep --sign - "$APP_PATH"
+            codesign --force --deep --options runtime \
+              --sign "$IDENTITY" \
+              --timestamp \
+              "$APP_PATH"
+            echo "Signed .app bundle with Developer ID"
+            codesign -vvv "$APP_PATH"
           elif [ -f "$BIN_PATH" ]; then
-            codesign --force --sign - "$BIN_PATH"
+            codesign --force --options runtime \
+              --sign "$IDENTITY" \
+              --timestamp \
+              "$BIN_PATH"
+            echo "Signed binary with Developer ID"
+            codesign -vvv "$BIN_PATH"
           fi
 
       - name: Create DMG
@@ -175,6 +221,33 @@ jobs:
           echo "Failed to create DMG after 3 attempts"
           exit 1
 
+      - name: Codesign DMG
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          IDENTITY="Developer ID Application: salman nasiri ($APPLE_TEAM_ID)"
+          codesign --force --sign "$IDENTITY" --timestamp "${{ matrix.asset }}"
+          codesign -vvv "${{ matrix.asset }}"
+
+      - name: Notarize DMG
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          echo "Submitting DMG for notarization..."
+          xcrun notarytool submit "${{ matrix.asset }}" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait --timeout 30m
+
+          echo "Stapling notarization ticket..."
+          xcrun stapler staple "${{ matrix.asset }}"
+
+          echo "Verifying notarization..."
+          spctl --assess --type open --context context:primary-signature "${{ matrix.asset }}" || true
+
       - name: Smoke test — mount DMG and verify binary
         run: |
           hdiutil attach "${{ matrix.asset }}" -mountpoint /Volumes/AgentXDesktop -nobrowse
@@ -192,8 +265,16 @@ jobs:
           fi
           file "$BINARY"
           lipo -info "$BINARY" || true
-          codesign -vvv "$BINARY" 2>&1 || echo "(ad-hoc signed — expected)"
+          codesign -vvv "$BINARY"
           hdiutil detach /Volumes/AgentXDesktop
+
+      - name: Cleanup keychain
+        if: always()
+        run: |
+          KEYCHAIN_PATH="/tmp/build.keychain-db"
+          if [ -f "$KEYCHAIN_PATH" ]; then
+            security delete-keychain "$KEYCHAIN_PATH" || true
+          fi
 
       - name: Upload to release
         env:
