@@ -404,6 +404,7 @@ func (a *AgentSetupService) RemoveSkill(name string) error {
 func (a *AgentSetupService) InstallBuiltinSkills() error {
 	workspace := a.getWorkspace()
 	skillsDir := filepath.Join(workspace, "skills")
-	_, err := builtin.InstallAll(skillsDir, false)
+	_, err := builtin.InstallAll(skillsDir, true)
+	builtin.CleanupRemoved(skillsDir)
 	return err
 }

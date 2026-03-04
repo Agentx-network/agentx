@@ -51,6 +51,7 @@ func NewContextBuilder(workspace string) *ContextBuilder {
 
 	// Auto-install embedded builtin skills to disk (force=true to keep them current)
 	_, _ = builtin.InstallAll(builtinSkillsDir, true)
+	builtin.CleanupRemoved(builtinSkillsDir)
 
 	return &ContextBuilder{
 		workspace:    workspace,
