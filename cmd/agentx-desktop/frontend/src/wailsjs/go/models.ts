@@ -1433,6 +1433,11 @@ export namespace main {
 	        this.score = source["score"];
 	    }
 	}
+
+}
+
+export namespace wallet {
+	
 	export class TokenBalance {
 	    symbol: string;
 	    name: string;

@@ -122,6 +122,12 @@ func (s *InstallerService) FullUninstall() error {
 		}
 	}
 
+	// 5. Retry .agentx removal — on Windows the first attempt may fail
+	// if gateway process had files locked.
+	if home, err := os.UserHomeDir(); err == nil {
+		os.RemoveAll(filepath.Join(home, ".agentx"))
+	}
+
 	return nil
 }
 
