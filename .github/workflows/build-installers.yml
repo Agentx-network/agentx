@@ -262,7 +262,8 @@ jobs:
             --apple-id "$APPLE_ID" \
             --password "$APPLE_APP_PASSWORD" \
             --team-id "$APPLE_TEAM_ID" \
-            --wait --timeout 15m; then
+            --verbose \
+            --wait --timeout 30m; then
             echo "Stapling notarization ticket..."
             xcrun stapler staple "${{ matrix.asset }}"
           else
