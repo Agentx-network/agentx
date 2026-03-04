@@ -1,8 +1,6 @@
 package main
 
 import (
-	"crypto/aes"
-	"crypto/cipher"
 	"encoding/hex"
 	"fmt"
 	"math/big"
@@ -11,40 +9,24 @@ import (
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4/ecdsa"
 	"golang.org/x/crypto/sha3"
+
+	"github.com/Agentx-network/agentx/pkg/wallet"
 )
 
 // BSC mainnet chain ID
 const bscChainID = 56
 
-// decryptKey decrypts the stored private key using AES-256-GCM.
-func decryptKey(ciphertext []byte) ([]byte, error) {
-	block, err := aes.NewCipher(deriveEncryptionKey())
-	if err != nil {
-		return nil, err
-	}
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, err
-	}
-	nonceSize := gcm.NonceSize()
-	if len(ciphertext) < nonceSize {
-		return nil, fmt.Errorf("ciphertext too short")
-	}
-	nonce, ct := ciphertext[:nonceSize], ciphertext[nonceSize:]
-	return gcm.Open(nil, nonce, ct, nil)
-}
-
 // loadPrivateKey loads and decrypts the private key from wallet.json.
 func loadPrivateKey() (*secp256k1.PrivateKey, error) {
-	wf, err := loadWallet()
+	encHex, err := wallet.LoadEncryptedKey()
 	if err != nil {
 		return nil, fmt.Errorf("no wallet found: %w", err)
 	}
-	encrypted, err := hex.DecodeString(wf.EncryptedKey)
+	encrypted, err := hex.DecodeString(encHex)
 	if err != nil {
 		return nil, fmt.Errorf("invalid encrypted key: %w", err)
 	}
-	keyBytes, err := decryptKey(encrypted)
+	keyBytes, err := wallet.DecryptKey(encrypted)
 	if err != nil {
 		return nil, fmt.Errorf("decryption failed: %w", err)
 	}

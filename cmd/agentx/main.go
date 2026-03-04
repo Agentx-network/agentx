@@ -23,6 +23,7 @@ import (
 	"github.com/Agentx-network/agentx/cmd/agentx/internal/skills"
 	"github.com/Agentx-network/agentx/cmd/agentx/internal/status"
 	"github.com/Agentx-network/agentx/cmd/agentx/internal/version"
+	"github.com/Agentx-network/agentx/cmd/agentx/internal/wallet"
 )
 
 func NewAgentxCommand() *cobra.Command {
@@ -45,6 +46,7 @@ func NewAgentxCommand() *cobra.Command {
 		skills.NewSkillsCommand(),
 		version.NewVersionCommand(),
 		uninstall.NewUninstallCommand(),
+		wallet.NewWalletCommand(),
 	)
 
 	return cmd
