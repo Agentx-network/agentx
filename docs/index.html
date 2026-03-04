@@ -481,7 +481,7 @@
 
 <!-- ====== HERO ====== -->
 <section class="hero">
-  <div class="hero-badge">v0.8.20 &mdash; Nexus Engine</div>
+  <div class="hero-badge" id="hero-badge">Nexus Engine</div>
   <h1>Install <em>AgentX</em></h1>
   <p class="subtitle">Download the binary, double-click to run the setup wizard. No build tools required.</p>
 
@@ -760,6 +760,15 @@ function copyCmd(btn) {
     setTimeout(function() { btn.textContent = "Copy"; btn.classList.remove("copied"); }, 2000);
   });
 }
+
+fetch("https://api.github.com/repos/Agentx-network/agentx/releases/latest")
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.tag_name) {
+      document.getElementById("hero-badge").textContent = d.tag_name + " \u2014 Nexus Engine";
+    }
+  })
+  .catch(function() {});
 </script>
 </body>
 </html>

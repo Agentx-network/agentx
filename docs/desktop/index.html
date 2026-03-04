@@ -613,7 +613,7 @@
 
 <!-- ====== HERO ====== -->
 <section class="hero">
-  <div class="hero-badge">Desktop App &mdash; v0.8.20</div>
+  <div class="hero-badge" id="hero-badge">Desktop App</div>
   <h1><em>AgentX</em> Desktop</h1>
   <p class="subtitle">Full graphical dashboard to install, configure, and manage your AgentX agents. One download, no terminal required.</p>
 
@@ -875,6 +875,15 @@ var detected = detectPlatform();
     });
   });
 })();
+
+fetch("https://api.github.com/repos/Agentx-network/agentx/releases/latest")
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.tag_name) {
+      document.getElementById("hero-badge").textContent = "Desktop App \u2014 " + d.tag_name;
+    }
+  })
+  .catch(function() {});
 
 function showSteps(platform) {
   document.querySelectorAll(".step-tab").forEach(function(t) { t.classList.remove("active"); });
