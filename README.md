@@ -20,7 +20,7 @@
 
   <br>
 
-  <img src="https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go&logoColor=white" alt="Go">
+  <img src="https://img.shields.io/badge/Go-1.26+-00ADD8?style=flat&logo=go&logoColor=white" alt="Go">
   <img src="https://img.shields.io/badge/Arch-x86__64%2C%20ARM64%2C%20RISC--V-AE00FF" alt="Hardware">
   <img src="https://img.shields.io/badge/license-MIT-FF0092" alt="License">
 
@@ -40,15 +40,19 @@ AgentX Network is a **decentralized AI agent economy platform** — infrastructu
 
 Built from the ground up in **Go** for maximum efficiency — the most lightweight AI agent runtime ever created.
 
-### What's New in v0.3.0 — Nexus Engine
+### What's New in v0.8.x
 
-- **Real-time streaming** — responses appear word-by-word, not as a wall of text
+- **Desktop App** — full GUI for Windows, macOS, and Linux — install, configure, chat, and manage agents visually
+- **BSC Wallet** — built-in BNB Smart Chain wallet with key generation, token tracking, and balance queries
+- **On-chain Agent Registry** — ERC-8004 agent identity and verification on BSC
+- **Wallet CLI** — `agentx wallet` commands for generate, import, export, balance, tokens
+- **ClawHub Skill Marketplace** — search, install, and manage community skills from [clawhub.ai](https://clawhub.ai)
+- **Builtin Skills** — auto-installed wallet skill teaches the agent to manage crypto via CLI
+- **Fantasy SDK** — unified provider layer with native Anthropic, OpenAI, Google, and 12+ vendors
+- **Real-time streaming** — responses appear word-by-word across all channels
 - **Parallel tool execution** — file reads, web searches, and skill lookups run concurrently
-- **Native function calling** — no more fragile regex parsing of LLM output
-- **Unified provider layer** — Anthropic, OpenAI, Google, and 12+ vendors through one abstraction
 - **Provider failover** — automatic fallback with cooldown when primary model errors
 - **Intelligent context compression** — auto-summarize on overflow, preserving credentials and system context
-- **Smart Telegram formatting** — markdown tables, long messages, and streaming edits all work cleanly
 
 <img src="assets/divider.gif" width="100%">
 
@@ -119,10 +123,10 @@ Built from the ground up in **Go** for maximum efficiency — the most lightweig
 ## Vision & Roadmap
 
 **Phase 1 — Foundation** *(Complete)*
-> Core agent runtime in Go (~5MB RAM) · Nexus streaming engine · Parallel tool execution · 15+ LLM providers · 10 chat channels · ClawHub skill marketplace · Scheduled tasks & memory · Hardware I/O (I2C/SPI) · $5 hardware deployment
+> Core agent runtime in Go (~5MB RAM) · Nexus streaming engine · Parallel tool execution · 15+ LLM providers · 10 chat channels · ClawHub skill marketplace · Scheduled tasks & memory · Hardware I/O (I2C/SPI) · $5 hardware deployment · Desktop app (Win/Mac/Linux) · BSC wallet · On-chain agent registry (ERC-8004)
 
 **Phase 2 — Decentralized Agent Economy**
-> LaunchPad · Marketplace · xPower Hub · Agent identity & reputation · On-chain agent verification
+> LaunchPad · Marketplace · xPower Hub · Agent identity & reputation · Cross-chain wallet support
 
 **Phase 3 — Autonomous Infrastructure**
 > Nexus Grid · Arena · Cross-chain interoperability · Agent-to-agent coordination · Decentralized governance
@@ -638,6 +642,23 @@ Dangerous commands are always blocked: `rm -rf`, `format`, `mkfs`, `dd if=`, `sh
 }
 ```
 
+### Wallet & Web3
+
+AgentX includes a built-in BSC (BNB Smart Chain) wallet for on-chain agent identity and value transfer.
+
+```bash
+agentx wallet generate          # Create a new wallet
+agentx wallet balance           # Check BNB + token balances
+agentx wallet info              # Show wallet address
+```
+
+The wallet supports:
+- **BNB and BEP-20 tokens** — track USDT, USDC, BUSD, DAI, or add custom tokens
+- **On-chain agent registry** — register your agent's identity via ERC-8004 on BSC
+- **Agent skill integration** — the builtin `wallet` skill lets your agent manage crypto through natural language
+
+The desktop app provides a full wallet UI with balance display, token management, and private key export/import.
+
 ### Heartbeat (Periodic Tasks)
 
 Create `HEARTBEAT.md` in your workspace — the agent executes tasks every 30 minutes:
@@ -783,6 +804,15 @@ Multiple endpoints for the same model — AgentX auto round-robins:
 | `agentx skills search <query>` | Search available skills |
 | `agentx skills show <name>` | Show skill details |
 | `agentx skills remove <name>` | Remove installed skill |
+| **Wallet** | |
+| `agentx wallet generate` | Generate a new BSC wallet |
+| `agentx wallet info` | Show wallet address and chain |
+| `agentx wallet balance` | Show all balances (BNB + tokens) |
+| `agentx wallet export` | Export private key (hex) |
+| `agentx wallet import <hex>` | Import a private key |
+| `agentx wallet tokens` | List tracked tokens |
+| `agentx wallet add-token` | Add a custom token (`--symbol`, `--name`, `--contract`, `--decimals`) |
+| `agentx wallet remove-token <contract>` | Remove a tracked token |
 | **Uninstall** | |
 | `agentx uninstall` | Remove agentx and all its data (interactive) |
 | `agentx uninstall --yes` | Skip confirmation prompt |
