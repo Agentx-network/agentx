@@ -72,3 +72,30 @@ func InstallAll(workspaceSkillsDir string, force bool) (installed []string, err 
 	}
 	return installed, nil
 }
+
+// CleanupRemoved removes skill directories that are no longer in the
+// embedded builtin set. This handles upgrades where old builtins
+// (web-search, calculator, etc.) were deleted from the source.
+func CleanupRemoved(skillsDir string) {
+	skills, err := List()
+	if err != nil {
+		return
+	}
+	current := make(map[string]bool, len(skills))
+	for _, s := range skills {
+		current[s.Name] = true
+	}
+
+	entries, err := os.ReadDir(skillsDir)
+	if err != nil {
+		return
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		if !current[entry.Name()] {
+			os.RemoveAll(filepath.Join(skillsDir, entry.Name()))
+		}
+	}
+}
