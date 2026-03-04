@@ -23,19 +23,16 @@ builds:
       - linux
       - windows
       - darwin
-      - freebsd
+      - android
     goarch:
       - amd64
       - arm64
-      - riscv64
-      - loong64
-      - arm
-    goarm:
-      - "7"
     main: ./cmd/agentx
     ignore:
       - goos: windows
-        goarch: arm
+        goarch: arm64
+      - goos: android
+        goarch: amd64
 
   # Desktop builds require CGO (WebView) — built on native OS runners
   # in the release workflow (desktop-build job), NOT by goreleaser.
@@ -57,7 +54,6 @@ dockers_v2:
     platforms:
       - linux/amd64
       - linux/arm64
-      - linux/riscv64
 
 archives:
   - id: agentx
@@ -68,7 +64,6 @@ archives:
       {{- .Os }}-
       {{- if eq .Arch "amd64" }}amd64
       {{- else if eq .Arch "arm64" }}arm64
-      {{- else if and (eq .Arch "arm") (eq .Arm "7") }}armv7
       {{- else }}{{ .Arch }}{{ end }}
 
 nfpms:
@@ -79,7 +74,6 @@ nfpms:
       {{ .PackageName }}_
       {{- if eq .Arch "amd64" }}x86_64
       {{- else if eq .Arch "arm64" }}aarch64
-      {{- else if eq .Arch "arm" }}armv{{ .Arm }}
       {{- else }}{{ .Arch }}{{ end }}
     vendor: agentx
     homepage: https://github.com/{{ .Env.GITHUB_REPOSITORY_OWNER }}/agentx
@@ -87,7 +81,6 @@ nfpms:
     description: agentx - a tool for managing and running tasks
     license: MIT
     formats:
-      - rpm
       - deb
     bindir: /usr/bin
 
