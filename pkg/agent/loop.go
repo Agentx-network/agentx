@@ -159,15 +159,6 @@ func registerSharedTools(
 			return registry.CanSpawnSubagent(currentAgentID, targetAgentID)
 		})
 		agent.Tools.Register(spawnTool)
-
-		// Give the exec tool a reference to the registry so it can transparently
-		// redirect when the LLM calls exec with a native tool name
-		// (e.g. exec({"command":"wallet_balance"}) → wallet_balance({})).
-		if execTool, ok := agent.Tools.Get("exec"); ok {
-			if et, ok := execTool.(*tools.ExecTool); ok {
-				et.SetRegistry(agent.Tools)
-			}
-		}
 	}
 }
 

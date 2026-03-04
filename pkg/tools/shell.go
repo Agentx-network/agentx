@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/Agentx-network/agentx/pkg/config"
-	"github.com/Agentx-network/agentx/pkg/logger"
 )
 
 type ExecTool struct {
@@ -24,7 +23,6 @@ type ExecTool struct {
 	denyPatterns        []*regexp.Regexp
 	allowPatterns       []*regexp.Regexp
 	restrictToWorkspace bool
-	registry            *ToolRegistry // set after registration to redirect native tool calls
 }
 
 var defaultDenyPatterns = []*regexp.Regexp{
@@ -182,20 +180,6 @@ func (t *ExecTool) Execute(ctx context.Context, args map[string]any) *ToolResult
 	}
 	command = sanitizeShellCommand(command)
 
-	// Transparent redirect: if the LLM called exec with a native tool name
-	// (e.g. exec({"command":"wallet_balance"})), dispatch to the real tool
-	// instead of running it as a shell command. This happens when less capable
-	// models confuse native tools with shell commands.
-	if t.registry != nil {
-		firstWord := strings.Fields(strings.ToLower(command))
-		if len(firstWord) > 0 {
-			if tool, found := t.registry.Get(firstWord[0]); found && firstWord[0] != "exec" {
-				logger.InfoCF("tool", fmt.Sprintf("Redirecting exec(%q) → native tool %s", command, firstWord[0]), nil)
-				return tool.Execute(ctx, map[string]any{})
-			}
-		}
-	}
-
 	cwd := t.workingDir
 	if wd, ok := args["working_dir"].(string); ok && wd != "" {
 		if t.restrictToWorkspace && t.workingDir != "" {
@@ -311,45 +295,9 @@ func (t *ExecTool) Execute(ctx context.Context, args map[string]any) *ToolResult
 	}
 }
 
-// nativeToolNames lists built-in tool names that must NEVER be run as shell
-// commands. When the LLM accidentally calls exec({"command":"wallet_balance"})
-// instead of calling wallet_balance as a native tool, we catch it here and
-// return a clear error so the LLM self-corrects on the next turn.
-var nativeToolNames = map[string]bool{
-	"wallet_balance": true,
-	"wallet_address": true,
-	"wallet_send":    true,
-	"web_search":     true,
-	"web_fetch":      true,
-	"read_file":      true,
-	"write_file":     true,
-	"edit_file":      true,
-	"list_dir":       true,
-	"append_file":    true,
-	"find_skills":    true,
-	"install_skill":  true,
-	"send_message":   true,
-	"spawn":          true,
-	"cron":           true,
-	"i2c":            true,
-	"spi":            true,
-}
-
 func (t *ExecTool) guardCommand(command, cwd string) string {
 	cmd := strings.TrimSpace(command)
 	lower := strings.ToLower(cmd)
-
-	// Check if the LLM is trying to run a native tool as a shell command.
-	// Extract the first word (the "binary" name) and check against known tools.
-	firstWord := strings.Fields(lower)
-	if len(firstWord) > 0 {
-		if nativeToolNames[firstWord[0]] {
-			return fmt.Sprintf(
-				"%q is a native AgentX tool, not a shell command. "+
-					"Call it directly as a tool (e.g. use the %s tool) instead of exec.",
-				firstWord[0], firstWord[0])
-		}
-	}
 
 	for _, pattern := range t.denyPatterns {
 		if pattern.MatchString(lower) {
@@ -422,13 +370,6 @@ func (t *ExecTool) SetTimeout(timeout time.Duration) {
 
 func (t *ExecTool) SetRestrictToWorkspace(restrict bool) {
 	t.restrictToWorkspace = restrict
-}
-
-// SetRegistry gives the exec tool a reference to the tool registry so it can
-// transparently redirect when the LLM accidentally calls exec with a native
-// tool name (e.g. exec({"command":"wallet_balance"}) → wallet_balance({})).
-func (t *ExecTool) SetRegistry(r *ToolRegistry) {
-	t.registry = r
 }
 
 func (t *ExecTool) SetAllowPatterns(patterns []string) error {
