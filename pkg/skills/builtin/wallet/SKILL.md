@@ -1,3 +1,8 @@
+---
+name: wallet
+description: Manage BSC wallet — generate, import, export, check balances, track tokens
+---
+
 # Wallet Management
 
 You can manage the user's BSC (Binance Smart Chain) wallet using the `agentx wallet` CLI commands via the `exec` tool.
