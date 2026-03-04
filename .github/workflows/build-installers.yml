@@ -364,6 +364,7 @@ jobs:
           Type=Application
           Categories=Utility;Development;
           DESKTOP
+          sed -i 's/^[[:space:]]*//' deb_pkg/usr/share/applications/agentx-desktop.desktop
 
           VERSION="${RELEASE_TAG#v}"
           cat > deb_pkg/DEBIAN/control <<CTRL
@@ -378,6 +379,9 @@ jobs:
           Description: AgentX Desktop App
            GUI dashboard to install, configure, and manage AgentX agents.
           CTRL
+          sed -i 's/^[[:space:]]*//' deb_pkg/DEBIAN/control
+          # Restore required leading space on description continuation line
+          sed -i '/^GUI dashboard/s/^/ /' deb_pkg/DEBIAN/control
 
           dpkg-deb --build deb_pkg AgentX-Desktop-amd64.deb
 
