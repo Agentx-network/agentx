@@ -14,6 +14,7 @@ import (
 	"github.com/Agentx-network/agentx/pkg/logger"
 	"github.com/Agentx-network/agentx/pkg/providers"
 	"github.com/Agentx-network/agentx/pkg/skills"
+	"github.com/Agentx-network/agentx/pkg/skills/builtin"
 )
 
 type ContextBuilder struct {
@@ -44,11 +45,12 @@ func getGlobalConfigDir() string {
 }
 
 func NewContextBuilder(workspace string) *ContextBuilder {
-	// builtin skills: skills directory in current project
-	// Use the skills/ directory under the current working directory
-	wd, _ := os.Getwd()
-	builtinSkillsDir := filepath.Join(wd, "skills")
-	globalSkillsDir := filepath.Join(getGlobalConfigDir(), "skills")
+	globalDir := getGlobalConfigDir()
+	globalSkillsDir := filepath.Join(globalDir, "skills")
+	builtinSkillsDir := filepath.Join(globalDir, "builtin-skills")
+
+	// Auto-install embedded builtin skills to disk so the loader can find them
+	_, _ = builtin.InstallAll(builtinSkillsDir, false)
 
 	return &ContextBuilder{
 		workspace:    workspace,
