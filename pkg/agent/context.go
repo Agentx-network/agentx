@@ -49,8 +49,8 @@ func NewContextBuilder(workspace string) *ContextBuilder {
 	globalSkillsDir := filepath.Join(globalDir, "skills")
 	builtinSkillsDir := filepath.Join(globalDir, "builtin-skills")
 
-	// Auto-install embedded builtin skills to disk so the loader can find them
-	_, _ = builtin.InstallAll(builtinSkillsDir, false)
+	// Auto-install embedded builtin skills to disk (force=true to keep them current)
+	_, _ = builtin.InstallAll(builtinSkillsDir, true)
 
 	return &ContextBuilder{
 		workspace:    workspace,
