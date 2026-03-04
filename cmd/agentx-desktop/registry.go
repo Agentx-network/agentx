@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/Agentx-network/agentx/pkg/wallet"
 )
 
 // ERC-8004 IdentityRegistry on BSC mainnet
@@ -109,7 +111,7 @@ func pinToIPFS(_ string, metadata []byte) (string, error) {
 // contract on BSC. Metadata is pinned to the self-hosted IPFS node, then
 // ipfs://{CID} is passed as the agentURI to the contract's register(string) function.
 func (r *RegistryService) RegisterAgent(agentName string, metadata string) (*RegistryInfo, error) {
-	wf, err := loadWallet()
+	wi, err := wallet.GetWallet()
 	if err != nil {
 		return nil, fmt.Errorf("wallet required: generate a wallet first")
 	}
@@ -119,7 +121,7 @@ func (r *RegistryService) RegisterAgent(agentName string, metadata string) (*Reg
 		"name":     agentName,
 		"platform": "AgentX",
 		"chain":    "BSC",
-		"address":  wf.Address,
+		"address":  wi.Address,
 	}
 	if metadata != "" {
 		var extra map[string]interface{}
@@ -143,7 +145,7 @@ func (r *RegistryService) RegisterAgent(agentName string, metadata string) (*Reg
 	callData := abiEncodeRegister(agentURI)
 
 	// Get nonce
-	nonce, err := getNonce(wf.Address)
+	nonce, err := getNonce(wi.Address)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get nonce: %w", err)
 	}
@@ -173,7 +175,7 @@ func (r *RegistryService) RegisterAgent(agentName string, metadata string) (*Reg
 	rf := registryFile{
 		AgentName:  agentName,
 		AgentID:    "",
-		Address:    wf.Address,
+		Address:    wi.Address,
 		Chain:      "BSC",
 		Metadata:   agentURI,
 		TxHash:     txHash,
