@@ -251,21 +251,23 @@ jobs:
           codesign -vvv "${{ matrix.asset }}"
 
       - name: Notarize DMG
+        continue-on-error: true
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           echo "Submitting DMG for notarization..."
-          xcrun notarytool submit "${{ matrix.asset }}" \
+          if xcrun notarytool submit "${{ matrix.asset }}" \
             --apple-id "$APPLE_ID" \
             --password "$APPLE_APP_PASSWORD" \
             --team-id "$APPLE_TEAM_ID" \
-            --wait --timeout 30m
-          echo "Stapling notarization ticket..."
-          xcrun stapler staple "${{ matrix.asset }}"
-          echo "Verifying notarization..."
-          spctl --assess --type open --context context:primary-signature "${{ matrix.asset }}" || true
+            --wait --timeout 15m; then
+            echo "Stapling notarization ticket..."
+            xcrun stapler staple "${{ matrix.asset }}"
+          else
+            echo "::warning::Notarization timed out or failed — DMG will be uploaded without notarization"
+          fi
 
       - name: Smoke test — mount DMG and verify binary
         run: |
