@@ -63,7 +63,14 @@ func (c *ChatService) SendMessage(message string, sessionKey string) (*ChatRespo
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	client := &http.Client{Timeout: 120 * time.Second}
+	// No overall timeout — the SSE stream can run for several minutes
+	// while the agent processes tool calls. We rely on the server to
+	// close the connection when done (or the Wails context cancelling).
+	client := &http.Client{
+		Transport: &http.Transport{
+			ResponseHeaderTimeout: 30 * time.Second, // wait up to 30s for initial response headers
+		},
+	}
 	resp, err := client.Post(chatURL, "application/json", bytes.NewReader(reqBody))
 	if err != nil {
 		return nil, fmt.Errorf("gateway not reachable: %w", err)

@@ -23,6 +23,7 @@ type ExecTool struct {
 	denyPatterns        []*regexp.Regexp
 	allowPatterns       []*regexp.Regexp
 	restrictToWorkspace bool
+	extraPATH           string // additional directory to prepend to PATH (e.g. agentx binary dir)
 }
 
 var defaultDenyPatterns = []*regexp.Regexp{
@@ -70,6 +71,54 @@ var defaultDenyPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`\bsource\s+.*\.sh\b`),
 }
 
+// findAgentxBinDir returns the directory containing the agentx binary,
+// or empty string if not found. This ensures exec tool subprocesses can
+// find the agentx CLI even when PATH doesn't include its install location.
+func findAgentxBinDir() string {
+	// 1. Check the running process itself (works when running as agentx or agentx-desktop)
+	if exe, err := os.Executable(); err == nil {
+		dir := filepath.Dir(exe)
+		candidate := filepath.Join(dir, "agentx")
+		if runtime.GOOS == "windows" {
+			candidate += ".exe"
+		}
+		if _, err := os.Stat(candidate); err == nil {
+			return dir
+		}
+	}
+
+	// 2. Check if agentx is already in PATH
+	if p, err := exec.LookPath("agentx"); err == nil {
+		return filepath.Dir(p)
+	}
+
+	// 3. Platform-specific fallback locations
+	home, _ := os.UserHomeDir()
+	var candidates []string
+	if runtime.GOOS == "windows" {
+		candidates = []string{
+			filepath.Join(os.Getenv("ProgramFiles"), "AgentX"),
+			filepath.Join(os.Getenv("LOCALAPPDATA"), "AgentX"),
+		}
+	} else {
+		candidates = []string{
+			filepath.Join(home, ".local", "bin"),
+			filepath.Join(home, "go", "bin"),
+			"/usr/local/bin",
+		}
+	}
+	for _, dir := range candidates {
+		bin := filepath.Join(dir, "agentx")
+		if runtime.GOOS == "windows" {
+			bin += ".exe"
+		}
+		if _, err := os.Stat(bin); err == nil {
+			return dir
+		}
+	}
+	return ""
+}
+
 func NewExecTool(workingDir string, restrict bool) *ExecTool {
 	return NewExecToolWithConfig(workingDir, restrict, nil)
 }
@@ -107,6 +156,7 @@ func NewExecToolWithConfig(workingDir string, restrict bool, config *config.Conf
 		denyPatterns:        denyPatterns,
 		allowPatterns:       nil,
 		restrictToWorkspace: restrict,
+		extraPATH:           findAgentxBinDir(),
 	}
 }
 
@@ -222,6 +272,24 @@ func (t *ExecTool) Execute(ctx context.Context, args map[string]any) *ToolResult
 	}
 	if cwd != "" {
 		cmd.Dir = cwd
+	}
+
+	// Prepend extra binary dir to PATH so agentx CLI is discoverable
+	if t.extraPATH != "" {
+		env := os.Environ()
+		pathSep := string(os.PathListSeparator)
+		found := false
+		for i, e := range env {
+			if strings.HasPrefix(e, "PATH=") {
+				env[i] = "PATH=" + t.extraPATH + pathSep + e[5:]
+				found = true
+				break
+			}
+		}
+		if !found {
+			env = append(env, "PATH="+t.extraPATH)
+		}
+		cmd.Env = env
 	}
 
 	prepareCommandForTermination(cmd)
