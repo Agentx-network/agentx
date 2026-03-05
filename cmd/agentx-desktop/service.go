@@ -38,7 +38,10 @@ const desktopLaunchdPlistTemplate = `<?xml version="1.0" encoding="UTF-8"?>
 	<key>RunAtLoad</key>
 	<true/>
 	<key>KeepAlive</key>
-	<true/>
+	<dict>
+		<key>SuccessfulExit</key>
+		<false/>
+	</dict>
 	<key>StandardOutPath</key>
 	<string>%s/.agentx/gateway.log</string>
 	<key>StandardErrorPath</key>
