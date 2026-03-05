@@ -184,8 +184,16 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tag="${{ env.RELEASE_TAG }}"
-          url="https://github.com/${{ github.repository }}/releases/download/${tag}/${{ matrix.asset }}"
-          curl -fsSL "$url" -o agentx
+          for i in 1 2 3 4 5; do
+            echo "Attempt $i: downloading ${{ matrix.asset }}..."
+            if gh release download "$tag" -p "${{ matrix.asset }}" -R "${{ github.repository }}" -O agentx; then
+              echo "Download succeeded"
+              break
+            fi
+            echo "Failed, retrying in 15s..."
+            sleep 15
+          done
+          [ -f agentx ] || { echo "Download failed after 5 attempts"; exit 1; }
           chmod +x agentx
 
       - name: Import Apple certificates
