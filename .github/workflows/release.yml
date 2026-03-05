@@ -1,4 +1,4 @@
-name: "Release: CLI Binaries"
+name: "Release: CLI Binaries & Docker"
 
 on:
   workflow_dispatch:

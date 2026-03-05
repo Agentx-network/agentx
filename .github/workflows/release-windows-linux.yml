@@ -1,4 +1,4 @@
-name: "Release: Desktop App & Installers"
+name: "Release: Windows & Linux Desktop + Windows CLI Installer"
 
 on:
   release:
@@ -49,46 +49,7 @@ jobs:
           installer=$(find . -name "AgentX-Setup-*.exe" -type f | head -1)
           gh release upload "$tag" "$installer" --clobber
 
-  # ─── macOS .pkg installers ───
-  macos-installer:
-    name: macOS Installer (${{ matrix.arch }})
-    runs-on: macos-latest
-    env:
-      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
-    strategy:
-      matrix:
-        include:
-          - arch: arm64
-            asset: agentx-darwin-arm64
-          - arch: amd64
-            asset: agentx-darwin-amd64
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Download macOS binary from release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          tag="${{ env.RELEASE_TAG }}"
-          url="https://github.com/${{ github.repository }}/releases/download/${tag}/${{ matrix.asset }}"
-          curl -fsSL "$url" -o agentx
-          chmod +x agentx
-
-      - name: Build .pkg installer
-        run: |
-          chmod +x installer/macos/build-pkg.sh
-          version="${{ env.RELEASE_TAG }}"
-          version="${version#v}"
-          ./installer/macos/build-pkg.sh ./agentx "$version" "${{ matrix.arch }}"
-
-      - name: Upload .pkg to release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          tag="${{ env.RELEASE_TAG }}"
-          pkg=$(find . -name "AgentX-*.pkg" -type f | head -1)
-          gh release upload "$tag" "$pkg" --clobber
+  # macOS CLI .pkg installers moved to release-macos-desktop.yml (signed + notarized)
 
   # ─── Desktop App: Windows Setup.exe (NSIS via Wails) ───
   desktop-windows:

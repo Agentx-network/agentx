@@ -1,4 +1,4 @@
-name: "Release: macOS Desktop (Signed + Notarized)"
+name: "Release: macOS Desktop & CLI (Signed + Notarized)"
 
 on:
   workflow_dispatch:
@@ -155,3 +155,123 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload "${{ env.RELEASE_TAG }}" "${{ matrix.asset }}" --clobber
+
+  # ─── macOS CLI .pkg installer (Signed + Notarized) ───
+  macos-cli:
+    name: macOS CLI Installer (${{ matrix.arch }})
+    runs-on: macos-latest
+    timeout-minutes: 120
+    env:
+      RELEASE_TAG: ${{ inputs.tag }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            asset: agentx-darwin-arm64
+            pkg_name: AgentX-CLI-arm64.pkg
+          - arch: amd64
+            asset: agentx-darwin-amd64
+            pkg_name: AgentX-CLI-x86_64.pkg
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Download macOS binary from release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${{ env.RELEASE_TAG }}"
+          url="https://github.com/${{ github.repository }}/releases/download/${tag}/${{ matrix.asset }}"
+          curl -fsSL "$url" -o agentx
+          chmod +x agentx
+
+      - name: Import Apple certificates
+        env:
+          APP_P12_BASE64: ${{ secrets.APPLE_APP_CERTIFICATE_P12 }}
+          INSTALLER_P12_BASE64: ${{ secrets.APPLE_INSTALLER_CERTIFICATE_P12 }}
+          P12_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH="/tmp/build.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -base64 16)"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          echo "$APP_P12_BASE64" | base64 --decode > /tmp/app.p12
+          security import /tmp/app.p12 -P "$P12_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+
+          echo "$INSTALLER_P12_BASE64" | base64 --decode > /tmp/installer.p12
+          security import /tmp/installer.p12 -P "$P12_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+
+          security set-key-partition-list -S apple-tool:,apple: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
+          security find-identity -v "$KEYCHAIN_PATH"
+          rm -f /tmp/app.p12 /tmp/installer.p12
+
+      - name: Codesign CLI binary
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          IDENTITY="Developer ID Application: salman nasiri ($APPLE_TEAM_ID)"
+          codesign --force --options runtime \
+            --sign "$IDENTITY" --timestamp agentx
+          codesign -vvv agentx
+
+      - name: Build signed .pkg installer
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          VERSION="${RELEASE_TAG#v}"
+          IDENTIFIER="network.agentx.cli"
+          INSTALL_DIR="/usr/local/bin"
+          INSTALLER_IDENTITY="Developer ID Installer: salman nasiri ($APPLE_TEAM_ID)"
+
+          # Create payload
+          mkdir -p pkg_root${INSTALL_DIR}
+          cp agentx pkg_root${INSTALL_DIR}/
+
+          # Build and sign .pkg
+          pkgbuild \
+            --root pkg_root \
+            --identifier "$IDENTIFIER" \
+            --version "$VERSION" \
+            --install-location / \
+            --sign "$INSTALLER_IDENTITY" \
+            --timestamp \
+            "${{ matrix.pkg_name }}"
+
+      - name: Notarize .pkg
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          echo "Submitting .pkg for notarization..."
+          xcrun notarytool submit "${{ matrix.pkg_name }}" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --verbose \
+            --wait --timeout 1h
+
+          echo "Stapling notarization ticket..."
+          xcrun stapler staple "${{ matrix.pkg_name }}"
+
+      - name: Cleanup keychain
+        if: always()
+        run: |
+          KEYCHAIN_PATH="/tmp/build.keychain-db"
+          if [ -f "$KEYCHAIN_PATH" ]; then
+            security delete-keychain "$KEYCHAIN_PATH" || true
+          fi
+
+      - name: Upload to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ env.RELEASE_TAG }}" "${{ matrix.pkg_name }}" --clobber
