@@ -83,6 +83,7 @@ func (s *InstallerService) DetectPlatform() PlatformInfo {
 
 func (s *InstallerService) GetLatestRelease() (string, error) {
 	client := &http.Client{
+		Timeout: 15 * time.Second,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
@@ -112,16 +113,18 @@ func (s *InstallerService) InstallBinary() error {
 
 	// Raw binary download — matches release asset naming: agentx-{os}-{arch}[.exe]
 	assetName := fmt.Sprintf("agentx-%s-%s%s", osName, archName, ext)
-	url := fmt.Sprintf("https://github.com/Agentx-network/agentx/releases/latest/download/%s", assetName)
 
-	resp, err := http.Get(url)
-	if err != nil {
-		return fmt.Errorf("download failed: %w", err)
+	// Resolve the latest tag first, then use the direct download URL
+	// (avoids the extra /latest redirect which can timeout on some networks)
+	tag, tagErr := s.GetLatestRelease()
+	if tagErr != nil || tag == "" {
+		tag = "latest"
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("download failed with status %d for %s", resp.StatusCode, assetName)
+	var url string
+	if tag == "latest" {
+		url = fmt.Sprintf("https://github.com/Agentx-network/agentx/releases/latest/download/%s", assetName)
+	} else {
+		url = fmt.Sprintf("https://github.com/Agentx-network/agentx/releases/download/%s/%s", tag, assetName)
 	}
 
 	if err := os.MkdirAll(platform.InstallDir, 0o755); err != nil {
@@ -129,42 +132,130 @@ func (s *InstallerService) InstallBinary() error {
 	}
 
 	tmpFile := platform.BinaryPath + ".tmp"
-	f, err := os.Create(tmpFile)
-	if err != nil {
-		return fmt.Errorf("cannot create temp file: %w", err)
-	}
 
-	totalBytes := resp.ContentLength
+	// Resumable download — GitHub CDN can stall mid-transfer.
+	// We retry up to 5 times, using Range headers to resume from where we left off.
+	const maxAttempts = 5
+	var totalBytes int64
 	var downloaded int64
-	buf := make([]byte, 32*1024)
-	for {
-		n, readErr := resp.Body.Read(buf)
-		if n > 0 {
-			if _, writeErr := f.Write(buf[:n]); writeErr != nil {
-				f.Close()
-				os.Remove(tmpFile)
-				return writeErr
-			}
-			downloaded += int64(n)
-			if totalBytes > 0 {
-				pct := float64(downloaded) / float64(totalBytes) * 100
+
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		req, reqErr := http.NewRequest("GET", url, nil)
+		if reqErr != nil {
+			return fmt.Errorf("failed to create request: %w", reqErr)
+		}
+
+		// Resume from where we left off
+		if downloaded > 0 {
+			req.Header.Set("Range", fmt.Sprintf("bytes=%d-", downloaded))
+		}
+
+		dlClient := &http.Client{
+			Transport: &http.Transport{
+				ResponseHeaderTimeout: 30 * time.Second,
+			},
+		}
+		resp, err := dlClient.Do(req)
+		if err != nil {
+			if attempt < maxAttempts {
 				wailsRuntime.EventsEmit(s.ctx, "download:progress", map[string]interface{}{
-					"downloaded": downloaded,
-					"total":      totalBytes,
-					"percent":    pct,
+					"status": fmt.Sprintf("Connection failed, retry %d/%d...", attempt, maxAttempts),
 				})
+				time.Sleep(time.Duration(attempt*3) * time.Second)
+				continue
+			}
+			return fmt.Errorf("download failed after %d attempts: %w", maxAttempts, err)
+		}
+
+		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent {
+			resp.Body.Close()
+			if attempt < maxAttempts {
+				time.Sleep(time.Duration(attempt*3) * time.Second)
+				continue
+			}
+			return fmt.Errorf("download failed with status %d for %s", resp.StatusCode, assetName)
+		}
+
+		// Get total size from first response
+		if totalBytes == 0 {
+			if resp.StatusCode == http.StatusOK {
+				totalBytes = resp.ContentLength
+			} else if resp.StatusCode == http.StatusPartialContent {
+				// Parse Content-Range: bytes 1234-5678/9012
+				cr := resp.Header.Get("Content-Range")
+				if cr != "" {
+					fmt.Sscanf(cr, "bytes %*d-%*d/%d", &totalBytes)
+				}
 			}
 		}
-		if readErr == io.EOF {
-			break
+
+		// Open file for append (or create)
+		var f *os.File
+		if downloaded > 0 {
+			f, err = os.OpenFile(tmpFile, os.O_WRONLY|os.O_APPEND, 0o644)
+		} else {
+			f, err = os.Create(tmpFile)
 		}
-		if readErr != nil {
-			f.Close()
+		if err != nil {
+			resp.Body.Close()
+			return fmt.Errorf("cannot open temp file: %w", err)
+		}
+
+		// Read with a per-chunk deadline to detect stalls
+		buf := make([]byte, 64*1024)
+		stalled := false
+		for {
+			// Set a 30s read deadline per chunk — if nothing arrives, it's stalled
+			type deadliner interface{ SetReadDeadline(time.Time) error }
+			if dl, ok := resp.Body.(deadliner); ok {
+				dl.SetReadDeadline(time.Now().Add(30 * time.Second))
+			}
+
+			n, readErr := resp.Body.Read(buf)
+			if n > 0 {
+				if _, writeErr := f.Write(buf[:n]); writeErr != nil {
+					f.Close()
+					resp.Body.Close()
+					os.Remove(tmpFile)
+					return writeErr
+				}
+				downloaded += int64(n)
+				if totalBytes > 0 {
+					pct := float64(downloaded) / float64(totalBytes) * 100
+					wailsRuntime.EventsEmit(s.ctx, "download:progress", map[string]interface{}{
+						"downloaded": downloaded,
+						"total":      totalBytes,
+						"percent":    pct,
+					})
+				}
+			}
+			if readErr == io.EOF {
+				break
+			}
+			if readErr != nil {
+				stalled = true
+				break
+			}
+		}
+		f.Close()
+		resp.Body.Close()
+
+		if !stalled {
+			break // download complete
+		}
+
+		if attempt < maxAttempts {
+			wailsRuntime.EventsEmit(s.ctx, "download:progress", map[string]interface{}{
+				"status":     fmt.Sprintf("Download stalled at %d%%, resuming... (%d/%d)", int(float64(downloaded)/float64(totalBytes)*100), attempt, maxAttempts),
+				"downloaded": downloaded,
+				"total":      totalBytes,
+			})
+			time.Sleep(time.Duration(attempt*3) * time.Second)
+		} else {
 			os.Remove(tmpFile)
-			return readErr
+			return fmt.Errorf("download stalled after %d attempts (got %d/%d bytes)", maxAttempts, downloaded, totalBytes)
 		}
 	}
-	f.Close()
 
 	if err := os.Chmod(tmpFile, 0o755); err != nil {
 		os.Remove(tmpFile)
