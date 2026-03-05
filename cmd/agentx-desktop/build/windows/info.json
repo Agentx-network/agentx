@@ -1,10 +1,10 @@
 {
 	"fixed": {
-		"file_version": "0.8.31"
+		"file_version": "0.8.32"
 	},
 	"info": {
 		"0000": {
-			"ProductVersion": "0.8.31",
+			"ProductVersion": "0.8.32",
 			"CompanyName": "AgentX Network",
 			"FileDescription": "AgentX Desktop",
 			"LegalCopyright": "Copyright 2026 AgentX Network",
