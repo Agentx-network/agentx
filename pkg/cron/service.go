@@ -140,6 +140,11 @@ func (cs *CronService) checkJobs() {
 		return
 	}
 
+	// Reload store from disk to pick up jobs added by the CLI
+	if err := cs.loadStore(); err != nil {
+		log.Printf("[cron] failed to reload store: %v", err)
+	}
+
 	now := time.Now().UnixMilli()
 	var dueJobIDs []string
 
@@ -152,18 +157,20 @@ func (cs *CronService) checkJobs() {
 	}
 
 	// Reset next run for due jobs before unlocking to avoid duplicate execution.
-	dueMap := make(map[string]bool, len(dueJobIDs))
-	for _, jobID := range dueJobIDs {
-		dueMap[jobID] = true
-	}
-	for i := range cs.store.Jobs {
-		if dueMap[cs.store.Jobs[i].ID] {
-			cs.store.Jobs[i].State.NextRunAtMS = nil
+	if len(dueJobIDs) > 0 {
+		dueMap := make(map[string]bool, len(dueJobIDs))
+		for _, jobID := range dueJobIDs {
+			dueMap[jobID] = true
 		}
-	}
+		for i := range cs.store.Jobs {
+			if dueMap[cs.store.Jobs[i].ID] {
+				cs.store.Jobs[i].State.NextRunAtMS = nil
+			}
+		}
 
-	if err := cs.saveStoreUnsafe(); err != nil {
-		log.Printf("[cron] failed to save store: %v", err)
+		if err := cs.saveStoreUnsafe(); err != nil {
+			log.Printf("[cron] failed to save store: %v", err)
+		}
 	}
 
 	cs.mu.Unlock()
