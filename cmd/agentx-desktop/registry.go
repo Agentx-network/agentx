@@ -145,13 +145,13 @@ func (r *RegistryService) RegisterAgent(agentName string, metadata string) (*Reg
 	callData := abiEncodeRegister(agentURI)
 
 	// Get nonce
-	nonce, err := getNonce(wi.Address)
+	nonce, err := wallet.GetNonce(wi.Address)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get nonce: %w", err)
 	}
 
 	// Get gas price
-	gasPrice, err := getGasPrice()
+	gasPrice, err := wallet.GetGasPrice()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get gas price: %w", err)
 	}
@@ -166,7 +166,7 @@ func (r *RegistryService) RegisterAgent(agentName string, metadata string) (*Reg
 	}
 
 	// Broadcast the transaction
-	txHash, err := sendRawTransaction(rawTx)
+	txHash, err := wallet.SendRawTransaction(rawTx)
 	if err != nil {
 		return nil, fmt.Errorf("broadcast failed: %w", err)
 	}
@@ -204,95 +204,7 @@ func (r *RegistryService) UnregisterAgent() error {
 	return nil
 }
 
-// --- BSC JSON-RPC helpers ---
-
-func getNonce(address string) (uint64, error) {
-	payload := fmt.Sprintf(
-		`{"jsonrpc":"2.0","method":"eth_getTransactionCount","params":["%s","latest"],"id":1}`,
-		address,
-	)
-	result, err := bscRPC(payload)
-	if err != nil {
-		return 0, err
-	}
-	n := new(big.Int)
-	n.SetString(strings.TrimPrefix(result, "0x"), 16)
-	return n.Uint64(), nil
-}
-
-func getGasPrice() (*big.Int, error) {
-	payload := `{"jsonrpc":"2.0","method":"eth_gasPrice","params":[],"id":1}`
-	result, err := bscRPC(payload)
-	if err != nil {
-		return nil, err
-	}
-	gp := new(big.Int)
-	gp.SetString(strings.TrimPrefix(result, "0x"), 16)
-	return gp, nil
-}
-
-func sendRawTransaction(signedTx string) (string, error) {
-	payload := fmt.Sprintf(
-		`{"jsonrpc":"2.0","method":"eth_sendRawTransaction","params":["%s"],"id":1}`,
-		signedTx,
-	)
-
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Post(
-		"https://bsc-dataseed.binance.org/",
-		"application/json",
-		strings.NewReader(payload),
-	)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	var rpcResp struct {
-		Result string `json:"result"`
-		Error  *struct {
-			Code    int    `json:"code"`
-			Message string `json:"message"`
-		} `json:"error"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&rpcResp); err != nil {
-		return "", err
-	}
-	if rpcResp.Error != nil {
-		return "", fmt.Errorf("RPC error %d: %s", rpcResp.Error.Code, rpcResp.Error.Message)
-	}
-	if rpcResp.Result == "" {
-		return "", fmt.Errorf("empty transaction hash returned")
-	}
-	return rpcResp.Result, nil
-}
-
-func bscRPC(payload string) (string, error) {
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Post(
-		"https://bsc-dataseed.binance.org/",
-		"application/json",
-		strings.NewReader(payload),
-	)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	var rpcResp struct {
-		Result string `json:"result"`
-		Error  *struct {
-			Message string `json:"message"`
-		} `json:"error"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&rpcResp); err != nil {
-		return "", err
-	}
-	if rpcResp.Error != nil {
-		return "", fmt.Errorf("RPC: %s", rpcResp.Error.Message)
-	}
-	return rpcResp.Result, nil
-}
+// BSC JSON-RPC helpers are now in pkg/wallet/tx.go (GetNonce, GetGasPrice, SendRawTransaction).
 
 func base64Encode(data []byte) string {
 	const enc = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"

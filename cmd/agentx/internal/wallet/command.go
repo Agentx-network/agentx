@@ -28,6 +28,7 @@ func NewWalletCommand() *cobra.Command {
 		newTokensCmd(),
 		newAddTokenCmd(),
 		newRemoveTokenCmd(),
+		newSendCmd(),
 	)
 
 	return cmd
@@ -165,4 +166,42 @@ func newRemoveTokenCmd() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func newSendCmd() *cobra.Command {
+	var token string
+
+	cmd := &cobra.Command{
+		Use:   "send <to-address> <amount>",
+		Short: "Send BNB or ERC-20 tokens to an address",
+		Long: `Send BNB or ERC-20 tokens to a BSC address.
+
+Examples:
+  agentx wallet send 0x1234...abcd 0.1              # Send 0.1 BNB
+  agentx wallet send 0x1234...abcd 10 --token USDT   # Send 10 USDT`,
+		Args: cobra.ExactArgs(2),
+		RunE: func(_ *cobra.Command, args []string) error {
+			toAddress := args[0]
+			amount := args[1]
+
+			var result *wallet.SendResult
+			var err error
+
+			if token == "" {
+				result, err = wallet.SendBNB(toAddress, amount)
+			} else {
+				result, err = wallet.SendToken(toAddress, amount, token)
+			}
+			if err != nil {
+				return err
+			}
+
+			printJSON(result)
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&token, "token", "", "Token symbol to send (e.g. USDT, USDC). Omit for native BNB")
+
+	return cmd
 }
