@@ -16,6 +16,12 @@ import (
 	"github.com/Agentx-network/agentx/pkg/utils"
 )
 
+// toolResultStoredLimit caps how many bytes of a tool's output are kept in
+// session history. Large outputs (file reads, search results) are still seen
+// in full by the model on the turn that produced them; this limit prevents
+// them from bloating EVERY subsequent turn's prompt.
+const toolResultStoredLimit = 2000
+
 // runFantasyIteration runs the LLM + tool call loop using Fantasy SDK.
 // Returns the final text content, step count, and any error.
 func (al *AgentLoop) runFantasyIteration(
@@ -126,12 +132,23 @@ func (al *AgentLoop) runFantasyIteration(
 		},
 
 		OnToolResult: func(tr fantasy.ToolResultContent) error {
-			logger.InfoCF("agent", "Tool result received",
-				map[string]any{
-					"agent_id":     agent.ID,
-					"tool":         tr.ToolName,
-					"tool_call_id": tr.ToolCallID,
-				})
+			fields := map[string]any{
+				"agent_id":     agent.ID,
+				"tool":         tr.ToolName,
+				"tool_call_id": tr.ToolCallID,
+			}
+			// Surface the tool's actual output so users can see WHY the agent
+			// did or didn't proceed. Truncated to keep logs readable.
+			if tr.Result != nil {
+				if textResult, ok := fantasy.AsToolResultOutputType[fantasy.ToolResultOutputContentText](tr.Result); ok {
+					fields["result"] = utils.Truncate(textResult.Text, 300)
+				} else if errResult, ok := fantasy.AsToolResultOutputType[fantasy.ToolResultOutputContentError](tr.Result); ok {
+					if errResult.Error != nil {
+						fields["error"] = errResult.Error.Error()
+					}
+				}
+			}
+			logger.InfoCF("agent", "Tool result received", fields)
 			return nil
 		},
 
@@ -141,16 +158,39 @@ func (al *AgentLoop) runFantasyIteration(
 			currentStep := stepCount
 			mu.Unlock()
 
-			// Save step messages to session
+			// Save step messages to session, with tool result content truncated.
+			// Verbatim tool outputs (file contents, search results, etc.) can
+			// be tens of KB; replaying them on every subsequent turn balloons
+			// the prompt and burns tokens. Truncate aggressively here — the
+			// agent already saw the full output in the turn that produced it.
 			stepMessages := providers.FantasyStepToAgentXMessages(step)
 			for _, msg := range stepMessages {
+				if msg.Role == "tool" && len(msg.Content) > toolResultStoredLimit {
+					msg.Content = msg.Content[:toolResultStoredLimit] +
+						fmt.Sprintf("\n…[tool output truncated: %d bytes total]", len(msg.Content))
+				}
+				// Skip exact-duplicate consecutive messages. Some models (notably
+				// gpt-oss-120b on Groq) emit the same assistant text across two
+				// adjacent steps, which would otherwise be persisted twice and
+				// re-sent on every future turn — burning tokens for nothing.
+				history := agent.Sessions.GetHistory(opts.SessionKey)
+				if n := len(history); n > 0 {
+					last := history[n-1]
+					if last.Role == msg.Role && last.Content == msg.Content &&
+						len(msg.Content) > 0 {
+						continue
+					}
+				}
 				agent.Sessions.AddFullMessage(opts.SessionKey, msg)
 			}
 
 			logger.DebugCF("agent", "Fantasy step finished",
 				map[string]any{
-					"agent_id": agent.ID,
-					"step":     currentStep,
+					"agent_id":      agent.ID,
+					"step":          currentStep,
+					"input_tokens":  step.Usage.InputTokens,
+					"output_tokens": step.Usage.OutputTokens,
+					"total_tokens":  step.Usage.TotalTokens,
 				})
 			return nil
 		},
@@ -179,13 +219,33 @@ func (al *AgentLoop) runFantasyIteration(
 			})
 		}
 
-		// Check for context/token errors and attempt compression
-		errMsg := strings.ToLower(err.Error())
-		isContextError := strings.Contains(errMsg, "token") ||
-			strings.Contains(errMsg, "context") ||
-			strings.Contains(errMsg, "length")
+		// Decide whether this is a genuine context-window overflow.
+		// We trust the SDK's own IsContextTooLarge() check — substring matches
+		// on "token"/"context"/"length" false-positive on rate-limit errors
+		// like "tokens per minute (TPM)", which previously caused the agent
+		// to compress (destroying session history) on every TPM hit.
+		isContextOverflow := providerErr != nil && providerErr.IsContextTooLarge()
 
-		if isContextError || (providerErr != nil && providerErr.IsContextTooLarge()) {
+		// If the centralized classifier identifies this as anything other than
+		// a context overflow (rate limit, auth, billing, timeout, etc.), bubble
+		// the error up instead of attempting compression.
+		if !isContextOverflow {
+			if classified := providers.ClassifyError(err, agent.ID, agent.Model); classified != nil {
+				logger.WarnCF("agent", "Provider error classified, no compression",
+					map[string]any{
+						"reason":   string(classified.Reason),
+						"agent_id": agent.ID,
+					})
+				return "", stepCount, fmt.Errorf("fantasy agent failed: %w", err)
+			}
+		}
+
+		if isContextOverflow {
+			// Bound the retry: one compression attempt, then give up.
+			if opts.CompressionRetried {
+				return "", stepCount, fmt.Errorf("fantasy agent failed after compression retry: %w", err)
+			}
+
 			logger.WarnCF("agent", "Context window error, attempting compression",
 				map[string]any{"error": err.Error()})
 
@@ -197,7 +257,7 @@ func (al *AgentLoop) runFantasyIteration(
 				nil, opts.Channel, opts.ChatID,
 			)
 
-			// Retry once after compression
+			opts.CompressionRetried = true
 			return al.runFantasyIteration(ctx, agent, newMessages, opts)
 		}
 
@@ -217,15 +277,43 @@ func (al *AgentLoop) runFantasyIteration(
 	}
 	mu.Unlock()
 
-	if finalContent != "" {
-		logger.InfoCF("agent", fmt.Sprintf("Response: %s", utils.Truncate(finalContent, 120)),
-			map[string]any{
-				"agent_id": agent.ID,
-				"steps":    stepCount,
-			})
+	// Some models (notably gpt-oss-120b on Groq) emit the final answer twice
+	// in succession, producing "<reply><reply>" output. Strip an exact-half
+	// duplicate when we see one — conservative heuristic, only triggers on
+	// even-length strings where both halves match byte-for-byte.
+	finalContent = stripExactDuplicate(finalContent)
+
+	// Emit a dedicated Usage log line (the Response line is logged once in
+	// the outer loop). Keeps token data visible without duplicating the text.
+	if result != nil {
+		fields := map[string]any{
+			"agent_id":      agent.ID,
+			"steps":         stepCount,
+			"input_tokens":  result.TotalUsage.InputTokens,
+			"output_tokens": result.TotalUsage.OutputTokens,
+			"total_tokens":  result.TotalUsage.TotalTokens,
+		}
+		if result.TotalUsage.CacheReadTokens > 0 {
+			fields["cache_read_tokens"] = result.TotalUsage.CacheReadTokens
+		}
+		logger.InfoCF("agent", "Usage", fields)
 	}
 
 	return finalContent, stepCount, nil
+}
+
+// stripExactDuplicate removes a trailing exact-duplicate half if the string
+// is "XY" where X == Y. Guards against models that emit their reply twice.
+func stripExactDuplicate(s string) string {
+	n := len(s)
+	if n < 20 || n%2 != 0 {
+		return s
+	}
+	half := n / 2
+	if s[:half] == s[half:] {
+		return s[:half]
+	}
+	return s
 }
 
 // summarizeWithFantasy uses the Fantasy model directly for summarization.

@@ -76,6 +76,12 @@ var (
 		substr("tool_use_id"),
 		substr("messages.1.content.1.tool_use.id"),
 		substr("invalid request format"),
+		// Llama 3.3 70B on Groq sometimes emits <function=name {args}> instead
+		// of a proper JSON tool_call. Groq rejects with this code. Classifying
+		// as format (not rate_limit, not context-overflow) lets the fallback
+		// chain route to a different provider/model instead of looping.
+		substr("tool_use_failed"),
+		substr("failed to call a function"),
 	}
 
 	imageDimensionPatterns = []errorPattern{

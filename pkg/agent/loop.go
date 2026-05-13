@@ -42,14 +42,15 @@ type AgentLoop struct {
 
 // processOptions configures how a message is processed
 type processOptions struct {
-	SessionKey      string // Session identifier for history/context
-	Channel         string // Target channel for tool execution
-	ChatID          string // Target chat ID for tool execution
-	UserMessage     string // User message content (may include prefix)
-	DefaultResponse string // Response when LLM returns empty
-	EnableSummary   bool   // Whether to trigger summarization
-	SendResponse    bool   // Whether to send response via bus
-	NoHistory       bool   // If true, don't load session history (for heartbeat)
+	SessionKey         string // Session identifier for history/context
+	Channel            string // Target channel for tool execution
+	ChatID             string // Target chat ID for tool execution
+	UserMessage        string // User message content (may include prefix)
+	DefaultResponse    string // Response when LLM returns empty
+	EnableSummary      bool   // Whether to trigger summarization
+	SendResponse       bool   // Whether to send response via bus
+	NoHistory          bool   // If true, don't load session history (for heartbeat)
+	CompressionRetried bool   // Internal: true after one compression-retry to bound recursion
 }
 
 const defaultResponse = "I've completed processing but have no response to give. Increase `max_tool_iterations` in config.json."
@@ -121,6 +122,12 @@ func registerSharedTools(
 		// Message tool
 		messageTool := tools.NewMessageTool()
 		messageTool.SetSendCallback(func(channel, chatID, content string) error {
+			// CLI channel has no outbound listener: print directly so the
+			// reply reaches the user's terminal instead of being sinkholed.
+			if channel == constants.ChannelCLI {
+				fmt.Printf("\n🤖 %s\n", content)
+				return nil
+			}
 			msgBus.PublishOutbound(bus.OutboundMessage{
 				Channel: channel,
 				ChatID:  chatID,
@@ -449,8 +456,23 @@ func (al *AgentLoop) runAgentLoop(ctx context.Context, agent *AgentInstance, opt
 		finalContent = opts.DefaultResponse
 	}
 
-	// 6. Save final assistant message to session
-	agent.Sessions.AddMessage(opts.SessionKey, "assistant", finalContent)
+	// 6. Save final assistant message to session — but only if the streaming
+	// pass (OnStepFinish) didn't already persist the same text. Some models
+	// produce the same assistant text in their last step AND in the final
+	// result, which would otherwise be saved twice.
+	{
+		history := agent.Sessions.GetHistory(opts.SessionKey)
+		alreadyPersisted := false
+		if n := len(history); n > 0 {
+			last := history[n-1]
+			if last.Role == "assistant" && last.Content == finalContent && finalContent != "" {
+				alreadyPersisted = true
+			}
+		}
+		if !alreadyPersisted {
+			agent.Sessions.AddMessage(opts.SessionKey, "assistant", finalContent)
+		}
+	}
 	if err := agent.Sessions.Save(opts.SessionKey); err != nil {
 		logger.ErrorCF("agent", "Failed to save session", map[string]any{
 			"error":       err.Error(),
