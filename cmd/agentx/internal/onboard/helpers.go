@@ -5,12 +5,22 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+
+	"github.com/Agentx-network/agentx/pkg/skills/builtin"
 )
 
 func createWorkspaceTemplates(workspace string) {
 	err := copyEmbeddedToTarget(workspace)
 	if err != nil {
 		fmt.Printf("Error copying workspace templates: %v\n", err)
+	}
+
+	// Install builtin skills into the workspace so the agent can use them
+	skillsDir := filepath.Join(workspace, "skills")
+	if installed, err := builtin.InstallAll(skillsDir, false); err != nil {
+		fmt.Printf("Warning: could not install builtin skills: %v\n", err)
+	} else if len(installed) > 0 {
+		fmt.Printf("  Installed %d builtin skill(s): %v\n", len(installed), installed)
 	}
 }
 

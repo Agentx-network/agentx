@@ -155,6 +155,11 @@ func registerSharedTools(
 		if agent.FantasyModel != nil {
 			subagentManager.SetFantasyModel(agent.FantasyModel)
 		}
+		// Give the subagent the SAME tool registry as its parent. Without this
+		// the subagent has zero tools and either hallucinates results or
+		// reports "Unable to access files". The subagent's system prompt
+		// already promises tool access — wire it up so the promise holds.
+		subagentManager.SetTools(agent.Tools)
 		spawnTool := tools.NewSpawnTool(subagentManager)
 		currentAgentID := agentID
 		spawnTool.SetAllowlistChecker(func(targetAgentID string) bool {

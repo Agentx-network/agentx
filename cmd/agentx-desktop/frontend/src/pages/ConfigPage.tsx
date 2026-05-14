@@ -641,7 +641,7 @@ function AgentTab({
           {/* Builtins + GitHub install */}
           <div className="glass-card p-4 space-y-3">
             <NeonButton onClick={handleInstallBuiltins} disabled={installing} variant="ghost" size="sm" className="w-full">
-              {installing ? "Installing..." : "Install Builtin Skills (web-search, calculator, summarizer, code-runner)"}
+              {installing ? "Installing..." : "Install Builtin Skills"}
             </NeonButton>
             <div className="border-t border-white/[0.04] pt-3">
               <div className="text-xs uppercase tracking-widest text-white/45 mb-2 font-medium">Install from GitHub</div>
