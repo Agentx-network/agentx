@@ -216,14 +216,27 @@ func skillsSearchCmd(cfg *config.Config, query string) {
 }
 
 func skillsShowCmd(loader *skills.SkillsLoader, skillName string) {
-	content, ok := loader.LoadSkill(skillName)
-	if !ok {
-		fmt.Printf("✗ Skill '%s' not found\n", skillName)
+	if content, ok := loader.LoadSkill(skillName); ok {
+		fmt.Printf("\n📦 Skill: %s\n", skillName)
+		fmt.Println("----------------------")
+		fmt.Println(content)
 		return
 	}
 
-	fmt.Printf("\n📦 Skill: %s\n", skillName)
-	fmt.Println("----------------------")
-	fmt.Println(content)
+	// Fall back to the embedded builtin set. The on-disk SkillsLoader can't
+	// see these (they live in the binary, not the filesystem), but `skills
+	// list-builtin` advertises them so `show` should find them too.
+	if builtins, err := builtin.List(); err == nil {
+		for _, s := range builtins {
+			if s.Name == skillName {
+				fmt.Printf("\n📦 Skill: %s (builtin)\n", skillName)
+				fmt.Println("----------------------")
+				fmt.Println(string(s.Content))
+				return
+			}
+		}
+	}
+
+	fmt.Printf("✗ Skill '%s' not found\n", skillName)
 }
 

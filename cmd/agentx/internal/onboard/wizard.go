@@ -1,9 +1,11 @@
 package onboard
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"runtime"
+	"time"
 
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
@@ -78,6 +80,13 @@ func runWizard() error {
 		if err != nil {
 			return err
 		}
+	}
+
+	// Step 2b: Validate the chosen model against the provider's /models endpoint.
+	// If the default model isn't available to this key (e.g. paid-tier-only),
+	// offer to pick from the list that actually works.
+	if err := maybeReselectModel(provider, apiKey); err != nil {
+		return err
 	}
 
 	// Step 3: Pick channel or skip
@@ -168,6 +177,17 @@ func runNonInteractive(providerID, apiKey string) error {
 		return fmt.Errorf("provider %s requires --api-key (get one at %s)", provider.Name, provider.KeyURL)
 	}
 
+	// Verify the default model is actually accessible with the given key.
+	// In non-interactive mode we can't reprompt, so fail loudly instead of
+	// silently saving a config that 404s on first chat.
+	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
+	defer cancel()
+	if ok, available := validateProviderModel(ctx, provider, apiKey); !ok {
+		return fmt.Errorf(
+			"model %q is not available on %s with this key.\nAvailable models: %s\nRe-run with `agentx onboard` to pick interactively",
+			provider.Model, provider.Name, formatModelList(available))
+	}
+
 	configPath := internal.GetConfigPath()
 	cfg := saveWizardConfig(provider, apiKey, "", nil)
 	if err := config.SaveConfig(configPath, cfg); err != nil {
@@ -188,6 +208,45 @@ func runNonInteractive(providerID, apiKey string) error {
 	}
 
 	printSuccess(provider, configPath, serviceInstalled)
+	return nil
+}
+
+// maybeReselectModel probes the provider's /models endpoint. If the default
+// model is missing for this key, it offers an interactive picker from the
+// actually-available list. Silent no-op when the provider doesn't expose a
+// compatible /models endpoint (e.g. Anthropic, Gemini).
+func maybeReselectModel(provider *providerInfo, apiKey string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
+	defer cancel()
+
+	ok, available := validateProviderModel(ctx, provider, apiKey)
+	if ok || len(available) == 0 {
+		return nil
+	}
+
+	fmt.Printf("\n  Note: default model %q is not available on this key.\n", provider.Model)
+
+	opts := make([]huh.Option[string], 0, len(available)+1)
+	opts = append(opts, huh.NewOption("Keep default (may fail on first chat)", ""))
+	for _, id := range available {
+		opts = append(opts, huh.NewOption(id, id))
+	}
+
+	var picked string
+	if err := huh.NewSelect[string]().
+		Title("Pick a model your key can access").
+		Description("These are the models reported by " + provider.Name + "'s /models endpoint").
+		Options(opts...).
+		Value(&picked).
+		WithTheme(neonTheme()).
+		Run(); err != nil {
+		return err
+	}
+
+	if picked != "" {
+		provider.Model = provider.ID + "/" + picked
+		provider.ModelName = picked
+	}
 	return nil
 }
 

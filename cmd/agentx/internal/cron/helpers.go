@@ -46,21 +46,48 @@ func cronListCmd(storePath string) {
 	}
 }
 
-func cronRemoveCmd(storePath, jobID string) {
+// resolveCronJobRef looks up a job by ID first, then by name. Returns the
+// canonical ID. Empty string if no match. Lets the user pass either to
+// remove/enable/disable commands — matches how `cron list` shows both.
+func resolveCronJobRef(storePath, ref string) string {
 	cs := cron.NewCronService(storePath, nil)
-	if cs.RemoveJob(jobID) {
-		fmt.Printf("✓ Removed job %s\n", jobID)
+	for _, j := range cs.ListJobs(true) {
+		if j.ID == ref || j.Name == ref {
+			return j.ID
+		}
+	}
+	return ""
+}
+
+func cronRemoveCmd(storePath, ref string) {
+	id := resolveCronJobRef(storePath, ref)
+	if id == "" {
+		fmt.Printf("✗ Job %s not found\n", ref)
+		return
+	}
+	cs := cron.NewCronService(storePath, nil)
+	if cs.RemoveJob(id) {
+		fmt.Printf("✓ Removed job %s\n", ref)
 	} else {
-		fmt.Printf("✗ Job %s not found\n", jobID)
+		fmt.Printf("✗ Job %s not found\n", ref)
 	}
 }
 
-func cronSetJobEnabled(storePath, jobID string, enabled bool) {
+func cronSetJobEnabled(storePath, ref string, enabled bool) {
+	id := resolveCronJobRef(storePath, ref)
+	if id == "" {
+		fmt.Printf("✗ Job %s not found\n", ref)
+		return
+	}
 	cs := cron.NewCronService(storePath, nil)
-	job := cs.EnableJob(jobID, enabled)
+	job := cs.EnableJob(id, enabled)
 	if job != nil {
-		fmt.Printf("✓ Job '%s' enabled\n", job.Name)
+		state := "enabled"
+		if !enabled {
+			state = "disabled"
+		}
+		fmt.Printf("✓ Job '%s' %s\n", job.Name, state)
 	} else {
-		fmt.Printf("✗ Job %s not found\n", jobID)
+		fmt.Printf("✗ Job %s not found\n", ref)
 	}
 }

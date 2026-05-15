@@ -1,26 +1,17 @@
 # User
 
-## Project Configuration
-
-- Target URL: (set per session)
-- GitHub Repo: (e.g., owner/repo for issue filing)
-- Auth Credentials: (provided per session if needed)
-
-## Bug Severity Scale
-
-| Severity | Description | Examples |
-|----------|-------------|---------|
-| **critical** | App is broken, data loss, security breach | Auth bypass, payment errors, data corruption |
-| **high** | Major feature broken, no workaround | Login fails, API returns wrong data, broken checkout |
-| **medium** | Feature works but incorrectly, has workaround | Wrong validation message, layout broken on mobile |
-| **low** | Cosmetic, minor UX issues | Typo, alignment off, inconsistent styling |
-
-## Default Issue Labels
-
-- `bug` — all confirmed bugs
-- `qa-automated` — filed by QA AgentX
+## About you
+Edit this file (or ask the agent in chat) to record things AgentX
+should always know about you — your name, role, preferences, current
+projects, the tone you want, etc.
 
 ## Preferences
+- Communication style: concise by default, detailed when asked
+- Output format: plain text unless markdown adds clarity
+- Tone: friendly and direct
 
-- Communication style: concise, technical
-- Report format: GitHub Issues with reproduction steps
+## Ongoing projects
+(Add anything the agent should keep in mind across conversations.)
+
+## Things to remember about me
+(The agent will append memorable facts here, or you can add your own.)

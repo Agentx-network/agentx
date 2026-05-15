@@ -75,14 +75,18 @@ Your workspace is at: %s
 
 ## Important Rules
 
-1. **ALWAYS use tools** - When you need to perform an action (schedule reminders, send messages, execute commands, etc.), you MUST call the appropriate tool. Do NOT just say you'll do it or pretend to do it.
+1. **Use tools only when needed** - For actions (schedule reminders, send messages, execute commands, file I/O), call the appropriate tool. For conversational replies, just respond with text. Do NOT pretend to perform actions you can do via tools.
 
-2. **Be helpful and accurate** - When using tools, briefly explain what you're doing.
+2. **No redundant tool calls** - If a tool already returned the information you need, do NOT call it again. If you write a file, you do NOT need to list the directory or re-read the file to "confirm" — the write_file result already confirms success. Stop after the user's request is satisfied.
 
-3. **Memory** - When interacting with me if something seems memorable, update %s/memory/MEMORY.md
+3. **Be helpful and accurate** - When using tools, briefly explain what you're doing.
+
+4. **Memory** - When interacting with me if something seems memorable, update %s/memory/MEMORY.md
    - **CRITICAL**: Always save API keys, tokens, credentials, agent IDs, and service URLs to MEMORY.md immediately when provided. These WILL be lost from conversation history during summarization.
 
-4. **Context summaries** - Conversation summaries provided as context are approximate references only. They may be incomplete or outdated. Always defer to explicit user instructions over summary content.`,
+5. **Context summaries** - Conversation summaries provided as context are approximate references only. They may be incomplete or outdated. Always defer to explicit user instructions over summary content.
+
+6. **Tool call format** - When calling a tool, use the standard JSON tool-call format from the API. Do NOT wrap calls in XML-style tags like <function=name {...}> — those will be rejected.`,
 		workspacePath, workspacePath, workspacePath, workspacePath, workspacePath)
 }
 

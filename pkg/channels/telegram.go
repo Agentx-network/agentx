@@ -468,7 +468,7 @@ func (c *TelegramChannel) handleMessage(ctx context.Context, message *telego.Mes
 						"error": err.Error(),
 						"path":  voicePath,
 					})
-					transcribedText = "[voice (transcription failed)]"
+					transcribedText = "[voice (transcription failed: " + err.Error() + ")]"
 				} else {
 					transcribedText = fmt.Sprintf("[voice transcription: %s]", result.Text)
 					logger.InfoCF("telegram", "Voice transcribed successfully", map[string]any{
@@ -476,7 +476,11 @@ func (c *TelegramChannel) handleMessage(ctx context.Context, message *telego.Mes
 					})
 				}
 			} else {
-				transcribedText = "[voice]"
+				// Tell the agent (and through it, the user) exactly why voice
+				// can't be processed and how to enable it, instead of just
+				// "[voice]" which leaves the user to guess.
+				logger.WarnC("telegram", "Voice message received but no transcriber configured — add a Groq API key to providers.groq.api_key to enable")
+				transcribedText = "[voice message received — voice transcription is not configured on this AgentX instance. To enable, set providers.groq.api_key in ~/.agentx/config.json and restart the gateway. Tell the user this directly so they know what to do.]"
 			}
 
 			if content != "" {

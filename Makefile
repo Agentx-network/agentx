@@ -171,14 +171,17 @@ run: build
 	@$(BUILD_DIR)/$(BINARY_NAME) $(ARGS)
 
 ## desktop-dev: Run AgentX Desktop in development mode (hot reload)
+# Pass webkit2_41 build tag so newer Linux distros (Ubuntu 23.10+, Fedora 39+)
+# that ship webkit2gtk-4.1 instead of -4.0 can build. The tag is also declared
+# in wails.json but `wails dev` doesn't honour it automatically.
 desktop-dev:
 	@echo "Starting AgentX Desktop in dev mode..."
-	@cd cmd/agentx-desktop && wails dev
+	@cd cmd/agentx-desktop && wails dev -tags webkit2_41
 
 ## desktop-build: Build AgentX Desktop for current platform
 desktop-build:
 	@echo "Building AgentX Desktop for $(PLATFORM)/$(ARCH)..."
-	@cd cmd/agentx-desktop && wails build -ldflags="-s -w -H windowsgui"
+	@cd cmd/agentx-desktop && wails build -tags webkit2_41 -ldflags="-s -w -H windowsgui"
 	@echo "Desktop build complete"
 
 ## help: Show this help message
