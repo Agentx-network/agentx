@@ -296,8 +296,14 @@ func TestConvertConfig(t *testing.T) {
 		if len(warnings) != 0 {
 			t.Errorf("expected no warnings, got %v", warnings)
 		}
-		if cfg.Agents.Defaults.Model != "glm-4.7" {
-			t.Errorf("default model should be glm-4.7, got %q", cfg.Agents.Defaults.Model)
+		// Default Model is intentionally empty after migration: model_name
+		// resolution against model_list is the correct routing path, and
+		// hard-coding "glm-4.7" used to leave fresh configs pointing at
+		// an unconfigured Zhipu endpoint that returned `forbidden: Not
+		// authenticated` on every chat.
+		if cfg.Agents.Defaults.Model != "" {
+			t.Errorf("default Model should be empty (was %q in legacy default), got %q",
+				"glm-4.7", cfg.Agents.Defaults.Model)
 		}
 	})
 }

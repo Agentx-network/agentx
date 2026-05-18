@@ -206,12 +206,14 @@ func TestDefaultConfig_WorkspacePath(t *testing.T) {
 	}
 }
 
-// TestDefaultConfig_Model verifies model is set
+// TestDefaultConfig_Model verifies model is intentionally empty by default
+// so model_name lookup against model_list is the resolution path.
 func TestDefaultConfig_Model(t *testing.T) {
 	cfg := DefaultConfig()
 
-	if cfg.Agents.Defaults.Model == "" {
-		t.Error("Model should not be empty")
+	if cfg.Agents.Defaults.Model != "" {
+		t.Errorf("Model should be empty by default, got %q (was %q to prevent unconfigured-Zhipu fallback)",
+			cfg.Agents.Defaults.Model, "glm-4.7")
 	}
 }
 
@@ -331,8 +333,14 @@ func TestConfig_Complete(t *testing.T) {
 	if cfg.Agents.Defaults.Workspace == "" {
 		t.Error("Workspace should not be empty")
 	}
-	if cfg.Agents.Defaults.Model == "" {
-		t.Error("Model should not be empty")
+	// Model is intentionally empty in the default config so that the
+	// agent loop falls back to model_name lookup against model_list
+	// (populated by `agentx onboard`). Hard-coding a default (previously
+	// "glm-4.7") left fresh configs pointing at an unconfigured Zhipu
+	// model, causing every chat to fail with `forbidden: Not
+	// authenticated`. Onboard fills it in correctly per provider choice.
+	if cfg.Agents.Defaults.Model != "" {
+		t.Errorf("Model should be empty by default, got %q", cfg.Agents.Defaults.Model)
 	}
 	if cfg.Agents.Defaults.Temperature != nil {
 		t.Error("Temperature should be nil when not provided")

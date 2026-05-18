@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"embed"
+	"log"
+	"time"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -38,6 +40,19 @@ func main() {
 			agentSetup.startup(ctx)
 			walletSvc.startup(ctx)
 			registrySvc.startup(ctx)
+
+			// Auto-start gateway if it's not already running.
+			go func() {
+				time.Sleep(1 * time.Second) // let app finish init
+				if !chatSvc.IsGatewayReachable() {
+					log.Println("[desktop] Gateway not running, starting automatically...")
+					if err := dashboard.StartGateway(); err != nil {
+						log.Printf("[desktop] Failed to auto-start gateway: %v", err)
+					} else {
+						log.Println("[desktop] Gateway auto-started successfully")
+					}
+				}
+			}()
 		},
 		Bind: []interface{}{
 			app,

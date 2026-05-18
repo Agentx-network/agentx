@@ -66,9 +66,14 @@ func (c *ChatService) SendMessage(message string, sessionKey string) (*ChatRespo
 	// No overall timeout — the SSE stream can run for several minutes
 	// while the agent processes tool calls. We rely on the server to
 	// close the connection when done (or the Wails context cancelling).
+	// ResponseHeaderTimeout is set to 5 minutes so a slow first LLM
+	// call (rate-limited free tier, cold start, large session context,
+	// retry-after windows) doesn't cause a misleading "gateway not
+	// reachable" error in the UI while the gateway is in fact working.
+	// The previous 30s ceiling fired routinely on free-tier providers.
 	client := &http.Client{
 		Transport: &http.Transport{
-			ResponseHeaderTimeout: 30 * time.Second, // wait up to 30s for initial response headers
+			ResponseHeaderTimeout: 5 * time.Minute,
 		},
 	}
 	resp, err := client.Post(chatURL, "application/json", bytes.NewReader(reqBody))
@@ -229,21 +234,33 @@ func friendlyError(raw string) string {
 		return "Authentication failed — check your API key in Config > Models."
 	}
 
-	// Rate limit
+	// Rate limit — checked BEFORE billing because Groq's 413 message
+	// includes a URL to /settings/billing in their upgrade hint, which
+	// previously false-matched the billing branch below. Catch the
+	// telltale rate-limit wordings explicitly (Groq's 413, OpenAI's 429,
+	// generic "too many requests", quota mentions).
 	if strings.Contains(lower, "rate limit") ||
 		strings.Contains(lower, "rate_limit") ||
 		strings.Contains(lower, "too many requests") ||
 		strings.Contains(lower, "429") ||
+		strings.Contains(lower, "request too large") ||
+		strings.Contains(lower, "tokens per minute") ||
+		strings.Contains(lower, "reduce your message size") ||
+		strings.Contains(lower, "tpm") ||
 		strings.Contains(lower, "quota") {
 		return "Rate limited by the provider. Please wait a moment and try again."
 	}
 
-	// Billing
+	// Billing — only match phrases that unambiguously indicate a billing
+	// problem. Bare "billing" used to false-match Groq's upgrade-link URL
+	// in rate-limit error bodies (Bug #29).
 	if strings.Contains(lower, "402") ||
 		strings.Contains(lower, "payment required") ||
 		strings.Contains(lower, "insufficient credits") ||
 		strings.Contains(lower, "insufficient balance") ||
-		strings.Contains(lower, "billing") {
+		strings.Contains(lower, "billing problem") ||
+		strings.Contains(lower, "billing required") ||
+		strings.Contains(lower, "plans & billing") {
 		return "Billing issue — your provider account may need credits or a payment method."
 	}
 
