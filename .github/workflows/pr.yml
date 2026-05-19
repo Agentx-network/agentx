@@ -3,6 +3,13 @@ name: PR
 on:
   pull_request: { }
 
+# The desktop binary embeds the Wails frontend via `//go:embed all:frontend/dist`
+# (cmd/agentx-desktop/main.go). That directive runs at compile time — both
+# `golangci-lint` and `go test ./...` need to typecheck the package, which fails
+# with "pattern all:frontend/dist: no matching files found" if the directory
+# isn't present. The fix is to build the frontend first so Vite produces the
+# dist/ output. Both jobs need the same prep step.
+
 jobs:
   lint:
     name: Linter
@@ -15,6 +22,19 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: cmd/agentx-desktop/frontend/package-lock.json
+
+      - name: Build desktop frontend
+        working-directory: cmd/agentx-desktop/frontend
+        run: |
+          npm ci
+          npm run build
 
       - name: Run go generate
         run: go generate ./...
@@ -35,6 +55,19 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: cmd/agentx-desktop/frontend/package-lock.json
+
+      - name: Build desktop frontend
+        working-directory: cmd/agentx-desktop/frontend
+        run: |
+          npm ci
+          npm run build
 
       - name: Run go generate
         run: go generate ./...
