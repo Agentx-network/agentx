@@ -5,7 +5,6 @@ import logo from "../assets/logo.png";
 interface Props {
   currentPage: Page;
   onNavigate: (page: Page) => void;
-  onRunWizard?: () => void;
   version?: string;
 }
 
@@ -88,7 +87,7 @@ const comingSoonItems: { label: string; icon: JSX.Element }[] = [
   },
 ];
 
-export default function Sidebar({ currentPage, onNavigate, onRunWizard, version }: Props) {
+export default function Sidebar({ currentPage, onNavigate, version }: Props) {
   return (
     <aside className="w-56 border-r-2 border-neon-pink/20 bg-bg-sidebar flex flex-col">
       <div className="p-5 border-b-2 border-neon-pink/20 flex items-center gap-3">
@@ -131,16 +130,17 @@ export default function Sidebar({ currentPage, onNavigate, onRunWizard, version 
           </div>
         )}
       </nav>
-      <div className="p-4 border-t-2 border-neon-pink/20 space-y-3">
-        {onRunWizard && (
-          <button
-            onClick={onRunWizard}
-            className="w-full text-[11px] text-neon-pink/60 hover:text-neon-pink hover:bg-neon-pink/10 uppercase tracking-widest font-bold py-2 px-3 rounded-lg border border-neon-pink/20 hover:border-neon-pink/30 transition-all"
-          >
-            Run Setup Wizard
-          </button>
+      <div className="p-4 border-t-2 border-neon-pink/20">
+        {/* The Run Setup Wizard button used to live here. After onboarding,
+            every wizard step is editable from the Config page (providers,
+            channels, skills, wallet, identity files), so a permanent button
+            is just visual debt. The app version takes the slot instead —
+            quiet, useful for support, doesn't compete with the nav above. */}
+        {version && (
+          <p className="text-center text-[11px] text-white/40 uppercase tracking-widest font-medium select-none">
+            {version}
+          </p>
         )}
-        <p className="text-[11px] text-white/40 uppercase tracking-widest">{version || ""}</p>
       </div>
     </aside>
   );

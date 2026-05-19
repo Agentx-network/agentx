@@ -19,10 +19,10 @@ func DefaultConfig() *Config {
 				// Zhipu model that has no matching entry in model_list — every
 				// chat then failed with `forbidden: Not authenticated`. Onboard
 				// fills in model_name; the empty Model lets that lookup resolve.
-				Model:               "",
-				MaxTokens:           8192,
-				Temperature:         nil, // nil means use provider default
-				MaxToolIterations:   50,
+				Model:             "",
+				MaxTokens:         8192,
+				Temperature:       nil, // nil means use provider default
+				MaxToolIterations: 50,
 			},
 		},
 		Bindings: []AgentBinding{},
@@ -160,10 +160,10 @@ func DefaultConfig() *Config {
 				APIKey:    "",
 			},
 
-			// Google Gemini - https://ai.google.dev/
+			// Google Gemini - https://aistudio.google.com/app/apikey
 			{
-				ModelName: "gemini-2.0-flash",
-				Model:     "gemini/gemini-2.0-flash-exp",
+				ModelName: "gemini-2.5-flash",
+				Model:     "gemini/gemini-2.5-flash",
 				APIBase:   "https://generativelanguage.googleapis.com/v1beta",
 				APIKey:    "",
 			},

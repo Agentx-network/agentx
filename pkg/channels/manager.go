@@ -250,6 +250,72 @@ func (m *Manager) StartAll(ctx context.Context) error {
 	return nil
 }
 
+// Reload stops every running channel, rebuilds the channel map from the new
+func (m *Manager) Reload(ctx context.Context, cfg *config.Config) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	logger.InfoC("channels", "Reloading channels from new config")
+
+	// Stop dispatch goroutines.
+	if m.dispatchTask != nil {
+		m.dispatchTask.cancel()
+		m.dispatchTask = nil
+	}
+	if m.streamTask != nil {
+		m.streamTask.cancel()
+		m.streamTask = nil
+	}
+
+	// Stop each currently-running channel. Errors are logged but not fatal —
+	// we still want to bring up the new config even if an old channel hangs
+	// on shutdown.
+	for name, ch := range m.channels {
+		if err := ch.Stop(ctx); err != nil {
+			logger.WarnCF("channels", "Error stopping channel on reload",
+				map[string]any{"channel": name, "error": err.Error()})
+		}
+	}
+
+	// Swap config + reset the map so initChannels starts from scratch.
+	m.config = cfg
+	m.channels = make(map[string]Channel)
+
+	if err := m.initChannels(); err != nil {
+		return fmt.Errorf("reinit channels: %w", err)
+	}
+
+	if len(m.channels) == 0 {
+		logger.InfoC("channels", "Reload: no channels enabled")
+		return nil
+	}
+
+	// Restart dispatchers + each channel. Mirrors StartAll, inlined so we keep
+	// holding m.mu for the whole reload (StartAll would try to acquire it).
+	dispatchCtx, dispatchCancel := context.WithCancel(ctx)
+	m.dispatchTask = &asyncTask{cancel: dispatchCancel}
+	go m.dispatchOutbound(dispatchCtx)
+
+	streamCtx, streamCancel := context.WithCancel(ctx)
+	m.streamTask = &asyncTask{cancel: streamCancel}
+	go m.dispatchStream(streamCtx)
+
+	for name, channel := range m.channels {
+		logger.InfoCF("channels", "Starting channel on reload",
+			map[string]any{"channel": name})
+		if err := channel.Start(ctx); err != nil {
+			logger.ErrorCF("channels", "Failed to start channel on reload",
+				map[string]any{"channel": name, "error": err.Error()})
+		}
+		if sc, ok := channel.(StreamableChannel); ok {
+			sc.StartStreamConsumer(ctx)
+		}
+	}
+
+	logger.InfoC("channels", "Channel manager reloaded")
+	return nil
+}
+
 func (m *Manager) StopAll(ctx context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

@@ -18,14 +18,28 @@ type modelListResponse struct {
 	} `json:"data"`
 }
 
+// geminiModelListResponse matches Google's /v1beta/models response shape.
+// Each entry's "name" is prefixed with "models/" (e.g. "models/gemini-2.0-flash").
+type geminiModelListResponse struct {
+	Models []struct {
+		Name string `json:"name"`
+	} `json:"models"`
+}
+
 // probeProviderModels queries the provider's /v1/models endpoint and returns
 // the list of available model IDs for the given API key. Returns ok=false
 // (with no error) if the provider doesn't expose a compatible /models endpoint
 // — callers should treat that as "validation unavailable" and skip silently.
 func probeProviderModels(ctx context.Context, apiBase, apiKey string) (models []string, ok bool) {
-	// Anthropic and Gemini use non-OpenAI shapes; skip rather than guess.
-	if strings.Contains(apiBase, "anthropic.com") || strings.Contains(apiBase, "generativelanguage.googleapis.com") {
+	// Anthropic uses a non-OpenAI shape with no public model-listing endpoint
+	// for API-key clients; skip rather than guess.
+	if strings.Contains(apiBase, "anthropic.com") {
 		return nil, false
+	}
+
+	// Gemini: list models via Google's /v1beta/models?key=... (different shape).
+	if strings.Contains(apiBase, "generativelanguage.googleapis.com") {
+		return probeGeminiModels(ctx, apiBase, apiKey)
 	}
 
 	url := strings.TrimRight(apiBase, "/") + "/models"
@@ -67,6 +81,53 @@ func probeProviderModels(ctx context.Context, apiBase, apiKey string) (models []
 	return out, true
 }
 
+// probeGeminiModels lists available models from Google's Generative AI API.
+// Google authenticates via ?key=API_KEY (not Authorization header) and returns
+// {"models":[{"name":"models/<id>"},...]}; we strip the "models/" prefix so
+// returned IDs are directly comparable to what's in our config (e.g. "gemini-2.0-flash").
+func probeGeminiModels(ctx context.Context, apiBase, apiKey string) ([]string, bool) {
+	if apiKey == "" {
+		return nil, false
+	}
+	url := strings.TrimRight(apiBase, "/") + "/models?key=" + apiKey
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, false
+	}
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, false
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, false
+	}
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return nil, false
+	}
+
+	var parsed geminiModelListResponse
+	if err := json.Unmarshal(body, &parsed); err != nil || len(parsed.Models) == 0 {
+		return nil, false
+	}
+
+	out := make([]string, 0, len(parsed.Models))
+	for _, m := range parsed.Models {
+		// Strip the "models/" prefix so callers can compare against our config
+		// model IDs (which are bare names like "gemini-2.0-flash").
+		id := strings.TrimPrefix(m.Name, "models/")
+		if id != "" {
+			out = append(out, id)
+		}
+	}
+	return out, true
+}
+
 // modelIDFromProvider strips the "vendor/" prefix from a model string so it
 // can be matched against the IDs returned by /models.
 func modelIDFromProvider(model string) string {
@@ -96,9 +157,9 @@ func validateProviderModel(ctx context.Context, p *providerInfo, apiKey string) 
 
 // formatModelList returns a short human-readable list, capped at 8 entries.
 func formatModelList(models []string) string {
-	const max = 8
-	if len(models) > max {
-		return strings.Join(models[:max], ", ") + fmt.Sprintf(", … (+%d more)", len(models)-max)
+	const maxEntries = 8
+	if len(models) > maxEntries {
+		return strings.Join(models[:maxEntries], ", ") + fmt.Sprintf(", … (+%d more)", len(models)-maxEntries)
 	}
 	return strings.Join(models, ", ")
 }

@@ -61,7 +61,11 @@ func TestInstallSkillToolAlreadyExists(t *testing.T) {
 		"slug":     "existing-skill",
 		"registry": "clawhub",
 	})
-	assert.True(t, result.IsError)
+	// Already-installed is no longer surfaced as an error — the user got the
+	// effect they asked for (skill is on disk), so we return a normal result
+	// with a friendly "tell the user" message. Keeps the chat reply natural
+	// instead of reading like "install failed".
+	assert.False(t, result.IsError)
 	assert.Contains(t, result.ForLLM, "already installed")
 }
 

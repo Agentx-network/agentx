@@ -191,7 +191,13 @@ export default function DashboardPage({ showToast }: Props) {
   const running = status?.running ?? false;
   const activeChannels = status?.channels?.filter(c => c.enabled) ?? [];
   const configuredModels = status?.models?.filter(m => m.hasKey) ?? [];
-  const activeModel = configuredModels[0];
+  // Prefer the model the gateway is actually using (IsActive set by the backend
+  // from agents.defaults.model_name). Fall back to "first with key" only when
+  // no active marker is present — e.g. fresh configs before the user picks one.
+  // Without this, switching models in Config left the Dashboard "MODEL" panel
+  // pinned to whichever model happened to be listed first.
+  const activeModel =
+    configuredModels.find(m => (m as any).isActive) ?? configuredModels[0];
   const identityFiles = files.filter(f => f.exists);
 
   // Extract agent name from IDENTITY.md if available

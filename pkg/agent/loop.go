@@ -51,6 +51,7 @@ type processOptions struct {
 	SendResponse       bool   // Whether to send response via bus
 	NoHistory          bool   // If true, don't load session history (for heartbeat)
 	CompressionRetried bool   // Internal: true after one compression-retry to bound recursion
+	RateLimitRetried   bool   // Internal: true after one rate-limit auto-retry to bound recursion
 }
 
 const defaultResponse = "I've completed processing but have no response to give. Increase `max_tool_iterations` in config.json."
@@ -80,6 +81,26 @@ func NewAgentLoop(cfg *config.Config, msgBus *bus.MessageBus, provider providers
 		summarizing: sync.Map{},
 		fallback:    fallbackChain,
 	}
+}
+
+// Reload rebuilds the agent registry from a fresh config snapshot.
+//
+// Why this exists: when the user changes provider/model in the desktop Config
+// page, the running gateway used to keep serving requests with the stale model
+// (captured into AgentInstance.Model + FantasyModel at startup). Users had to
+// restart the gateway manually, and any code path that touched cached state
+// (chat replies, dashboard model badge, etc.) showed inconsistent values.
+//
+// The fix is intentionally minimal: rebuild the registry (which rebuilds every
+// AgentInstance and its FantasyModel) and re-register shared tools so the new
+// agents get web search / message / spawn tools. In-flight conversations that
+// already hold an *AgentInstance pointer continue with the old model — that's
+// preferable to killing live streams mid-reply.
+func (al *AgentLoop) Reload(cfg *config.Config) {
+	al.cfg = cfg
+	al.registry.Reload(cfg, nil)
+	registerSharedTools(cfg, al.bus, al.registry, nil)
+	logger.InfoCF("agent", "Agent loop reloaded with new config", nil)
 }
 
 // registerSharedTools registers tools that are shared across all agents (web, message, spawn).
@@ -465,6 +486,12 @@ func (al *AgentLoop) runAgentLoop(ctx context.Context, agent *AgentInstance, opt
 	// pass (OnStepFinish) didn't already persist the same text. Some models
 	// produce the same assistant text in their last step AND in the final
 	// result, which would otherwise be saved twice.
+	//
+	// Truncate the SAVED version so a single verbose reply (e.g. find_skills
+	// returning 5 entries with long Chinese-language summaries — ~3KB) doesn't
+	// blow the next turn's context window on small-context providers like
+	// Cerebras 8K. The user-facing response we return below is still the full
+	// untrimmed text; only the history record is capped.
 	{
 		history := agent.Sessions.GetHistory(opts.SessionKey)
 		alreadyPersisted := false
@@ -475,7 +502,14 @@ func (al *AgentLoop) runAgentLoop(ctx context.Context, agent *AgentInstance, opt
 			}
 		}
 		if !alreadyPersisted {
-			agent.Sessions.AddMessage(opts.SessionKey, "assistant", finalContent)
+			historyContent := finalContent
+			const maxHistoryAssistantLen = 1500
+			if len(historyContent) > maxHistoryAssistantLen {
+				historyContent = historyContent[:maxHistoryAssistantLen] +
+					fmt.Sprintf("\n…[truncated %d more bytes; full text shown to the user]",
+						len(finalContent)-maxHistoryAssistantLen)
+			}
+			agent.Sessions.AddMessage(opts.SessionKey, "assistant", historyContent)
 		}
 	}
 	if err := agent.Sessions.Save(opts.SessionKey); err != nil {
@@ -562,7 +596,8 @@ func (al *AgentLoop) runLLMIteration(
 
 		callLLM := func() (*providers.LLMResponse, error) {
 			if len(agent.Candidates) > 1 && al.fallback != nil {
-				fbResult, fbErr := al.fallback.Execute(ctx, agent.Candidates,
+				fbResult, fbErr := al.fallback.Execute(
+					ctx, agent.Candidates,
 					func(ctx context.Context, provider, model string) (*providers.LLMResponse, error) {
 						return agent.Provider.Chat(ctx, messages, providerToolDefs, model, map[string]any{
 							"max_tokens":       agent.MaxTokens,

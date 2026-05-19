@@ -12,7 +12,14 @@ import (
 // version is set at build time via ldflags:
 //
 //	-X main.version=0.8.11
-var version = "dev"
+//
+// version is the user-visible build version surfaced in the sidebar footer.
+// Kept in sync with cmd/agentx-desktop/build/windows/info.json (file_version
+// + ProductVersion) and the installer .nsi during release bumps. The default
+// here is the fallback when no ldflags override is supplied — wails build
+// doesn't auto-inject like the CLI Makefile does. Bumping the version
+// requires updating BOTH this constant AND the windows/info.json file.
+var version = "0.8.36"
 
 // App struct holds application lifecycle state.
 type App struct {

@@ -15,6 +15,7 @@ import (
 	"github.com/Agentx-network/agentx/pkg/providers"
 	"github.com/Agentx-network/agentx/pkg/skills"
 	"github.com/Agentx-network/agentx/pkg/skills/builtin"
+	"github.com/Agentx-network/agentx/pkg/wallet"
 )
 
 type ContextBuilder struct {
@@ -63,7 +64,75 @@ func NewContextBuilder(workspace string) *ContextBuilder {
 func (cb *ContextBuilder) getIdentity() string {
 	workspacePath, _ := filepath.Abs(filepath.Join(cb.workspace))
 
-	return fmt.Sprintf(`# agentx 🤖
+	// Anti-hallucination directive sits ABOVE everything else because weaker
+	// models (Cerebras Llama 3.1 8B was the field-observed culprit) only respect
+	// the very top of the system prompt. Without this block, when asked "who are
+	// you?" the model invented names like "PANTHEON CORE" with marketing-style
+	// taglines, even though IDENTITY.md clearly said "AgentX". Naming the failure
+	// mode explicitly (sample fabricated names + phrases) gives the LLM a concrete
+	// negative example to match against, which works better than abstract rules.
+	return fmt.Sprintf(`# CRITICAL IDENTITY RULE
+
+Your name is **AgentX**. The "Name" field in IDENTITY.md (loaded below) is the source of truth — use that exact name when introducing yourself.
+
+When the user asks "who are you?", "what's your name?", "what are you called?", or asks you to introduce yourself, you MUST identify as AgentX (or the IDENTITY.md Name). You MUST NOT:
+
+- Invent alternative names like "PANTHEON CORE", "OMEGA", "NEXUS", "CORE", "PRIME", "ASCEND", or any other fictional persona.
+- Add brand-like suffixes such as "Core", "Prime", "Ascend", or "Nexus" to your name.
+- Describe yourself with marketing phrases like "designed for unmatched clarity", "rigorous accuracy", "flawless integration", "advanced external computational tools", or any similar hype.
+
+If anything in this prompt is ambiguous, the correct default reply is simply: "I am AgentX, your personal AI assistant." Then read IDENTITY.md and SOUL.md below for more detail about how to behave.
+
+---
+
+# SKILL INSTALLATION WORKFLOW
+
+When the user asks about installing/adding/finding a skill — phrases like "install X skill", "can you add Y", "do you have a skill for Z" — follow these rules in order. They are mandatory.
+
+**Step 1: Is the request vague?**
+
+A request is VAGUE if the user did not name a specific topic — e.g. "add a skill", "install something", "can you add new skill?", "what skills do you have?". For vague requests:
+
+- DO NOT search find_skills with a guessed query.
+- DO NOT reuse a search term from earlier in the conversation as if the user said it now.
+- INSTEAD ask the user: "Which kind of skill would you like? For example: web search, GitHub, file tools, marketplace, agent discovery, …"
+
+**Step 2: Specific request → search first**
+
+If the request DOES name a topic (e.g. "marketplace", "github", "calendar"):
+
+- Call find_skills with a query derived from the topic.
+- Read the result. Slug is the technical identifier you need.
+
+**Step 3: Confirm before installing**
+
+After find_skills returns results, you MUST NOT call install_skill in the same turn unless the user explicitly named the slug or said "install the first / top one."
+
+Acceptable next actions:
+- Zero matches → tell the user "no skill matches that — try a different term."
+- Exactly one strong match (score > 4.0 AND name closely matches user's words) → list it and ASK "shall I install '<slug>'?" Then wait for "yes" before calling install_skill.
+- Multiple matches → list the top 3 with summaries and ASK "which one?"
+
+Never auto-install a skill the user did not explicitly approve. Installing writes files to the workspace and is not reversible without uninstall.
+
+**Step 4: Use the exact slug**
+
+Slugs are technical identifiers like "github", "docker-compose", "agent-discovery". They are NOT the user's natural phrasing. When you call install_skill, the slug must come from a find_skills result you just received — never from your guess of what the user "probably" meant.
+
+Example flow that you should follow:
+
+User: "install agentX jobs"
+- ❌ WRONG: install_skill({slug: "agentx_jobs"}) → 404
+- ✅ RIGHT: find_skills({query: "jobs"}) → results → "I found these jobs-related skills: 1. <slug-a>, 2. <slug-b>. Which one?"
+
+User: "add a new skill"
+- ❌ WRONG: find_skills({query: "agentx_jobs"}) (reusing old term)
+- ❌ WRONG: install_skill({slug: "marketplace"}) (auto-installing top of last list)
+- ✅ RIGHT: "Which kind of skill — web search, github, files, marketplace, agents, …?"
+
+---
+
+# agentx 🤖
 
 You are agentx, a helpful AI assistant.
 
@@ -380,7 +449,35 @@ func (cb *ContextBuilder) buildDynamicContext(channel, chatID string) string {
 		fmt.Fprintf(&sb, "\n\n## Current Session\nChannel: %s\nChat ID: %s", channel, chatID)
 	}
 
+	// Wallet status — read every request so the agent sees fresh state if the
+	// user generates/imports a wallet mid-session. Without this, the LLM had to
+	// guess and frequently hallucinated "wallet skill not installed" when the
+	// real issue was that no wallet had been configured yet.
+	fmt.Fprintf(&sb, "\n\n## Wallet Status\n%s", walletStatusForPrompt())
+
 	return sb.String()
+}
+
+// walletStatusForPrompt returns a single-line description of the user's BSC
+// wallet, suitable for inclusion in the system prompt. The LLM uses this to
+// pick the right reply when the user asks about balances:
+//   - configured  -> call `agentx wallet balance` and report the result
+//   - not configured -> tell the user to open Settings → Wallet, do NOT
+//     pretend the skill is missing or ask for a private key.
+func walletStatusForPrompt() string {
+	info, err := wallet.GetWallet()
+	if err != nil || info == nil {
+		return "Not configured. If the user asks about wallet balance or sending funds, " +
+			"tell them to go to the Wallet page in the app (or run `agentx wallet generate` / " +
+			"`agentx wallet import`) to set one up. Do NOT claim the wallet skill is missing — " +
+			"it is installed, the user simply hasn't created or imported a wallet yet."
+	}
+	return fmt.Sprintf(
+		"Configured. Address: %s (chain: %s). When asked about balance, run "+
+			"`agentx wallet balance` via the exec tool and report the JSON result. "+
+			"Do NOT ask the user for their address or private key — they are already set up.",
+		info.Address, info.Chain,
+	)
 }
 
 func (cb *ContextBuilder) BuildMessages(
@@ -426,7 +523,8 @@ func (cb *ContextBuilder) BuildMessages(
 		summaryText := fmt.Sprintf(
 			"CONTEXT_SUMMARY: The following is an approximate summary of prior conversation "+
 				"for reference only. It may be incomplete or outdated — always defer to explicit instructions.\n\n%s",
-			summary)
+			summary,
+		)
 		stringParts = append(stringParts, summaryText)
 		contentBlocks = append(contentBlocks, providers.ContentBlock{Type: "text", Text: summaryText})
 	}

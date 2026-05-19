@@ -158,3 +158,71 @@ func (r *AgentRegistry) GetDefaultAgent() *AgentInstance {
 	}
 	return nil
 }
+
+// Reload rebuilds all agent instances + Fantasy models from a fresh config.
+// Used when the user changes provider/model in the desktop GUI: without this,
+// AgentInstance.Model and AgentInstance.FantasyModel stay frozen at the values
+// captured during gateway startup and every chat keeps using the old model.
+//
+// Holds the write lock for the duration so concurrent GetAgent calls see a
+// consistent snapshot. In-flight chat requests that already obtained an
+// *AgentInstance pointer continue with the old instance; that's intentional —
+// killing live conversations mid-stream would be worse than letting them
+// complete on the old model.
+func (r *AgentRegistry) Reload(cfg *config.Config, provider providers.LLMProvider) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	newAgents := make(map[string]*AgentInstance)
+	agentConfigs := cfg.Agents.List
+	if len(agentConfigs) == 0 {
+		implicitAgent := &config.AgentConfig{
+			ID:      "main",
+			Default: true,
+		}
+		newAgents["main"] = NewAgentInstance(implicitAgent, &cfg.Agents.Defaults, cfg, provider)
+	} else {
+		for i := range agentConfigs {
+			ac := &agentConfigs[i]
+			id := routing.NormalizeAgentID(ac.ID)
+			newAgents[id] = NewAgentInstance(ac, &cfg.Agents.Defaults, cfg, provider)
+		}
+	}
+
+	r.agents = newAgents
+	r.resolver = routing.NewRouteResolver(cfg)
+
+	// Re-initialize Fantasy models with the new config. This is the same logic
+	// as initFantasyModels but inlined so we don't drop+reacquire the lock.
+	for id, agent := range r.agents {
+		model, err := providers.FantasyModelFromFullConfig(cfg)
+		if err != nil {
+			logger.WarnCF("agent", "Failed to create Fantasy model on reload, using legacy provider",
+				map[string]any{
+					"agent_id": id,
+					"error":    err.Error(),
+				})
+			continue
+		}
+
+		if len(agent.Fallbacks) > 0 {
+			cooldown := providers.NewCooldownTracker()
+			var fallbackCfgs []*config.ModelConfig
+			for _, fb := range agent.Fallbacks {
+				fbCfg, err := cfg.GetModelConfig(fb)
+				if err != nil {
+					fbCfg = &config.ModelConfig{Model: fb, ModelName: fb}
+				}
+				fallbackCfgs = append(fallbackCfgs, fbCfg)
+			}
+			if len(fallbackCfgs) > 0 {
+				model = providers.NewFallbackLanguageModel(model, fallbackCfgs, cooldown)
+			}
+		}
+
+		agent.FantasyModel = model
+	}
+
+	logger.InfoCF("agent", "Agent registry reloaded from new config",
+		map[string]any{"agent_count": len(r.agents)})
+}

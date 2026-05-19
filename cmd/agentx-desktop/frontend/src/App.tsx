@@ -285,7 +285,7 @@ export default function App() {
   return (
     <div className="relative flex h-screen bg-bg">
       {ambientBg}
-      <Sidebar currentPage={page} onNavigate={setPage} onRunWizard={() => { setPage("installer"); setMode("wizard"); }} version={appVersion} />
+      <Sidebar currentPage={page} onNavigate={setPage} version={appVersion} />
       <main className={`relative flex-1 p-6 ${page === "chat" ? "overflow-hidden flex flex-col" : "overflow-y-auto"}`}>
         {page === "dashboard" && <DashboardPage showToast={showToast} />}
         {page === "chat" && <ChatPage showToast={showToast} messages={chatMessages} setMessages={setChatMessages} />}

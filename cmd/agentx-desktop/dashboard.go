@@ -33,6 +33,13 @@ type ModelInfo struct {
 	ModelName string `json:"modelName"`
 	Model     string `json:"model"`
 	HasKey    bool   `json:"hasKey"`
+	// IsActive marks the entry the agent will actually use for chat — i.e. the
+	// one whose ModelName matches cfg.Agents.Defaults.GetModelName(). Before
+	// this field existed, the Dashboard's "MODEL" panel defaulted to the first
+	// model in the list with an API key, which made model changes invisible:
+	// after switching from qwen to gemini, the panel still showed qwen because
+	// it was simply listed first. The frontend now prefers IsActive when set.
+	IsActive bool `json:"isActive"`
 }
 
 type DashboardService struct {
@@ -227,12 +234,12 @@ func findBinary() (string, error) {
 
 	if runtime.GOOS == "windows" {
 		candidates = []string{
-			filepath.Join(home, ".local", "bin", "agentx.exe"),                       // Desktop app install
-			filepath.Join(os.Getenv("ProgramFiles"), "AgentX", "agentx.exe"),         // Inno Setup (admin)
+			filepath.Join(home, ".local", "bin", "agentx.exe"),                           // Desktop app install
+			filepath.Join(os.Getenv("ProgramFiles"), "AgentX", "agentx.exe"),             // Inno Setup (admin)
 			filepath.Join(os.Getenv("LOCALAPPDATA"), "Programs", "AgentX", "agentx.exe"), // Inno Setup (user, {autopf})
-			filepath.Join(os.Getenv("LOCALAPPDATA"), "AgentX", "agentx.exe"),         // Legacy path
-			filepath.Join(home, "AppData", "Local", "Programs", "AgentX", "agentx.exe"), // Inno Setup fallback
-			filepath.Join(home, "AppData", "Local", "AgentX", "agentx.exe"),          // Legacy fallback
+			filepath.Join(os.Getenv("LOCALAPPDATA"), "AgentX", "agentx.exe"),             // Legacy path
+			filepath.Join(home, "AppData", "Local", "Programs", "AgentX", "agentx.exe"),  // Inno Setup fallback
+			filepath.Join(home, "AppData", "Local", "AgentX", "agentx.exe"),              // Legacy fallback
 		}
 	}
 
@@ -266,12 +273,14 @@ func getChannelInfos(cfg *config.Config) []ChannelInfo {
 }
 
 func getModelInfos(cfg *config.Config) []ModelInfo {
+	activeName := cfg.Agents.Defaults.GetModelName()
 	var models []ModelInfo
 	for _, m := range cfg.ModelList {
 		models = append(models, ModelInfo{
 			ModelName: m.ModelName,
 			Model:     m.Model,
 			HasKey:    m.APIKey != "" && m.APIKey != "ollama",
+			IsActive:  activeName != "" && m.ModelName == activeName,
 		})
 	}
 	return models
