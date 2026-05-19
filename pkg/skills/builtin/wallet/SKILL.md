@@ -24,6 +24,9 @@ You can manage the user's BSC (Binance Smart Chain) wallet using the `agentx wal
 
 ## Usage Guidelines
 
+- The current wallet state is reported in the **Wallet Status** section of the system prompt. Trust that, don't ask the user for their address or private key when one is already configured.
+- If the system prompt says the wallet is **not configured**, do NOT claim "the wallet skill is not installed" — the skill is always installed. The correct reply is to direct the user to the Wallet page in the desktop app (or `agentx wallet generate` / `agentx wallet import` on the CLI).
+- If the `agentx wallet balance` command returns an error like `"no wallet found"`, surface that exact message to the user verbatim — do not paraphrase it as "skill not installed".
 - Always check if a wallet exists with `agentx wallet info` before generating a new one.
 - All output is JSON for easy parsing — do not add extra formatting.
 - **Before sending funds**, always confirm the recipient address, amount, and token with the user. Never send funds without explicit user approval.

@@ -1238,6 +1238,7 @@ export namespace main {
 	    modelName: string;
 	    model: string;
 	    hasKey: boolean;
+	    isActive: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new ModelInfo(source);
@@ -1248,6 +1249,7 @@ export namespace main {
 	        this.modelName = source["modelName"];
 	        this.model = source["model"];
 	        this.hasKey = source["hasKey"];
+	        this.isActive = source["isActive"];
 	    }
 	}
 	export class GatewayStatus {

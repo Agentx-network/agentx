@@ -23,7 +23,10 @@ func (t *MessageTool) Name() string {
 }
 
 func (t *MessageTool) Description() string {
-	return "Send a message to user on a chat channel. Use this when you want to communicate something."
+	return "Send a proactive notification to the user on a DIFFERENT channel from the one they are currently chatting in. " +
+		"Example: user is in desktop chat but you want to send them a Telegram alert when a long-running task finishes. " +
+		"Do NOT use this for normal replies in the current conversation — just respond with plain text content for those. " +
+		"Sending to the same channel/chat the user is already in is redundant and will be rejected."
 }
 
 func (t *MessageTool) Parameters() map[string]any {
@@ -80,6 +83,29 @@ func (t *MessageTool) Execute(ctx context.Context, args map[string]any) *ToolRes
 
 	if channel == "" || chatID == "" {
 		return &ToolResult{ForLLM: "No target channel/chat specified", IsError: true}
+	}
+
+	// Reject same-channel sends as redundant. Weak LLMs (Cerebras Llama 3.1 8B
+	// was the field-observed culprit) interpret "send a message" as the
+	// generic way to reply in the current chat — they call this tool with
+	// content="<their reply>" and rely on the default channel/chat, which is
+	// whichever surface the user is already on. The result is the user sees
+	// "Message sent to desktop:chat" instead of the actual reply, because the
+	// tool returns its confirmation string while the real content goes to the
+	// outbound bus (which the desktop SSE stream doesn't subscribe to). Catch
+	// this case in the tool itself — the model gets a clear error explaining
+	// it should just answer with text.
+	if tc, ok := GetToolContext(ctx); ok {
+		if channel == tc.Channel && chatID == tc.ChatID {
+			return &ToolResult{
+				ForLLM: "REDUNDANT: You tried to send a message to the SAME channel/chat the user is already in (" +
+					channel + ":" + chatID + "). " +
+					"To reply in the current conversation, respond with plain text content — do NOT call the message tool. " +
+					"The message tool is ONLY for sending notifications to OTHER channels (e.g., user is in desktop but you want to ping their Telegram). " +
+					"Try again: either respond as plain text, or specify a different channel.",
+				IsError: true,
+			}
+		}
 	}
 
 	if t.sendCallback == nil {

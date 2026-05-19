@@ -35,10 +35,13 @@ var providers = []providerInfo{
 	{
 		Name:     "Google Gemini",
 		ID:       "gemini",
-		ModelName: "gemini-2.0-flash",
-		Model:    "gemini/gemini-2.0-flash-exp",
+		ModelName: "gemini-2.5-flash",
+		// Use gemini-2.5-flash: the current stable, free-tier-eligible chat model
+		// with reliable structured tool calling. 2.0-flash works too but its free
+		// quota is much smaller, so demo users hit 429 quickly.
+		Model:    "gemini/gemini-2.5-flash",
 		APIBase:  "https://generativelanguage.googleapis.com/v1beta",
-		KeyURL:   "https://ai.google.dev/",
+		KeyURL:   "https://aistudio.google.com/app/apikey",
 		NeedsKey: true,
 	},
 	{

@@ -100,7 +100,11 @@ func createGoogleProvider(cfg *config.ModelConfig) (fantasy.Provider, error) {
 		opts = append(opts, google.WithGeminiAPIKey(cfg.APIKey))
 	}
 	if cfg.APIBase != "" {
-		opts = append(opts, google.WithBaseURL(cfg.APIBase))
+		// The Fantasy SDK's Google adapter appends "/v1beta/models/<id>:generateContent"
+		base := strings.TrimRight(cfg.APIBase, "/")
+		base = strings.TrimSuffix(base, "/v1beta")
+		base = strings.TrimSuffix(base, "/v1")
+		opts = append(opts, google.WithBaseURL(base))
 	}
 	return google.New(opts...)
 }

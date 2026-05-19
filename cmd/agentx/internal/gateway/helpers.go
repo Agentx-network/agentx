@@ -276,6 +276,63 @@ func gatewayCmd(debug bool) error {
 		flusher.Flush()
 	})
 
+	// Register reload endpoint: desktop GUI POSTs here after the user saves
+	// changes on the Config page so the running gateway picks up new model /
+	// provider / API key settings without requiring a manual gateway restart.
+	healthServer.HandleFunc("/api/reload", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+		newCfg, err := internal.LoadConfig()
+		if err != nil {
+			logger.ErrorCF("gateway", "Reload failed to load config",
+				map[string]any{"error": err.Error()})
+			http.Error(w, `{"error":"failed to reload config"}`, http.StatusInternalServerError)
+			return
+		}
+		agentLoop.Reload(newCfg)
+
+		// Reload channels too. Without this, when a user enables Telegram (or
+		// any channel) in the GUI for the first time, the bot never starts
+		// polling because the channel manager was constructed at gateway boot
+		// with the channel disabled. Previously the user had to pkill the
+		// gateway after every channel-config change; that surfaced in a demo
+		// as "Telegram doesn't respond after onboarding."
+		if err := channelManager.Reload(ctx, newCfg); err != nil {
+			logger.ErrorCF("gateway", "Channel reload failed",
+				map[string]any{"error": err.Error()})
+			// Don't fail the request: the agent loop reloaded successfully,
+			// and the channel reload error is in the log for diagnosis.
+		}
+
+		// Re-attach voice transcriber after reload. channelManager.Reload
+		// recreates channel objects, so the *TelegramChannel / *DiscordChannel
+		// / *SlackChannel instances are new and have lost the transcriber
+		// reference set up during initial gateway startup. Re-attaching here
+		// keeps voice-to-text working after a config save.
+		if transcriber != nil {
+			if telegramChannel, ok := channelManager.GetChannel("telegram"); ok {
+				if tc, ok := telegramChannel.(*channels.TelegramChannel); ok {
+					tc.SetTranscriber(transcriber)
+				}
+			}
+			if discordChannel, ok := channelManager.GetChannel("discord"); ok {
+				if dc, ok := discordChannel.(*channels.DiscordChannel); ok {
+					dc.SetTranscriber(transcriber)
+				}
+			}
+			if slackChannel, ok := channelManager.GetChannel("slack"); ok {
+				if sc, ok := slackChannel.(*channels.SlackChannel); ok {
+					sc.SetTranscriber(transcriber)
+				}
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"reloaded"}`))
+	})
+
 	go func() {
 		if err := healthServer.Start(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.ErrorCF("health", "Health server error", map[string]any{"error": err.Error()})
@@ -283,6 +340,7 @@ func gatewayCmd(debug bool) error {
 	}()
 	fmt.Printf("✓ Health endpoints available at http://%s:%d/health and /ready\n", cfg.Gateway.Host, cfg.Gateway.Port)
 	fmt.Printf("✓ Chat API available at http://%s:%d/api/chat\n", cfg.Gateway.Host, cfg.Gateway.Port)
+	fmt.Printf("✓ Reload API available at http://%s:%d/api/reload\n", cfg.Gateway.Host, cfg.Gateway.Port)
 
 	go agentLoop.Run(ctx)
 

@@ -179,9 +179,16 @@ desktop-dev:
 	@cd cmd/agentx-desktop && wails dev -tags webkit2_41
 
 ## desktop-build: Build AgentX Desktop for current platform
+# -H windowsgui is a Windows-only linker flag (suppresses the console window).
+# Passing it on Linux/macOS forces Go's PE linker code path and crashes the
+# build with a nil-pointer in cmd/link/internal/ld/pe.go.
 desktop-build:
 	@echo "Building AgentX Desktop for $(PLATFORM)/$(ARCH)..."
+ifeq ($(PLATFORM),windows)
 	@cd cmd/agentx-desktop && wails build -tags webkit2_41 -ldflags="-s -w -H windowsgui"
+else
+	@cd cmd/agentx-desktop && wails build -tags webkit2_41 -ldflags="-s -w"
+endif
 	@echo "Desktop build complete"
 
 ## help: Show this help message

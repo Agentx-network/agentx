@@ -99,6 +99,34 @@ func ErrorResult(message string) *ToolResult {
 	}
 }
 
+// BlockedResult creates a ToolResult that fails with TWO distinct messages:
+// a clean user-facing line (ForUser) and detailed model-facing guidance
+// (ForLLM). Used for failures that have a natural user-friendly explanation
+// — vague query, missing consent, "did you mean ..." 404, etc. — where
+// dumping the model's instructions into the chat would read as noise.
+//
+// The recovery path in pkg/agent/fantasy_runner.go shows ForUser directly
+// when present. Capable LLMs (Anthropic, OpenAI, Gemini with structured
+// tool calls) read ForLLM and can iterate on its guidance for a second
+// turn; weak LLMs (Cerebras Llama emitting text tool calls) skip the
+// iteration and the user sees ForUser as the final reply.
+//
+// Example:
+//
+//	return BlockedResult(
+//	    "Which skill would you like me to install?",                       // for the user
+//	    "BLOCKED: user did not name a slug. Reply asking which to pick.",  // for the model
+//	)
+func BlockedResult(forUser, forLLM string) *ToolResult {
+	return &ToolResult{
+		ForUser: forUser,
+		ForLLM:  forLLM,
+		Silent:  false,
+		IsError: true,
+		Async:   false,
+	}
+}
+
 // UserResult creates a ToolResult with content for both LLM and user.
 // Both ForLLM and ForUser are set to the same content.
 //

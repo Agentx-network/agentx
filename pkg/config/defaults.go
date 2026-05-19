@@ -160,10 +160,10 @@ func DefaultConfig() *Config {
 				APIKey:    "",
 			},
 
-			// Google Gemini - https://ai.google.dev/
+			// Google Gemini - https://aistudio.google.com/app/apikey
 			{
-				ModelName: "gemini-2.0-flash",
-				Model:     "gemini/gemini-2.0-flash-exp",
+				ModelName: "gemini-2.5-flash",
+				Model:     "gemini/gemini-2.5-flash",
 				APIBase:   "https://generativelanguage.googleapis.com/v1beta",
 				APIKey:    "",
 			},

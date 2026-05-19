@@ -5,10 +5,13 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/Agentx-network/agentx/pkg/config"
+	"github.com/Agentx-network/agentx/pkg/logger"
 )
 
 //go:embed catalog.json
@@ -46,7 +49,61 @@ func (c *ConfigService) SaveConfig(cfg *config.Config) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	return config.SaveConfig(path, cfg)
+	if err := config.SaveConfig(path, cfg); err != nil {
+		return err
+	}
+	notifyGatewayReload(cfg)
+	return nil
+}
+
+// saveAndNotify persists the config and tells the running gateway to reload.
+// Used internally by every method on ConfigService that mutates config, so the
+// user's change in the Config page is reflected in the next chat turn without
+// requiring a manual gateway restart.
+func saveAndNotify(cfg *config.Config) error {
+	if err := config.SaveConfig(getConfigPath(), cfg); err != nil {
+		return err
+	}
+	notifyGatewayReload(cfg)
+	return nil
+}
+
+// notifyGatewayReload POSTs to the gateway's /api/reload endpoint so it
+// rebuilds its agent registry against the new config. Failures are logged
+// but don't propagate: the config IS saved on disk, and the next gateway
+// start (or a manual restart from the dashboard) will pick it up. We do
+// not want a transient localhost network blip to make Save look broken.
+func notifyGatewayReload(cfg *config.Config) {
+	host := cfg.Gateway.Host
+	if host == "" {
+		host = "127.0.0.1"
+	}
+	port := cfg.Gateway.Port
+	if port == 0 {
+		port = 18790
+	}
+	url := fmt.Sprintf("http://%s:%d/api/reload", host, port)
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	req, err := http.NewRequest(http.MethodPost, url, nil)
+	if err != nil {
+		logger.WarnCF("desktop", "Could not build gateway reload request",
+			map[string]any{"error": err.Error()})
+		return
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		// Gateway may not be running yet (first launch before auto-start
+		// completes). Don't surface as a failure to the user.
+		logger.DebugCF("desktop", "Gateway reload skipped (gateway unreachable)",
+			map[string]any{"url": url, "error": err.Error()})
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		logger.WarnCF("desktop", "Gateway reload returned non-200",
+			map[string]any{"url": url, "status": resp.StatusCode})
+	}
 }
 
 func (c *ConfigService) GetModelList() ([]config.ModelConfig, error) {
@@ -63,7 +120,7 @@ func (c *ConfigService) AddModel(model config.ModelConfig) error {
 		return err
 	}
 	cfg.ModelList = append(cfg.ModelList, model)
-	return config.SaveConfig(getConfigPath(), cfg)
+	return saveAndNotify(cfg)
 }
 
 func (c *ConfigService) UpdateModel(index int, model config.ModelConfig) error {
@@ -75,7 +132,7 @@ func (c *ConfigService) UpdateModel(index int, model config.ModelConfig) error {
 		return fmt.Errorf("model index %d out of range", index)
 	}
 	cfg.ModelList[index] = model
-	return config.SaveConfig(getConfigPath(), cfg)
+	return saveAndNotify(cfg)
 }
 
 func (c *ConfigService) RemoveModel(index int) error {
@@ -87,7 +144,7 @@ func (c *ConfigService) RemoveModel(index int) error {
 		return fmt.Errorf("model index %d out of range", index)
 	}
 	cfg.ModelList = append(cfg.ModelList[:index], cfg.ModelList[index+1:]...)
-	return config.SaveConfig(getConfigPath(), cfg)
+	return saveAndNotify(cfg)
 }
 
 func (c *ConfigService) SetChannelEnabled(channel string, enabled bool) error {
@@ -123,7 +180,7 @@ func (c *ConfigService) SetChannelEnabled(channel string, enabled bool) error {
 	default:
 		return fmt.Errorf("unknown channel: %s", channel)
 	}
-	return config.SaveConfig(getConfigPath(), cfg)
+	return saveAndNotify(cfg)
 }
 
 func (c *ConfigService) GetAgentDefaults() (*config.AgentDefaults, error) {
@@ -140,7 +197,7 @@ func (c *ConfigService) UpdateAgentDefaults(defaults config.AgentDefaults) error
 		return err
 	}
 	cfg.Agents.Defaults = defaults
-	return config.SaveConfig(getConfigPath(), cfg)
+	return saveAndNotify(cfg)
 }
 
 func (c *ConfigService) GetAvailableProviders() []ProviderOption {
@@ -187,13 +244,13 @@ func (c *ConfigService) QuickSetupProvider(providerID string, apiKey string) err
 		if m.ModelName == provider.ModelName {
 			cfg.ModelList[i] = newModel
 			cfg.Agents.Defaults.ModelName = provider.ModelName
-			return config.SaveConfig(getConfigPath(), cfg)
+			return saveAndNotify(cfg)
 		}
 	}
 
 	cfg.ModelList = append(cfg.ModelList, newModel)
 	cfg.Agents.Defaults.ModelName = provider.ModelName
-	return config.SaveConfig(getConfigPath(), cfg)
+	return saveAndNotify(cfg)
 }
 
 // QuickSetupChannel enables a channel with its token in one call.
@@ -215,5 +272,5 @@ func (c *ConfigService) QuickSetupChannel(channel string, token string) error {
 	default:
 		return fmt.Errorf("unsupported channel for quick setup: %s", channel)
 	}
-	return config.SaveConfig(getConfigPath(), cfg)
+	return saveAndNotify(cfg)
 }
