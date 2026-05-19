@@ -19,10 +19,10 @@ func DefaultConfig() *Config {
 				// Zhipu model that has no matching entry in model_list — every
 				// chat then failed with `forbidden: Not authenticated`. Onboard
 				// fills in model_name; the empty Model lets that lookup resolve.
-				Model:               "",
-				MaxTokens:           8192,
-				Temperature:         nil, // nil means use provider default
-				MaxToolIterations:   50,
+				Model:             "",
+				MaxTokens:         8192,
+				Temperature:       nil, // nil means use provider default
+				MaxToolIterations: 50,
 			},
 		},
 		Bindings: []AgentBinding{},

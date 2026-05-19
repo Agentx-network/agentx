@@ -596,7 +596,8 @@ func (al *AgentLoop) runLLMIteration(
 
 		callLLM := func() (*providers.LLMResponse, error) {
 			if len(agent.Candidates) > 1 && al.fallback != nil {
-				fbResult, fbErr := al.fallback.Execute(ctx, agent.Candidates,
+				fbResult, fbErr := al.fallback.Execute(
+					ctx, agent.Candidates,
 					func(ctx context.Context, provider, model string) (*providers.LLMResponse, error) {
 						return agent.Provider.Chat(ctx, messages, providerToolDefs, model, map[string]any{
 							"max_tokens":       agent.MaxTokens,

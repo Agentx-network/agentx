@@ -12,6 +12,7 @@ import (
 // version is set at build time via ldflags:
 //
 //	-X main.version=0.8.11
+//
 // version is the user-visible build version surfaced in the sidebar footer.
 // Kept in sync with cmd/agentx-desktop/build/windows/info.json (file_version
 // + ProductVersion) and the installer .nsi during release bumps. The default

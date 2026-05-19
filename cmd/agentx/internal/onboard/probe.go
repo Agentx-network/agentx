@@ -157,9 +157,9 @@ func validateProviderModel(ctx context.Context, p *providerInfo, apiKey string) 
 
 // formatModelList returns a short human-readable list, capped at 8 entries.
 func formatModelList(models []string) string {
-	const max = 8
-	if len(models) > max {
-		return strings.Join(models[:max], ", ") + fmt.Sprintf(", … (+%d more)", len(models)-max)
+	const maxEntries = 8
+	if len(models) > maxEntries {
+		return strings.Join(models[:maxEntries], ", ") + fmt.Sprintf(", … (+%d more)", len(models)-maxEntries)
 	}
 	return strings.Join(models, ", ")
 }

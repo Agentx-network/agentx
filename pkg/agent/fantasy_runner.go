@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"charm.land/fantasy"
-
 	"github.com/Agentx-network/agentx/pkg/bus"
 	"github.com/Agentx-network/agentx/pkg/logger"
 	"github.com/Agentx-network/agentx/pkg/providers"
@@ -20,13 +19,11 @@ import (
 	"github.com/Agentx-network/agentx/pkg/utils"
 )
 
-
 var toolCallJSONLine = regexp.MustCompile(
 	`(?m)^[ \t]*\{[ \t]*"name"[ \t]*:[ \t]*"[^"]+"[^\n]*"arguments"[^\n]*$`,
 )
 
 var blankRunCollapse = regexp.MustCompile(`\n{3,}`)
-
 
 func stripToolCallJSON(s string) string {
 	cleaned := toolCallJSONLine.ReplaceAllString(s, "")
@@ -39,7 +36,6 @@ func stripToolCallJSON(s string) string {
 // in full by the model on the turn that produced them; this limit prevents
 // them from bloating EVERY subsequent turn's prompt.
 const toolResultStoredLimit = 2000
-
 
 func looksLikeToolCallJSONStream(buf string) bool {
 	s := strings.TrimLeft(buf, " \t\n\r")
@@ -277,7 +273,8 @@ func (al *AgentLoop) runFantasyIteration(
 	maxTokens := int64(agent.MaxTokens)
 	temperature := agent.Temperature
 
-	fantasyAgent := fantasy.NewAgent(model,
+	fantasyAgent := fantasy.NewAgent(
+		model,
 		fantasy.WithSystemPrompt(systemPrompt),
 		fantasy.WithTools(fantasyTools...),
 		fantasy.WithMaxOutputTokens(maxTokens),
@@ -431,7 +428,6 @@ func (al *AgentLoop) runFantasyIteration(
 			return nil
 		},
 	})
-
 	if err != nil {
 		// Extract detailed error info from ProviderError
 		var providerErr *fantasy.ProviderError

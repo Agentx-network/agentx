@@ -523,7 +523,8 @@ func (cb *ContextBuilder) BuildMessages(
 		summaryText := fmt.Sprintf(
 			"CONTEXT_SUMMARY: The following is an approximate summary of prior conversation "+
 				"for reference only. It may be incomplete or outdated — always defer to explicit instructions.\n\n%s",
-			summary)
+			summary,
+		)
 		stringParts = append(stringParts, summaryText)
 		contentBlocks = append(contentBlocks, providers.ContentBlock{Type: "text", Text: summaryText})
 	}

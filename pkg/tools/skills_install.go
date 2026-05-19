@@ -107,7 +107,8 @@ func (t *InstallSkillTool) Execute(ctx context.Context, args map[string]any) *To
 						"Reusing slugs from earlier conversation history is not consent. "+
 						"Reply to the user with the search results and ask which skill to install. "+
 						"Only call install_skill again after the user replies with the slug name or an explicit phrase like 'install <name>' or 'install the first one'.",
-					slug, truncateForError(tc.UserMessage, 200)),
+					slug, truncateForError(tc.UserMessage, 200),
+				),
 			)
 		}
 	}
@@ -133,7 +134,8 @@ func (t *InstallSkillTool) Execute(ctx context.Context, args map[string]any) *To
 					"The %q skill is already installed in the user's workspace — nothing to do. "+
 						"Tell the user: \"You already have the %q skill installed. "+
 						"Let me know if you want me to reinstall it (I can do that with force=true) or pick a different skill.\"",
-					slug, slug),
+					slug, slug,
+				),
 			}
 		}
 	} else {
@@ -183,7 +185,8 @@ func (t *InstallSkillTool) Execute(ctx context.Context, args map[string]any) *To
 						"Instead, call find_skills with a search query (e.g. find_skills({\"query\":\"marketplace\"})) "+
 						"to discover the actual slug of the skill the user wants, then call install_skill with that exact slug. "+
 						"If find_skills returns no matches, tell the user the skill isn't available in the registry rather than guessing.",
-					slug, registryName),
+					slug, registryName,
+				),
 			)
 		}
 		return BlockedResult(
@@ -394,10 +397,10 @@ func splitSlugParts(s string) []string {
 
 // truncateForError shortens a string for inclusion in an error message that
 // the LLM will read. Keeps things compact without dropping signal.
-func truncateForError(s string, max int) string {
+func truncateForError(s string, maxLen int) string {
 	s = strings.TrimSpace(s)
-	if len(s) <= max {
+	if len(s) <= maxLen {
 		return s
 	}
-	return s[:max] + "…"
+	return s[:maxLen] + "…"
 }
