@@ -19,13 +19,13 @@ func NewMigrateCommand() *cobra.Command {
   agentx migrate --force`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			result, err := migrate.Run(opts)
-			if err != nil {
-				return err
-			}
-			if !opts.DryRun {
+			// Print the summary whenever we have a result (even on partial-failure
+			// errors) so the user sees what did and didn't migrate, then surface
+			// the error for a non-zero exit.
+			if result != nil && !opts.DryRun {
 				migrate.PrintSummary(result)
 			}
-			return nil
+			return err
 		},
 	}
 
@@ -38,7 +38,7 @@ func NewMigrateCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.WorkspaceOnly, "workspace-only", false,
 		"Only migrate workspace files, skip config")
 	cmd.Flags().BoolVar(&opts.Force, "force", false,
-		"Skip confirmation prompts")
+		"Skip confirmation prompts and proceed past unreadable config / partial failures")
 	cmd.Flags().StringVar(&opts.OpenClawHome, "openclaw-home", "",
 		"Override OpenClaw home directory (default: ~/.openclaw)")
 	cmd.Flags().StringVar(&opts.AgentXHome, "agentx-home", "",

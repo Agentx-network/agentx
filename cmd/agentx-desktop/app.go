@@ -9,8 +9,10 @@ import (
 	"github.com/Agentx-network/agentx/pkg/config"
 )
 
-// version is shown in the sidebar footer. Keep this constant in sync with
-// cmd/agentx-desktop/build/windows/info.json on each release bump.
+// version is shown in the sidebar footer. Do not edit by hand — run
+// `make bump-version VERSION=x.y.z`, which updates this constant, the Windows
+// VERSIONINFO (build/windows/info.json), and the NSIS installer (project.nsi)
+// together so they can't drift apart.
 var version = "0.8.37"
 
 // App struct holds application lifecycle state.

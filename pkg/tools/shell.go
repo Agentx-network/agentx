@@ -69,6 +69,21 @@ var defaultDenyPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`\bssh\b.*@`),
 	regexp.MustCompile(`\beval\b`),
 	regexp.MustCompile(`\bsource\s+.*\.sh\b`),
+
+	// H5 (audit): close known denylist gaps. A denylist is fundamentally
+	// fragile — these patch the specific escapes the audit called out
+	// (symlink escape, privilege escalation, shell escape, network
+	// exfiltration, raw-device writes, explicit home-dir deletion).
+	regexp.MustCompile(`\brm\s+-[rf]{1,2}\s+(~|\$HOME)\b`), // rm -rf ~ / $HOME (explicit, defense-in-depth)
+	regexp.MustCompile(`\bln\s+-s\b`),                      // symlink escape (e.g. link / then read it)
+	regexp.MustCompile(`\bsetfacl\b`),                      // ACL-based privilege change
+	regexp.MustCompile(`\bsetcap\b`),                       // grant file capabilities (priv-esc)
+	regexp.MustCompile(`\bchattr\b`),                       // immutable/append attrs
+	regexp.MustCompile(`\btmux\s+send-keys\b`),             // inject into another shell
+	regexp.MustCompile(`\bscreen\s+-X\b`),                  // inject into a screen session
+	regexp.MustCompile(`\b(nc|ncat|netcat)\s`),             // reverse shell / data exfiltration
+	regexp.MustCompile(`\bdd\b.*\bof=/dev/`),               // dd writing to a device
+	regexp.MustCompile(`/dev/(sd[a-z]|nvme\d|mmcblk\d)\b`), // raw block-device access
 }
 
 // findAgentxBinDir returns the directory containing the agentx binary,

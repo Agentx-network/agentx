@@ -121,21 +121,18 @@ The following skills extend your capabilities. To use a skill, read its SKILL.md
 // BuildSystemPromptWithCache returns the cached system prompt if available
 // and source files haven't changed, otherwise builds and caches it.
 // Source file changes are detected via mtime checks (cheap stat calls).
+//
+// M3 (audit): the previous RLock fast path created a race window — between the
+// read-lock validity check and the write-lock rebuild, a source file's mtime
+// could change in a way that let two concurrent requests observe different
+// prompts. We now do the validity check and the rebuild under a single
+// exclusive lock, so a given build either sees the change or doesn't —
+// consistently. The cached path is just a stat() check, so serializing it is
+// cheap for this workload.
 func (cb *ContextBuilder) BuildSystemPromptWithCache() string {
-	// Try read lock first — fast path when cache is valid
-	cb.systemPromptMutex.RLock()
-	if cb.cachedSystemPrompt != "" && !cb.sourceFilesChangedLocked() {
-		result := cb.cachedSystemPrompt
-		cb.systemPromptMutex.RUnlock()
-		return result
-	}
-	cb.systemPromptMutex.RUnlock()
-
-	// Acquire write lock for building
 	cb.systemPromptMutex.Lock()
 	defer cb.systemPromptMutex.Unlock()
 
-	// Double-check: another goroutine may have rebuilt while we waited
 	if cb.cachedSystemPrompt != "" && !cb.sourceFilesChangedLocked() {
 		return cb.cachedSystemPrompt
 	}
@@ -391,6 +388,11 @@ func (cb *ContextBuilder) buildDynamicContext(channel, chatID string) string {
 //   - configured  -> call `agentx wallet balance` and report the result
 //   - not configured -> tell the user to open Settings → Wallet, do NOT
 //     pretend the skill is missing or ask for a private key.
+//
+// M1 (audit): the wallet address is deliberately NOT embedded here. The system
+// prompt is sent to every LLM provider and persisted in session files/logs, so
+// baking in the address widens its blast radius for no benefit — the address is
+// revealed only inside `agentx wallet balance` output, when actually needed.
 func walletStatusForPrompt() string {
 	info, err := wallet.GetWallet()
 	if err != nil || info == nil {
@@ -400,10 +402,10 @@ func walletStatusForPrompt() string {
 			"it is installed, the user simply hasn't created or imported a wallet yet."
 	}
 	return fmt.Sprintf(
-		"Configured. Address: %s (chain: %s). When asked about balance, run "+
-			"`agentx wallet balance` via the exec tool and report the JSON result. "+
+		"Configured (chain: %s). When asked about the address or balance, run "+
+			"`agentx wallet balance` via the exec tool and report the JSON result (it includes the address). "+
 			"Do NOT ask the user for their address or private key — they are already set up.",
-		info.Address, info.Chain,
+		info.Chain,
 	)
 }
 

@@ -54,6 +54,7 @@ declare global {
           GetAvailableProviders(): Promise<any[]>;
           QuickSetupProvider(providerID: string, apiKey: string): Promise<void>;
           QuickSetupChannel(channel: string, token: string): Promise<void>;
+          SetChannelAllowFrom(channel: string, allowFrom: string[]): Promise<void>;
         };
         ChatService: {
           SendMessage(message: string, sessionKey: string): Promise<{ response: string }>;

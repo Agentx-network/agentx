@@ -1,4 +1,4 @@
-.PHONY: all build install uninstall clean help test desktop-dev desktop-build
+.PHONY: all build install uninstall clean help test desktop-dev desktop-build bump-version
 
 # Build variables
 BINARY_NAME=agentx
@@ -190,6 +190,18 @@ else
 	@cd cmd/agentx-desktop && wails build -tags webkit2_41 -ldflags="-s -w"
 endif
 	@echo "Desktop build complete"
+
+## bump-version: Set version across all sources (usage: make bump-version VERSION=0.8.38)
+# Single source of the truth for the three places the desktop version lives:
+# the Go sidebar constant, the Windows VERSIONINFO (info.json), and the NSIS
+# installer (project.nsi). Keeps them from drifting out of sync.
+bump-version:
+	@echo "$(VERSION)" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$$' || { echo "Usage: make bump-version VERSION=X.Y.Z"; exit 1; }
+	@sed -i 's/var version = "[^"]*"/var version = "$(VERSION)"/' cmd/agentx-desktop/app.go
+	@sed -i 's/"file_version": "[^"]*"/"file_version": "$(VERSION)"/' cmd/agentx-desktop/build/windows/info.json
+	@sed -i 's/"ProductVersion": "[^"]*"/"ProductVersion": "$(VERSION)"/' cmd/agentx-desktop/build/windows/info.json
+	@sed -i 's/!define INFO_PRODUCTVERSION "[^"]*"/!define INFO_PRODUCTVERSION "$(VERSION)"/' cmd/agentx-desktop/build/windows/installer/project.nsi
+	@echo "Version set to $(VERSION) in app.go, info.json, project.nsi. Review: git diff"
 
 ## help: Show this help message
 help:

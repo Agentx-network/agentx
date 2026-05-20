@@ -88,7 +88,10 @@ func (t *SpawnTool) Execute(ctx context.Context, args map[string]any) *ToolResul
 	// Pass callback to manager for async completion notification
 	result, err := t.manager.Spawn(ctx, task, label, agentID, t.originChannel, t.originChatID, t.callback)
 	if err != nil {
-		return ErrorResult(fmt.Sprintf("failed to spawn subagent: %v", err))
+		return BlockedResult(
+			"I couldn't start that background task right now. Please try again in a moment.",
+			fmt.Sprintf("subagent Spawn failed: %v", err),
+		)
 	}
 
 	// Return AsyncResult since the task runs in background

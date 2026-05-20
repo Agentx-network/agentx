@@ -20,7 +20,8 @@ import (
 )
 
 // Matches a line that's a text-form tool call in either shape:
-//   {"name":"x","arguments":...}  or  {"type":"function","name":"x","parameters":...}
+//
+//	{"name":"x","arguments":...}  or  {"type":"function","name":"x","parameters":...}
 var toolCallJSONLine = regexp.MustCompile(
 	`(?m)^[ \t]*\{[^\n]*"name"[ \t]*:[ \t]*"[^"]+"[^\n]*"(?:arguments|parameters)"[^\n]*$`,
 )
@@ -110,6 +111,45 @@ func resolveToolName(reg *tools.ToolRegistry, name string) string {
 		}
 	}
 	return name
+}
+
+// textRecoverableTools is the allowlist of tools the text-form recovery path
+// may auto-execute (H4, audit). A tool call emitted as plain text is a weak
+// signal of intent — a model may simply be echoing user-pasted content — so we
+// only run low-risk, mostly read-only tools here. Anything that runs commands or
+// installs code (exec, install_skill, spawn, cron, hardware) must arrive as a
+// genuine structured tool call from the provider, never via text recovery.
+var textRecoverableTools = map[string]bool{
+	"web_search":               true,
+	"web_fetch":                true,
+	"find_skills":              true,
+	"image_generate":           true,
+	"configure_image_provider": true,
+	"message":                  true,
+}
+
+func textRecoverableTool(name string) bool {
+	return textRecoverableTools[name]
+}
+
+// isEchoedToolCall reports whether the raw text-form tool call appears verbatim
+// in a recent user message — i.e. the model is parroting attacker- or
+// user-pasted JSON rather than deciding to call a tool. Whitespace is
+// normalized so formatting differences don't defeat the check. (H4, audit.)
+func isEchoedToolCall(messages []providers.Message, raw string) bool {
+	// Strip ALL whitespace so reformatting (extra spaces, line breaks) can't
+	// defeat the comparison; both sides are stripped equally.
+	norm := func(s string) string { return strings.Join(strings.Fields(s), "") }
+	needle := norm(raw)
+	if needle == "" {
+		return false
+	}
+	for _, m := range messages {
+		if m.Role == "user" && strings.Contains(norm(m.Content), needle) {
+			return true
+		}
+	}
+	return false
 }
 
 // isCerebrasContextOverflow matches Cerebras's "context_length_exceeded" code
@@ -533,7 +573,24 @@ func (al *AgentLoop) runFantasyIteration(
 			// Weak models also mangle tool names ("webfetch" → "web_fetch").
 			// Resolve to a registered name before lookup.
 			name = resolveToolName(agent.Tools, name)
-			if _, exists := agent.Tools.Get(name); exists {
+			_, exists := agent.Tools.Get(name)
+
+			// H4 (audit): hard-gate the recovery path before executing anything.
+			// Refuse tools not on the low-risk allowlist (never exec/install via
+			// text), and refuse calls echoed from the user's message (paste-back /
+			// prompt injection). These can't be auto-run on a text signal alone.
+			switch {
+			case exists && !textRecoverableTool(name):
+				logger.WarnCF("agent", "Refusing text-form recovery for non-allowlisted tool",
+					map[string]any{"agent_id": agent.ID, "tool": name})
+				exists = false
+			case exists && isEchoedToolCall(messages, rawBeforeStrip):
+				logger.WarnCF("agent", "Refusing text-form recovery: tool call echoed from user message",
+					map[string]any{"agent_id": agent.ID, "tool": name})
+				exists = false
+			}
+
+			if exists {
 				logger.InfoCF("agent", "Recovering text-form tool call",
 					map[string]any{"agent_id": agent.ID, "tool": name})
 
@@ -575,7 +632,8 @@ func (al *AgentLoop) runFantasyIteration(
 										"Answer the user's original question directly using this result. Be concise and "+
 										"conclusive — synthesize the key facts into a clear answer. Do NOT paste the raw "+
 										"result or list of links, and do NOT call any more tools.",
-									name, raw),
+									name, raw,
+								),
 							})
 							opts.ToolResultRetried = true
 							opts.WebSearchRetried = true
@@ -586,7 +644,8 @@ func (al *AgentLoop) runFantasyIteration(
 						}
 					}
 				}
-			} else {
+			} else if _, registered := agent.Tools.Get(name); !registered {
+				// Truly unknown tool (gated tools already logged their refusal above).
 				logger.WarnCF("agent", "Text-form tool call references unknown tool",
 					map[string]any{"agent_id": agent.ID, "tool": name})
 			}
@@ -648,7 +707,8 @@ func (al *AgentLoop) runFantasyIteration(
 							"Answer the user's original question directly using ONLY these results. "+
 							"State the current information plainly. Do NOT say you will search — the search is already done. "+
 							"If the results don't contain the answer, say so honestly.",
-						searchRes.ForLLM),
+						searchRes.ForLLM,
+					),
 				})
 				opts.WebSearchRetried = true
 				return al.runFantasyIteration(ctx, agent, augmented, opts)

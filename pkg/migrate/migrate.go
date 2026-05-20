@@ -97,6 +97,16 @@ func Run(opts Options) (*Result, error) {
 
 	result := Execute(actions, openclawHome, agentxHome)
 	result.Warnings = warnings
+
+	// M4 (audit): don't report a partial migration as success. If any action
+	// failed, surface it as an error (the caller still prints the summary so the
+	// user sees what did/didn't migrate) unless they explicitly --force past it.
+	if len(result.Errors) > 0 && !opts.Force {
+		return result, fmt.Errorf(
+			"migration finished with %d error(s) — some items were not migrated; "+
+				"review the summary above and re-run with --force to accept a partial migration",
+			len(result.Errors))
+	}
 	return result, nil
 }
 
@@ -114,15 +124,28 @@ func Plan(opts Options, openclawHome, agentxHome string) ([]Action, []string, er
 			}
 			warnings = append(warnings, fmt.Sprintf("Config migration skipped: %v", err))
 		} else {
-			actions = append(actions, Action{
-				Type:        ActionConvertConfig,
-				Source:      configPath,
-				Destination: filepath.Join(agentxHome, "config.json"),
-				Description: "convert OpenClaw config to AgentX format",
-			})
-
-			data, err := LoadOpenClawConfig(configPath)
-			if err == nil {
+			// M4 (audit): verify the config is actually readable BEFORE queuing
+			// the conversion. A config that exists but can't be parsed used to be
+			// silently ignored here, then migrate to defaults — quietly dropping
+			// the user's settings. Treat an unreadable config as fatal so the user
+			// finds out, unless they explicitly --force past it.
+			data, loadErr := LoadOpenClawConfig(configPath)
+			if loadErr != nil {
+				if !force {
+					return nil, nil, fmt.Errorf(
+						"OpenClaw config at %s exists but could not be read: %w\n"+
+							"Migrating now would replace it with defaults and lose your settings. "+
+							"Fix the file (e.g. permissions), or re-run with --force to skip config and migrate the workspace only",
+						configPath, loadErr)
+				}
+				warnings = append(warnings, fmt.Sprintf("Config unreadable, skipping config migration (forced): %v", loadErr))
+			} else {
+				actions = append(actions, Action{
+					Type:        ActionConvertConfig,
+					Source:      configPath,
+					Destination: filepath.Join(agentxHome, "config.json"),
+					Description: "convert OpenClaw config to AgentX format",
+				})
 				_, configWarnings, _ := ConvertConfig(data)
 				warnings = append(warnings, configWarnings...)
 			}
