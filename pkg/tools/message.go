@@ -85,16 +85,10 @@ func (t *MessageTool) Execute(ctx context.Context, args map[string]any) *ToolRes
 		return &ToolResult{ForLLM: "No target channel/chat specified", IsError: true}
 	}
 
-	// Reject same-channel sends as redundant. Weak LLMs (Cerebras Llama 3.1 8B
-	// was the field-observed culprit) interpret "send a message" as the
-	// generic way to reply in the current chat — they call this tool with
-	// content="<their reply>" and rely on the default channel/chat, which is
-	// whichever surface the user is already on. The result is the user sees
-	// "Message sent to desktop:chat" instead of the actual reply, because the
-	// tool returns its confirmation string while the real content goes to the
-	// outbound bus (which the desktop SSE stream doesn't subscribe to). Catch
-	// this case in the tool itself — the model gets a clear error explaining
-	// it should just answer with text.
+	// Reject same-channel sends. Weak LLMs use this tool to "reply" in the
+	// current chat, which strands the real content on the outbound bus while
+	// the user sees only "Message sent to ...". Tell the model to use plain
+	// text instead.
 	if tc, ok := GetToolContext(ctx); ok {
 		if channel == tc.Channel && chatID == tc.ChatID {
 			return &ToolResult{

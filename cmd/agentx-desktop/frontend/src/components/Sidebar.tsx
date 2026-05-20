@@ -131,11 +131,6 @@ export default function Sidebar({ currentPage, onNavigate, version }: Props) {
         )}
       </nav>
       <div className="p-4 border-t-2 border-neon-pink/20">
-        {/* The Run Setup Wizard button used to live here. After onboarding,
-            every wizard step is editable from the Config page (providers,
-            channels, skills, wallet, identity files), so a permanent button
-            is just visual debt. The app version takes the slot instead —
-            quiet, useful for support, doesn't compete with the nav above. */}
         {version && (
           <p className="text-center text-[11px] text-white/40 uppercase tracking-widest font-medium select-none">
             {version}

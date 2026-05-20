@@ -52,6 +52,8 @@ type processOptions struct {
 	NoHistory          bool   // If true, don't load session history (for heartbeat)
 	CompressionRetried bool   // Internal: true after one compression-retry to bound recursion
 	RateLimitRetried   bool   // Internal: true after one rate-limit auto-retry to bound recursion
+	WebSearchRetried   bool   // Internal: true after one auto-web-search fallback to bound recursion
+	ToolResultRetried  bool   // Internal: true after one recovered-tool-result re-prompt to bound recursion
 }
 
 const defaultResponse = "I've completed processing but have no response to give. Increase `max_tool_iterations` in config.json."
@@ -482,16 +484,10 @@ func (al *AgentLoop) runAgentLoop(ctx context.Context, agent *AgentInstance, opt
 		finalContent = opts.DefaultResponse
 	}
 
-	// 6. Save final assistant message to session — but only if the streaming
-	// pass (OnStepFinish) didn't already persist the same text. Some models
-	// produce the same assistant text in their last step AND in the final
-	// result, which would otherwise be saved twice.
-	//
-	// Truncate the SAVED version so a single verbose reply (e.g. find_skills
-	// returning 5 entries with long Chinese-language summaries — ~3KB) doesn't
-	// blow the next turn's context window on small-context providers like
-	// Cerebras 8K. The user-facing response we return below is still the full
-	// untrimmed text; only the history record is capped.
+	// 6. Save final assistant message to session, skipping if streaming
+	// (OnStepFinish) already persisted the same text. History record is
+	// truncated (1500 chars) so verbose tool replies don't blow small-context
+	// windows; the full text is still returned to the user.
 	{
 		history := agent.Sessions.GetHistory(opts.SessionKey)
 		alreadyPersisted := false

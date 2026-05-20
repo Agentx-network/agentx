@@ -87,12 +87,8 @@ func (t *InstallSkillTool) Execute(ctx context.Context, args map[string]any) *To
 		return ErrorResult(fmt.Sprintf("invalid registry %q: error: %s", registryName, err.Error()))
 	}
 
-	// Consent guard: weak LLMs like to grab a slug from earlier conversation
-	// history (e.g. user typed "marketplace" 10 turns ago; on the next vague
-	// "add a skill" request the model auto-installs the top match from that
-	// stale search). Reject when the user's current-turn message doesn't name
-	// the slug or use an explicit install + ordinal phrase. Prompt-only fixes
-	// don't hold against this model class — the check has to be deterministic.
+	// Consent guard: weak LLMs auto-install slugs grabbed from stale history.
+	// Deterministic check on the user's current-turn message.
 	if tc, ok := GetToolContext(ctx); ok {
 		if !userApprovedSlug(tc.UserMessage, slug, tc.LastAssistantMessage) {
 			return BlockedResult(
@@ -122,13 +118,8 @@ func (t *InstallSkillTool) Execute(ctx context.Context, args map[string]any) *To
 
 	if !force {
 		if _, err := os.Stat(targetDir); err == nil {
-			// Not an error — the user got what they asked for (the skill is
-			// in place). Returning ErrorResult here caused the recovery path
-			// to wrap this in "I tried to run install_skill but it failed:",
-			// which read as a problem and confused users. Phrase as a normal
-			// reply instead. The "tell the user" hint nudges weak LLMs to
-			// pass this through verbatim rather than paraphrase into a
-			// false-failure phrasing.
+			// Non-error: user already has the skill. Worded so the recovery path
+			// won't wrap it with "I tried to run install_skill but it failed".
 			return &ToolResult{
 				ForLLM: fmt.Sprintf(
 					"The %q skill is already installed in the user's workspace — nothing to do. "+
@@ -167,13 +158,8 @@ func (t *InstallSkillTool) Execute(ctx context.Context, args map[string]any) *To
 					"error":      rmErr.Error(),
 				})
 		}
-		// 404 is the dominant failure: model invents a slug (e.g. user says
-		// "install the marketplace skill", model passes slug="marketplace")
-		// and the registry has no such entry. The default error wording
-		// ("failed to install X: HTTP 404: Skill not found") sounds like
-		// our installer broke. Give the LLM a clear next step instead so
-		// it falls back to find_skills + asking the user, rather than
-		// retrying with another invented slug.
+		// 404 = model invented a slug. Steer it to find_skills instead of
+		// retrying with another guess.
 		errMsg := err.Error()
 		if strings.Contains(errMsg, "404") || strings.Contains(strings.ToLower(errMsg), "not found") {
 			return BlockedResult(
@@ -266,31 +252,10 @@ func writeOriginMeta(targetDir, registryName, slug, version string) error {
 	return fileutil.WriteFileAtomic(filepath.Join(targetDir, ".skill-origin.json"), data, 0o600)
 }
 
-// userApprovedSlug returns true when the user's current-turn message provides
-// enough signal that they really meant to install this specific slug. The bar
-// is intentionally simple-and-strict so weak LLMs cannot rationalize their
-// way past it. False positives waste a turn (model has to ask), false
-// negatives quietly install something the user didn't approve — the latter is
-// strictly worse, so we err on the side of rejecting.
-//
-// Approve when ANY of:
-//
-//   - The user's message contains the slug, or any of its hyphen/underscore
-//     parts that's >=4 chars, as a case-insensitive substring. Catches
-//     "install marketplace", "add github skill", "yes the agentx one".
-//
-//   - The message contains an install verb ("install", "add") AND an ordinal
-//     reference ("first", "top", "second", "1", "2", "1st"...). This is the
-//     "install the first one" pattern after a find_skills list.
-//
-//   - The user said a plain affirmative ("yes", "ok", "do it", …) AND the
-//     slug was named in the agent's previous reply. This handles the natural
-//     flow where the agent shows one search result and the user just says
-//     "yes" — without this case the guard rejects every "yes" and forces
-//     the user to retype "install <slug>" manually.
-//
-// All other cases reject. Empty userMsg always rejects (subagent / system
-// caller — those shouldn't be installing skills anyway).
+// userApprovedSlug reports whether the user's current-turn message authorises
+// installing this slug. Approves on: slug substring; slug-part (≥4 chars)
+// substring; install verb + ordinal; plain affirmative + slug in prior reply.
+// Strict-by-default — false negatives just force a clarifying turn.
 func userApprovedSlug(userMsg, slug, lastAssistantMsg string) bool {
 	if userMsg == "" || slug == "" {
 		return false
@@ -310,16 +275,8 @@ func userApprovedSlug(userMsg, slug, lastAssistantMsg string) bool {
 		}
 	}
 
-	// Ordinal-reference pattern. Two forms accepted:
-	//
-	//   1. With install verb: "install the first", "add the top one"
-	//   2. Ordinal alone: "first one", "the second", "1" — but ONLY when the
-	//      prior assistant turn contained the slug, so a stray "first" in
-	//      unrelated chat can't trigger an install.
-	//
-	// Without form 2, users typing the obvious follow-up to a numbered list
-	// ("first one", "second") were silently rejected — they had to retype
-	// the full slug name. Form 2 is the natural conversational continuation.
+	// Ordinal reference: "install the first" (verb+ordinal) or "first one"
+	// alone (only when the slug is in the prior assistant reply).
 	ordinals := []string{
 		"first", "1st", "top",
 		"second", "2nd",
@@ -330,8 +287,7 @@ func userApprovedSlug(userMsg, slug, lastAssistantMsg string) bool {
 	}
 	hasOrdinal := false
 	for _, o := range ordinals {
-		// Pad msg with spaces so the " 1 "-style tokens can match at edges.
-		if strings.Contains(" "+msg+" ", o) {
+		if strings.Contains(" "+msg+" ", o) { // pad so " 1 "-style tokens match at edges
 			hasOrdinal = true
 			break
 		}
@@ -352,10 +308,8 @@ func userApprovedSlug(userMsg, slug, lastAssistantMsg string) bool {
 		}
 	}
 
-	// Plain-affirmative + slug-in-prior-assistant pattern. The model just
-	// offered (or listed) a skill containing this slug; user typed "yes".
-	// Without this branch, weak models loop forever — they list one result,
-	// user says yes, we reject, model lists again, user says yes again, …
+	// Plain "yes" / "ok" / "do it" approves only when the slug appears in the
+	// prior assistant reply (so the user is confirming what was just offered).
 	if isPlainAffirmative(msg) && lastAssistantMsg != "" {
 		if strings.Contains(strings.ToLower(lastAssistantMsg), slugLower) {
 			return true
@@ -365,10 +319,8 @@ func userApprovedSlug(userMsg, slug, lastAssistantMsg string) bool {
 	return false
 }
 
-// isPlainAffirmative recognizes the short consent words a user types after
-// the agent has presented a clear option. Kept narrow on purpose — "yes I
-// don't want that" should not count, so we only match exact word forms in
-// short messages where intent is unambiguous.
+// isPlainAffirmative matches short, unambiguous consent words. Narrow on
+// purpose — "yes I don't want that" should not pass.
 func isPlainAffirmative(msgLower string) bool {
 	s := strings.TrimSpace(msgLower)
 	if s == "" || len(s) > 40 {
@@ -387,16 +339,14 @@ func isPlainAffirmative(msgLower string) bool {
 	return exact[s]
 }
 
-// splitSlugParts splits a slug like "agentx-marketplace" or "docker_compose"
-// into its underlying word parts for substring matching against user text.
+// splitSlugParts splits "agentx-marketplace" → ["agentx", "marketplace"].
 func splitSlugParts(s string) []string {
 	return strings.FieldsFunc(s, func(r rune) bool {
 		return r == '-' || r == '_' || r == ' '
 	})
 }
 
-// truncateForError shortens a string for inclusion in an error message that
-// the LLM will read. Keeps things compact without dropping signal.
+// truncateForError shortens s for inclusion in an LLM-readable error.
 func truncateForError(s string, maxLen int) string {
 	s = strings.TrimSpace(s)
 	if len(s) <= maxLen {

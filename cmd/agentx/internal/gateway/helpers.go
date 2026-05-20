@@ -293,24 +293,15 @@ func gatewayCmd(debug bool) error {
 		}
 		agentLoop.Reload(newCfg)
 
-		// Reload channels too. Without this, when a user enables Telegram (or
-		// any channel) in the GUI for the first time, the bot never starts
-		// polling because the channel manager was constructed at gateway boot
-		// with the channel disabled. Previously the user had to pkill the
-		// gateway after every channel-config change; that surfaced in a demo
-		// as "Telegram doesn't respond after onboarding."
+		// Reload channels so newly-enabled ones (e.g. Telegram) start polling
+		// without a gateway restart. Failures are logged, not propagated.
 		if err := channelManager.Reload(ctx, newCfg); err != nil {
 			logger.ErrorCF("gateway", "Channel reload failed",
 				map[string]any{"error": err.Error()})
-			// Don't fail the request: the agent loop reloaded successfully,
-			// and the channel reload error is in the log for diagnosis.
 		}
 
-		// Re-attach voice transcriber after reload. channelManager.Reload
-		// recreates channel objects, so the *TelegramChannel / *DiscordChannel
-		// / *SlackChannel instances are new and have lost the transcriber
-		// reference set up during initial gateway startup. Re-attaching here
-		// keeps voice-to-text working after a config save.
+		// Re-attach the voice transcriber: channelManager.Reload built new
+		// channel instances, so the references set up at startup are gone.
 		if transcriber != nil {
 			if telegramChannel, ok := channelManager.GetChannel("telegram"); ok {
 				if tc, ok := telegramChannel.(*channels.TelegramChannel); ok {

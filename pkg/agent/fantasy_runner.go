@@ -19,8 +19,10 @@ import (
 	"github.com/Agentx-network/agentx/pkg/utils"
 )
 
+// Matches a line that's a text-form tool call in either shape:
+//   {"name":"x","arguments":...}  or  {"type":"function","name":"x","parameters":...}
 var toolCallJSONLine = regexp.MustCompile(
-	`(?m)^[ \t]*\{[ \t]*"name"[ \t]*:[ \t]*"[^"]+"[^\n]*"arguments"[^\n]*$`,
+	`(?m)^[ \t]*\{[^\n]*"name"[ \t]*:[ \t]*"[^"]+"[^\n]*"(?:arguments|parameters)"[^\n]*$`,
 )
 
 var blankRunCollapse = regexp.MustCompile(`\n{3,}`)
@@ -45,20 +47,14 @@ func looksLikeToolCallJSONStream(buf string) bool {
 	return s[0] == '{' || s[0] == '['
 }
 
-// retryAfterPattern picks the wait duration out of a provider rate-limit
-// error message. Matches both Gemini's wording ("Please retry in 22.5s")
-// and Groq's variant ("Retry-After: 11", "retry-after: 11"). Returns 0 if
-// no number can be extracted — caller falls back to a default.
+// retryAfterPattern matches "Please retry in Xs" (Gemini) and "Retry-After: N"
+// (Groq) wordings in rate-limit error messages.
 var retryAfterPattern = regexp.MustCompile(
 	`(?i)(?:retry[ -]?after[:\s]*|retry in[ \t]*)(\d+(?:\.\d+)?)\s*s?`,
 )
 
-// parseRetryAfter reads an error message for the provider's suggested
-// retry delay and returns it bounded to [2s, 30s]. Long waits during a chat
-// would feel broken, so we cap and let the user retry manually if even 30s
-// isn't enough. Defaults to 8s when nothing parseable is found — short
-// enough to feel like a one-time glitch, long enough that Gemini's per-
-// minute window has usually rolled over.
+// parseRetryAfter returns the suggested retry delay from a rate-limit error,
+// bounded to [2s, 30s]. Defaults to 8s when nothing parseable is found.
 func parseRetryAfter(errMsg string) time.Duration {
 	const (
 		fallback = 8 * time.Second
@@ -83,27 +79,42 @@ func parseRetryAfter(errMsg string) time.Duration {
 	return d
 }
 
-// looksCompleteToolCall returns true when the buffer parses as a full
-// tool-call payload (parseTextToolCall succeeds). Used to distinguish
-// "model gave us a real but unrecognized tool name" from "model cut off
-// mid-emit" — the user-facing error message differs between those cases.
+// looksCompleteToolCall reports whether buf parses as a full tool-call payload.
+// Used to distinguish "unknown tool" from "model cut off mid-emit".
 func looksCompleteToolCall(buf string) bool {
 	_, _, ok := parseTextToolCall(buf)
 	return ok
 }
 
-// isCerebrasContextOverflow returns true when the error message looks like
-// Cerebras's "context_length_exceeded" wire format. We match on the
-// machine-stable code (or its message phrasing) rather than generic words
-// like "length" or "tokens", which would trip on TPM rate-limit errors and
-// destructively trigger compression for unrelated failures.
-//
-// Patterns observed in field reports (May 2026):
-//
-//	"code":"context_length_exceeded"
-//	"Please reduce the length of the messages or completion"
-//
-// Both come back as 400 / invalid_request_error from /chat/completions.
+// resolveToolName maps a model-mangled tool name to a registered one. Exact
+// match wins; otherwise it compares with separators/case stripped, so
+// "webfetch"/"WebFetch" resolve to "web_fetch". Returns the input unchanged
+// when no match is found (caller then reports "unknown tool").
+func resolveToolName(reg *tools.ToolRegistry, name string) string {
+	if reg == nil || name == "" {
+		return name
+	}
+	if _, ok := reg.Get(name); ok {
+		return name
+	}
+	norm := func(s string) string {
+		s = strings.ToLower(s)
+		s = strings.ReplaceAll(s, "_", "")
+		s = strings.ReplaceAll(s, "-", "")
+		return strings.ReplaceAll(s, " ", "")
+	}
+	want := norm(name)
+	for _, registered := range reg.List() {
+		if norm(registered) == want {
+			return registered
+		}
+	}
+	return name
+}
+
+// isCerebrasContextOverflow matches Cerebras's "context_length_exceeded" code
+// (or its message phrasing). Narrower than generic "length"/"tokens" matching,
+// which would false-positive on TPM rate-limit errors.
 func isCerebrasContextOverflow(err error) bool {
 	if err == nil {
 		return false
@@ -113,32 +124,27 @@ func isCerebrasContextOverflow(err error) bool {
 		strings.Contains(msg, "Please reduce the length of the messages")
 }
 
-// parseTextToolCall tries to interpret the model's text output as a tool-call
-// payload that should have been emitted through the structured tool_calls
-// channel. Some hosted Llama deployments (Cerebras, occasionally Groq) print
-// the call as JSON text instead, which the Fantasy SDK ignores. Without
-// recovery the user sees a "tried to use a tool but..." defensive message
-// even though the agent's intent was unambiguous.
+// parseTextToolCall parses a tool-call payload a model printed as text instead
+// of using the SDK's tool_calls channel. Handles both shapes seen in the wild:
 //
-// Accepts either form Cerebras emits in practice:
+//	{"name":"web_search","arguments":{...}}                    ← Cerebras Llama
+//	{"type":"function","name":"web_search","parameters":{...}} ← OpenAI-wrapper form
 //
-//	{"name":"exec","arguments":{"command":"agentx wallet balance"}}      ← object
-//	{"name":"exec","arguments":"{\"command\":\"agentx wallet balance\"}"} ← stringified
-//
-// Returns ok=false when the text isn't a single complete tool-call object —
-// we deliberately don't try to extract from prose or multi-call payloads.
+// Args may be an object or a stringified JSON. Returns ok=false on prose.
 func parseTextToolCall(s string) (name string, args map[string]any, ok bool) {
 	s = strings.TrimSpace(s)
 	if !strings.HasPrefix(s, "{") || !strings.HasSuffix(s, "}") {
 		return "", nil, false
 	}
-	if !strings.Contains(s, `"name"`) || !strings.Contains(s, `"arguments"`) {
+	if !strings.Contains(s, `"name"`) ||
+		(!strings.Contains(s, `"arguments"`) && !strings.Contains(s, `"parameters"`)) {
 		return "", nil, false
 	}
 
 	var parsed struct {
-		Name      string          `json:"name"`
-		Arguments json.RawMessage `json:"arguments"`
+		Name       string          `json:"name"`
+		Arguments  json.RawMessage `json:"arguments"`
+		Parameters json.RawMessage `json:"parameters"`
 	}
 	if err := json.Unmarshal([]byte(s), &parsed); err != nil {
 		return "", nil, false
@@ -147,13 +153,16 @@ func parseTextToolCall(s string) (name string, args map[string]any, ok bool) {
 		return "", nil, false
 	}
 
+	rawArgs := parsed.Arguments
+	if len(rawArgs) == 0 {
+		rawArgs = parsed.Parameters // OpenAI-wrapper form
+	}
 	args = map[string]any{}
-	if len(parsed.Arguments) > 0 {
-		// Try as object first.
-		if err := json.Unmarshal(parsed.Arguments, &args); err != nil {
-			// Some models double-encode arguments as a JSON string.
+	if len(rawArgs) > 0 {
+		// Try as object first; some models double-encode as a JSON string.
+		if err := json.Unmarshal(rawArgs, &args); err != nil {
 			var argStr string
-			if err2 := json.Unmarshal(parsed.Arguments, &argStr); err2 == nil {
+			if err2 := json.Unmarshal(rawArgs, &argStr); err2 == nil {
 				_ = json.Unmarshal([]byte(argStr), &args)
 			}
 		}
@@ -161,11 +170,9 @@ func parseTextToolCall(s string) (name string, args map[string]any, ok bool) {
 	return parsed.Name, args, true
 }
 
-// formatToolResultAsReply turns the raw output of a recovery-path tool call
-// into a user-friendly final reply. The model would normally do this framing
-// in a follow-up turn, but on recovery we have no second turn — we just show
-// the data. Special-cases the wallet balance shape because that's the most
-// common demo path; falls back to a JSON code block for everything else.
+// formatToolResultAsReply formats a tool result for direct display when the
+// recovery path has no second model turn to do the framing. Special-cases
+// wallet balance + info; falls back to a JSON code block otherwise.
 func formatToolResultAsReply(toolName, raw string) string {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
@@ -282,9 +289,8 @@ func (al *AgentLoop) runFantasyIteration(
 		fantasy.WithStopConditions(fantasy.StepCountIs(agent.MaxIterations)),
 	)
 
-	// Find the most recent assistant message in history. Side-effecting tools
-	// use this to recognize the "user said yes, install what we just offered"
-	// pattern as legitimate consent.
+	// Last assistant message + current user message are surfaced via ToolContext
+	// so side-effecting tools (install_skill) can verify consent.
 	var lastAssistantMsg string
 	if hist := agent.Sessions.GetHistory(opts.SessionKey); len(hist) > 0 {
 		for i := len(hist) - 1; i >= 0; i-- {
@@ -294,11 +300,6 @@ func (al *AgentLoop) runFantasyIteration(
 			}
 		}
 	}
-
-	// Set up tool context in the context. UserMessage = the verbatim text of
-	// this turn's user prompt, used by side-effecting tools (install_skill in
-	// particular) to verify the user actually named the resource being acted
-	// on. Without it, weak LLMs auto-install skills the user never approved.
 	ctx = tools.WithToolContext(ctx, tools.ToolContext{
 		Channel:              opts.Channel,
 		ChatID:               opts.ChatID,
@@ -322,15 +323,9 @@ func (al *AgentLoop) runFantasyIteration(
 			accumulated := textBuf.String()
 			mu.Unlock()
 
-			// Hide tool-call JSON from the streamed view. Weak models that emit
-			// the call as text (Cerebras Llama, some Groq deployments) otherwise
-			// flash raw {"name":"exec","arguments":{...}} in the chat bubble for
-			// a moment before our recovery replaces it with a formatted result.
-			// We detect the prefix once enough characters have arrived to be
-			// confident — short replies that legitimately start with `{` (rare
-			// in chat) get a brief delay rather than being hidden permanently,
-			// since the suppression only lasts until the model finishes and the
-			// final formatted content is published as a normal message.
+			// Suppress streaming when the buffer looks like a raw tool-call JSON
+			// prefix — recovery replaces it with formatted text in the final SSE
+			// `done` event. Stops raw {"name":"exec",...} from flashing in chat.
 			if looksLikeToolCallJSONStream(accumulated) {
 				return nil
 			}
@@ -441,19 +436,8 @@ func (al *AgentLoop) runFantasyIteration(
 			})
 		}
 
-		// Decide whether this is a genuine context-window overflow.
-		// We trust the SDK's own IsContextTooLarge() check — substring matches
-		// on "token"/"context"/"length" false-positive on rate-limit errors
-		// like "tokens per minute (TPM)", which previously caused the agent
-		// to compress (destroying session history) on every TPM hit.
-		//
-		// Fallback: the SDK doesn't recognize every provider's wire format.
-		// Cerebras returns {"code":"context_length_exceeded","message":"Please
-		// reduce the length of the messages or completion..."} which slips
-		// past IsContextTooLarge and surfaces as a 400 the user can't recover
-		// from. We add a narrow substring check that matches only this
-		// specific shape — distinct enough from TPM rate-limit text to be
-		// safe from the false-positive we were defending against above.
+		// Trust the SDK's IsContextTooLarge; fall back to a Cerebras-specific
+		// pattern since the SDK doesn't recognize that wire format.
 		isContextOverflow := providerErr != nil && providerErr.IsContextTooLarge()
 		if !isContextOverflow && isCerebrasContextOverflow(err) {
 			isContextOverflow = true
@@ -461,17 +445,11 @@ func (al *AgentLoop) runFantasyIteration(
 				map[string]any{"agent_id": agent.ID})
 		}
 
-		// If the centralized classifier identifies this as anything other than
-		// a context overflow (rate limit, auth, billing, timeout, etc.), bubble
-		// the error up instead of attempting compression.
 		if !isContextOverflow {
 			if classified := providers.ClassifyError(err, agent.ID, agent.Model); classified != nil {
-				// Rate-limit auto-retry. Gemini free tier (20 req/min) and
-				// other providers' free quotas reset within seconds, and the
-				// error body often carries the retry-after delay verbatim
-				// (e.g. "Please retry in 22.546079432s"). Wait that long once
-				// instead of bouncing back to the user — demos read awful when
-				// every other message says "rate limited, try again."
+				// Rate-limit auto-retry: wait the provider's suggested delay once
+				// before bubbling. Gemini free tier's per-minute window usually
+				// resets within ~25s.
 				if classified.Reason == providers.FailoverRateLimit && !opts.RateLimitRetried {
 					wait := parseRetryAfter(err.Error())
 					logger.WarnCF("agent", "Rate-limited, auto-retrying after wait",
@@ -534,40 +512,27 @@ func (al *AgentLoop) runFantasyIteration(
 	}
 	mu.Unlock()
 
-	// Some models (notably gpt-oss-120b on Groq) emit the final answer twice
-	// in succession, producing "<reply><reply>" output. Strip an exact-half
-	// duplicate when we see one — conservative heuristic, only triggers on
-	// even-length strings where both halves match byte-for-byte.
+	// Strip duplicated halves (gpt-oss-120b quirk) and any raw tool-call JSON
+	// some models echo as text alongside the structured tool_call.
 	finalContent = stripExactDuplicate(finalContent)
-
-	// Remove raw tool-call JSON that some models echo as text content. The
-	// actual tool execution still happens via the SDK's structured tool_call
-	// channel; this just hides the duplicate JSON echo from the chat UI.
 	rawBeforeStrip := finalContent
 	finalContent = stripToolCallJSON(finalContent)
 
-	// Catch incomplete tool-call JSON that the regex above missed. Models
-	// sometimes stop emitting mid-payload — e.g. `{"name": "` and nothing
-	// further — when they hit a token limit or just bail. The regex needs
-	// both `"name"` and `"arguments"` to match, so partial calls slip past
-	// and surface as raw JSON in the chat bubble. Detect that shape here
-	// and clear finalContent so the recovery / defensive-message branch
-	// below handles it cleanly.
+	// Catch incomplete tool-call JSON the regex missed (model cut off mid-emit).
 	if looksLikeToolCallJSONStream(finalContent) {
 		logger.WarnCF("agent", "Stripping incomplete tool-call JSON from final content",
 			map[string]any{"agent_id": agent.ID, "remnant": utils.Truncate(finalContent, 120)})
 		finalContent = ""
 	}
 
-	// If stripping erased the entire reply, the model produced ONLY a raw
-	// tool-call JSON line (no structured tool_call and no surrounding text).
-	// The Fantasy SDK ignored that text — but the model's intent is clear, so
-	// recover by parsing the JSON and executing the tool ourselves. This makes
-	// Cerebras-hosted Llama 3.x and similarly-misbehaving deployments usable
-	// for tool queries (wallet, web search, file ops) instead of bouncing the
-	// user with a "switch your model" message.
+	// Recovery: stripping erased the reply, so the model emitted ONLY a text-form
+	// tool call. Parse + execute it ourselves so Cerebras-hosted Llamas work for
+	// tool queries instead of bouncing the user with "switch your model".
 	if finalContent == "" && strings.TrimSpace(rawBeforeStrip) != "" {
 		if name, args, parseOK := parseTextToolCall(rawBeforeStrip); parseOK && agent.Tools != nil {
+			// Weak models also mangle tool names ("webfetch" → "web_fetch").
+			// Resolve to a registered name before lookup.
+			name = resolveToolName(agent.Tools, name)
 			if _, exists := agent.Tools.Get(name); exists {
 				logger.InfoCF("agent", "Recovering text-form tool call",
 					map[string]any{"agent_id": agent.ID, "tool": name})
@@ -576,14 +541,8 @@ func (al *AgentLoop) runFantasyIteration(
 				if toolRes != nil {
 					switch {
 					case toolRes.IsError:
-						// Prefer the tool's user-facing message when set.
-						// Tools that use BlockedResult provide a clean line
-						// meant for direct display (e.g. "Which skill would
-						// you like me to install?"). Falling back to ForLLM
-						// would surface internal model-guidance text like
-						// "BLOCKED: User MUST NOT install ..." into the chat,
-						// which is what triggered the field reports of
-						// "internal instructions leaking to users."
+						// Prefer ForUser (BlockedResult) over ForLLM, which would
+						// leak internal model-guidance text into chat.
 						if toolRes.ForUser != "" {
 							finalContent = toolRes.ForUser
 						} else {
@@ -594,17 +553,35 @@ func (al *AgentLoop) runFantasyIteration(
 							finalContent = fmt.Sprintf("I tried to run `%s` but it failed: %s", name, errMsg)
 						}
 					default:
-						// Always run through the formatter so known shapes (wallet
-						// balance, wallet info) get pretty-printed. The exec tool
-						// sets ForUser=ForLLM=raw stdout, so reading ForUser first
-						// — as we used to — short-circuited the formatter and
-						// dumped raw JSON into the chat. ForLLM is preferred;
-						// ForUser only wins when the tool didn't set ForLLM.
 						raw := toolRes.ForLLM
 						if raw == "" {
 							raw = toolRes.ForUser
 						}
-						if raw != "" {
+						switch {
+						case raw == "":
+							// nothing to show
+						case !opts.ToolResultRetried:
+							// Re-prompt the model with the result so it synthesizes a
+							// real answer (e.g. read web_search snippets → "The current
+							// CM is X") instead of us dumping raw tool output. Bounded
+							// to one re-prompt; also set WebSearchRetried so the model
+							// can't trigger another auto-search on this turn.
+							logger.InfoCF("agent", "Re-prompting model with recovered tool result",
+								map[string]any{"agent_id": agent.ID, "tool": name})
+							augmented := append(messages, providers.Message{
+								Role: "user",
+								Content: fmt.Sprintf(
+									"[SYSTEM: The %s tool was run for the question above. Result:]\n\n%s\n\n"+
+										"Answer the user's original question directly using this result. Be concise and "+
+										"conclusive — synthesize the key facts into a clear answer. Do NOT paste the raw "+
+										"result or list of links, and do NOT call any more tools.",
+									name, raw),
+							})
+							opts.ToolResultRetried = true
+							opts.WebSearchRetried = true
+							return al.runFantasyIteration(ctx, agent, augmented, opts)
+						default:
+							// Already re-prompted once; show formatted raw as fallback.
 							finalContent = formatToolResultAsReply(name, raw)
 						}
 					}
@@ -615,12 +592,8 @@ func (al *AgentLoop) runFantasyIteration(
 			}
 		}
 
-		// If recovery didn't yield anything, surface a clear explanation so
-		// users understand what went wrong instead of seeing silence (or raw
-		// JSON fragments). Distinguish "incomplete payload" (model cut off
-		// mid-call) from "tool unsupported" (model never emitted a valid
-		// call) — the former is recoverable by retrying, the latter requires
-		// switching models.
+		// Recovery exhausted: distinguish "model cut off mid-call" from "model
+		// never emitted a valid call" so the user gets an actionable message.
 		if finalContent == "" {
 			isIncomplete := looksLikeToolCallJSONStream(rawBeforeStrip) && !looksCompleteToolCall(rawBeforeStrip)
 			logger.WarnCF("agent", "Tool-call recovery failed",
@@ -656,7 +629,61 @@ func (al *AgentLoop) runFantasyIteration(
 		logger.InfoCF("agent", "Usage", fields)
 	}
 
+	// Auto-web-search fallback. Weak models (Cerebras Llama) often NARRATE a
+	// search ("I will use web_search... please wait") or deflect with "my
+	// knowledge cutoff" instead of actually emitting the tool call. Detect that
+	// and run the search ourselves, then re-prompt the model with the results
+	// so it answers from real current data. Bounded to one retry.
+	if !opts.WebSearchRetried && agent.Tools != nil && shouldAutoWebSearch(finalContent) {
+		if _, ok := agent.Tools.Get("web_search"); ok && strings.TrimSpace(opts.UserMessage) != "" {
+			logger.InfoCF("agent", "Auto web-search fallback triggered",
+				map[string]any{"agent_id": agent.ID, "query": utils.Truncate(opts.UserMessage, 120)})
+
+			searchRes := agent.Tools.Execute(ctx, "web_search", map[string]any{"query": opts.UserMessage})
+			if searchRes != nil && !searchRes.IsError && strings.TrimSpace(searchRes.ForLLM) != "" {
+				augmented := append(messages, providers.Message{
+					Role: "user",
+					Content: fmt.Sprintf(
+						"[SYSTEM: A web_search was already run for the question above. Results below.]\n\n%s\n\n"+
+							"Answer the user's original question directly using ONLY these results. "+
+							"State the current information plainly. Do NOT say you will search — the search is already done. "+
+							"If the results don't contain the answer, say so honestly.",
+						searchRes.ForLLM),
+				})
+				opts.WebSearchRetried = true
+				return al.runFantasyIteration(ctx, agent, augmented, opts)
+			}
+			logger.WarnCF("agent", "Auto web-search returned no usable results",
+				map[string]any{"agent_id": agent.ID})
+		}
+	}
+
 	return finalContent, stepCount, nil
+}
+
+// shouldAutoWebSearch reports whether the model's reply is a search-narration
+// or knowledge-cutoff deflection rather than a real answer — the signal to run
+// a web search ourselves and re-prompt. Matched case-insensitively.
+func shouldAutoWebSearch(response string) bool {
+	r := strings.ToLower(response)
+	triggers := []string{
+		"i will use the web_search", "i'll use the web_search",
+		"i will use web_search", "use the web_search tool",
+		"please wait while i search", "while i search for the latest",
+		"let me search the web", "i will search the web", "i'll search the web",
+		"my knowledge cutoff", "my training data only goes",
+		"knowledge cutoff is", "as of my last update", "as of my knowledge cutoff",
+		"i don't have access to real-time", "i don't have access to current",
+		"i cannot access the internet", "i'm not able to browse",
+		"couldn't find any information on the current",
+		"my search results are outdated",
+	}
+	for _, t := range triggers {
+		if strings.Contains(r, t) {
+			return true
+		}
+	}
+	return false
 }
 
 // stripExactDuplicate removes a trailing exact-duplicate half if the string

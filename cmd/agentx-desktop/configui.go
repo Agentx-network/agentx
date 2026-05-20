@@ -56,10 +56,8 @@ func (c *ConfigService) SaveConfig(cfg *config.Config) error {
 	return nil
 }
 
-// saveAndNotify persists the config and tells the running gateway to reload.
-// Used internally by every method on ConfigService that mutates config, so the
-// user's change in the Config page is reflected in the next chat turn without
-// requiring a manual gateway restart.
+// saveAndNotify persists config and POSTs /api/reload so the running gateway
+// picks up changes without a manual restart.
 func saveAndNotify(cfg *config.Config) error {
 	if err := config.SaveConfig(getConfigPath(), cfg); err != nil {
 		return err
@@ -68,11 +66,9 @@ func saveAndNotify(cfg *config.Config) error {
 	return nil
 }
 
-// notifyGatewayReload POSTs to the gateway's /api/reload endpoint so it
-// rebuilds its agent registry against the new config. Failures are logged
-// but don't propagate: the config IS saved on disk, and the next gateway
-// start (or a manual restart from the dashboard) will pick it up. We do
-// not want a transient localhost network blip to make Save look broken.
+// notifyGatewayReload POSTs /api/reload to the gateway. Failures are logged
+// but not propagated — the config is already on disk and the next gateway
+// start will pick it up.
 func notifyGatewayReload(cfg *config.Config) {
 	host := cfg.Gateway.Host
 	if host == "" {

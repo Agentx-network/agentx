@@ -26,18 +26,14 @@ type geminiModelListResponse struct {
 	} `json:"models"`
 }
 
-// probeProviderModels queries the provider's /v1/models endpoint and returns
-// the list of available model IDs for the given API key. Returns ok=false
-// (with no error) if the provider doesn't expose a compatible /models endpoint
-// — callers should treat that as "validation unavailable" and skip silently.
+// probeProviderModels returns the model IDs available on the provider's
+// /v1/models endpoint. ok=false means "validation unavailable" — skip silently.
 func probeProviderModels(ctx context.Context, apiBase, apiKey string) (models []string, ok bool) {
-	// Anthropic uses a non-OpenAI shape with no public model-listing endpoint
-	// for API-key clients; skip rather than guess.
+	// Anthropic has no public API-key model listing; skip.
 	if strings.Contains(apiBase, "anthropic.com") {
 		return nil, false
 	}
-
-	// Gemini: list models via Google's /v1beta/models?key=... (different shape).
+	// Gemini uses a different shape and auth, handled separately.
 	if strings.Contains(apiBase, "generativelanguage.googleapis.com") {
 		return probeGeminiModels(ctx, apiBase, apiKey)
 	}
@@ -81,10 +77,8 @@ func probeProviderModels(ctx context.Context, apiBase, apiKey string) (models []
 	return out, true
 }
 
-// probeGeminiModels lists available models from Google's Generative AI API.
-// Google authenticates via ?key=API_KEY (not Authorization header) and returns
-// {"models":[{"name":"models/<id>"},...]}; we strip the "models/" prefix so
-// returned IDs are directly comparable to what's in our config (e.g. "gemini-2.0-flash").
+// probeGeminiModels lists Google's models via /v1beta/models?key=<apiKey>.
+// Strips the "models/" prefix so IDs match what's in config.
 func probeGeminiModels(ctx context.Context, apiBase, apiKey string) ([]string, bool) {
 	if apiKey == "" {
 		return nil, false

@@ -58,27 +58,16 @@ func (t *FindSkillsTool) Execute(ctx context.Context, args map[string]any) *Tool
 		return ErrorResult("query is required and must be a non-empty string")
 	}
 
-	// Vague-query guard. Weak LLMs respond to "can you add new skill?" by
-	// running find_skills with query="new skill" — literally searching for
-	// those two words. The registry then returns a random handful of skills
-	// whose summaries happen to contain "new" or "skill", which is not what
-	// the user wanted. Reject these queries here so the agent is forced to
-	// ask the user what kind of skill they actually want, instead of dumping
-	// noise into the conversation. Mirrors the consent guard on install_skill
-	// — prompt-only steering doesn't hold against this model class.
+	// Vague-query guard: rejects filler-only queries ("new skill", "any") so
+	// the agent asks the user what they actually want instead of dumping noise.
 	if isVagueSkillQuery(query) {
 		return BlockedResult(
-			// User-facing: a natural clarifying question.
 			"Sure! Which kind of skill would you like? "+
 				"For example: web search, GitHub, file tools, marketplace, agent discovery, calendar, finance, …",
-			// Model-facing: detailed instructions for capable LLMs.
-			"Query \""+query+"\" is too vague to return useful skills. "+
-				"Words like 'new', 'skill', 'any', 'something', 'some skill' don't describe a CAPABILITY — "+
-				"they just echo the user's general intent. "+
+			"Query \""+query+"\" is too vague. "+
 				"Ask the user what KIND of skill they want before calling find_skills. "+
-				"Example reply to the user: \"Sure! Which kind of skill would you like? "+
-				"For example: web search, GitHub, file tools, marketplace, agent discovery, calendar, …\" "+
-				"Wait for the user's answer, then call find_skills with their specific topic as the query.",
+				"Suggested reply: \"Sure! Which kind of skill would you like? "+
+				"For example: web search, GitHub, file tools, marketplace, agent discovery, calendar, …\"",
 		)
 	}
 
@@ -142,17 +131,8 @@ func formatSearchResults(query string, results []skills.SearchResult, cached boo
 	return sb.String()
 }
 
-// isVagueSkillQuery returns true when the find_skills query is just an echo
-// of the user's general intent ("new skill", "any", "something", "all") and
-// does not actually describe a capability the user wants. We block these so
-// the agent is forced to ask the user what they really mean, instead of
-// surfacing a random spray of registry entries that happen to contain those
-// generic words.
-//
-// The check is intentionally narrow — short queries made entirely of generic
-// "I want a skill" filler — so legitimate broad-but-real queries like "git"
-// or "auth" still pass through. Tuned against the field-observed failure
-// mode (Cerebras Llama parroting the user's phrase verbatim as the query).
+// isVagueSkillQuery reports whether q is entirely filler words ("new skill",
+// "any", "something"). Real queries like "git" or "auth" pass through.
 func isVagueSkillQuery(q string) bool {
 	q = strings.TrimSpace(strings.ToLower(q))
 	if q == "" {
