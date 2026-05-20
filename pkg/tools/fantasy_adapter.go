@@ -12,20 +12,9 @@ import (
 // toolContextKey is the key type for storing ToolContext in context.Context.
 type toolContextKey struct{}
 
-// ToolContext carries channel and chatID through context for contextual tools.
-//
-// UserMessage is the verbatim text of the user's most recent message in this
-// turn. Tools that perform side effects (install_skill, send_message, etc.)
-// inspect it to verify the user actually requested the action — without this,
-// weak LLMs auto-install skills the user never named, treating their own
-// system prompt as a free-fire zone. Empty when set by callers that don't
-// populate it (subagents, system messages); tools must treat empty as "no
-// approval signal" and behave conservatively.
-//
-// LastAssistantMessage is the prior assistant turn's text. Lets consent
-// checks recognize the "yes" / "ok" / "do it" pattern as approval when the
-// agent's previous reply named exactly one option — without it, the guard
-// rejected affirmatives outright and the user had to retype slug names.
+// ToolContext is plumbed through context.Context for tools that need request
+// scope. UserMessage and LastAssistantMessage are used by side-effecting tools
+// (install_skill) to verify consent. Empty fields are treated as "no signal".
 type ToolContext struct {
 	Channel              string
 	ChatID               string

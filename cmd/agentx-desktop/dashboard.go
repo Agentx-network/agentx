@@ -33,12 +33,9 @@ type ModelInfo struct {
 	ModelName string `json:"modelName"`
 	Model     string `json:"model"`
 	HasKey    bool   `json:"hasKey"`
-	// IsActive marks the entry the agent will actually use for chat — i.e. the
-	// one whose ModelName matches cfg.Agents.Defaults.GetModelName(). Before
-	// this field existed, the Dashboard's "MODEL" panel defaulted to the first
-	// model in the list with an API key, which made model changes invisible:
-	// after switching from qwen to gemini, the panel still showed qwen because
-	// it was simply listed first. The frontend now prefers IsActive when set.
+	// IsActive marks the entry whose ModelName matches cfg.Agents.Defaults —
+	// the model the agent will actually use. Dashboard prefers this over
+	// first-with-key when surfacing the active model.
 	IsActive bool `json:"isActive"`
 }
 

@@ -250,7 +250,10 @@ func (m *Manager) StartAll(ctx context.Context) error {
 	return nil
 }
 
-// Reload stops every running channel, rebuilds the channel map from the new
+// Reload stops every running channel, rebuilds the channel map from cfg, and
+// restarts. Called from /api/reload so newly-enabled channels start polling
+// without a gateway restart. Channels are recreated, so callers that attached
+// state to channel instances (e.g. voice transcriber) must re-attach.
 func (m *Manager) Reload(ctx context.Context, cfg *config.Config) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -267,9 +270,7 @@ func (m *Manager) Reload(ctx context.Context, cfg *config.Config) error {
 		m.streamTask = nil
 	}
 
-	// Stop each currently-running channel. Errors are logged but not fatal —
-	// we still want to bring up the new config even if an old channel hangs
-	// on shutdown.
+	// Stop errors are logged but non-fatal — still bring up the new config.
 	for name, ch := range m.channels {
 		if err := ch.Stop(ctx); err != nil {
 			logger.WarnCF("channels", "Error stopping channel on reload",
