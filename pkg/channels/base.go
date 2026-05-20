@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/Agentx-network/agentx/pkg/bus"
+	"github.com/Agentx-network/agentx/pkg/logger"
 )
 
 type Channel interface {
@@ -32,6 +33,13 @@ type BaseChannel struct {
 }
 
 func NewBaseChannel(name string, config any, bus *bus.MessageBus, allowList []string) *BaseChannel {
+	// H1 (audit): an enabled channel with no allow-list now rejects every
+	// sender (fail closed). Warn loudly so the user knows they must add their
+	// own ID (or "*" for open access) before the channel will respond.
+	if len(allowList) == 0 {
+		logger.WarnCF("channels", "Channel enabled with an empty allow-list — it will reject ALL senders until allow_from is set (use \"*\" to allow everyone)",
+			map[string]any{"channel": name})
+	}
 	return &BaseChannel{
 		config:    config,
 		bus:       bus,
@@ -50,8 +58,11 @@ func (c *BaseChannel) IsRunning() bool {
 }
 
 func (c *BaseChannel) IsAllowed(senderID string) bool {
+	// H1 (audit): fail closed. An empty allow-list now means "nobody", not
+	// "everyone" — a freshly-enabled bot must not talk to anyone who discovers
+	// it. To intentionally allow all senders, set allow_from to ["*"].
 	if len(c.allowList) == 0 {
-		return true
+		return false
 	}
 
 	// Extract parts from compound senderID like "123456|username"
@@ -63,6 +74,10 @@ func (c *BaseChannel) IsAllowed(senderID string) bool {
 	}
 
 	for _, allowed := range c.allowList {
+		// Explicit opt-in to open access.
+		if strings.TrimSpace(allowed) == "*" {
+			return true
+		}
 		// Strip leading "@" from allowed value for username matching
 		trimmed := strings.TrimPrefix(allowed, "@")
 		allowedID := trimmed

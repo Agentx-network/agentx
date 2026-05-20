@@ -1,0 +1,5 @@
+# Built desktop binary (produced by `wails build` / `make desktop-build`).
+# The root .gitignore's /agentx-desktop only matches the repo root, not this
+# nested path, so the binary kept showing up in `git status`.
+agentx-desktop
+agentx-desktop.exe

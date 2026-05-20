@@ -199,7 +199,10 @@ func (t *CronTool) addJob(args map[string]any) *ToolResult {
 		chatID,
 	)
 	if err != nil {
-		return ErrorResult(fmt.Sprintf("Error adding job: %v", err))
+		return BlockedResult(
+			"I couldn't schedule that — the timing wasn't valid. Try a plain interval (e.g. \"every 30 minutes\") or a clear time, and I'll set it up.",
+			fmt.Sprintf("cron AddJob failed: %v. Re-derive a valid schedule (at_seconds/every_seconds/cron_expr) and retry.", err),
+		)
 	}
 
 	if command != "" {

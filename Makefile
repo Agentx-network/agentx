@@ -1,4 +1,4 @@
-.PHONY: all build install uninstall clean help test desktop-dev desktop-build
+.PHONY: all build install uninstall clean help test desktop-dev desktop-build bump-version
 
 # Build variables
 BINARY_NAME=agentx
@@ -190,6 +190,18 @@ else
 	@cd cmd/agentx-desktop && wails build -tags webkit2_41 -ldflags="-s -w"
 endif
 	@echo "Desktop build complete"
+
+## bump-version: Set version across all sources (usage: make bump-version VERSION=0.8.38)
+# pkg/buildinfo is the single source of truth (the desktop sidebar and the
+# agent prompt both read it). This also updates the Windows VERSIONINFO
+# (info.json) and the NSIS installer (project.nsi) so they can't drift apart.
+bump-version:
+	@echo "$(VERSION)" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$$' || { echo "Usage: make bump-version VERSION=X.Y.Z"; exit 1; }
+	@sed -i 's/const Version = "[^"]*"/const Version = "$(VERSION)"/' pkg/buildinfo/buildinfo.go
+	@sed -i 's/"file_version": "[^"]*"/"file_version": "$(VERSION)"/' cmd/agentx-desktop/build/windows/info.json
+	@sed -i 's/"ProductVersion": "[^"]*"/"ProductVersion": "$(VERSION)"/' cmd/agentx-desktop/build/windows/info.json
+	@sed -i 's/!define INFO_PRODUCTVERSION "[^"]*"/!define INFO_PRODUCTVERSION "$(VERSION)"/' cmd/agentx-desktop/build/windows/installer/project.nsi
+	@echo "Version set to $(VERSION) in pkg/buildinfo, info.json, project.nsi. Review: git diff"
 
 ## help: Show this help message
 help:

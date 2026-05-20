@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/Agentx-network/agentx/pkg/config"
@@ -250,6 +251,51 @@ func (c *ConfigService) QuickSetupProvider(providerID string, apiKey string) err
 }
 
 // QuickSetupChannel enables a channel with its token in one call.
+// SetChannelAllowFrom sets a channel's allow-list (the sender IDs/usernames
+// permitted to message the agent). Empty list means the channel rejects every
+// sender (H1, audit: channels fail closed); pass ["*"] to allow everyone.
+func (c *ConfigService) SetChannelAllowFrom(channel string, allowFrom []string) error {
+	cfg, err := config.LoadConfig(getConfigPath())
+	if err != nil {
+		return err
+	}
+	list := config.FlexibleStringSlice{}
+	for _, v := range allowFrom {
+		if s := strings.TrimSpace(v); s != "" {
+			list = append(list, s)
+		}
+	}
+	switch channel {
+	case "telegram":
+		cfg.Channels.Telegram.AllowFrom = list
+	case "discord":
+		cfg.Channels.Discord.AllowFrom = list
+	case "slack":
+		cfg.Channels.Slack.AllowFrom = list
+	case "whatsapp":
+		cfg.Channels.WhatsApp.AllowFrom = list
+	case "feishu":
+		cfg.Channels.Feishu.AllowFrom = list
+	case "dingtalk":
+		cfg.Channels.DingTalk.AllowFrom = list
+	case "line":
+		cfg.Channels.LINE.AllowFrom = list
+	case "qq":
+		cfg.Channels.QQ.AllowFrom = list
+	case "onebot":
+		cfg.Channels.OneBot.AllowFrom = list
+	case "wecom":
+		cfg.Channels.WeCom.AllowFrom = list
+	case "wecom_app":
+		cfg.Channels.WeComApp.AllowFrom = list
+	case "maixcam":
+		cfg.Channels.MaixCam.AllowFrom = list
+	default:
+		return fmt.Errorf("unknown channel: %s", channel)
+	}
+	return saveAndNotify(cfg)
+}
+
 func (c *ConfigService) QuickSetupChannel(channel string, token string) error {
 	cfg, err := config.LoadConfig(getConfigPath())
 	if err != nil {

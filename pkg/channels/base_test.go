@@ -10,8 +10,14 @@ func TestBaseChannelIsAllowed(t *testing.T) {
 		want      bool
 	}{
 		{
-			name:      "empty allowlist allows all",
+			name:      "empty allowlist denies all (fail closed)",
 			allowList: nil,
+			senderID:  "anyone",
+			want:      false,
+		},
+		{
+			name:      "wildcard allowlist allows all",
+			allowList: []string{"*"},
 			senderID:  "anyone",
 			want:      true,
 		},

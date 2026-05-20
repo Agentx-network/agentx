@@ -135,15 +135,15 @@ func TestNewWeComBotChannel(t *testing.T) {
 func TestWeComBotChannelIsAllowed(t *testing.T) {
 	msgBus := bus.NewMessageBus()
 
-	t.Run("empty allowlist allows all", func(t *testing.T) {
+	t.Run("empty allowlist denies all (fail closed)", func(t *testing.T) {
 		cfg := config.WeComConfig{
 			Token:      "test_token",
 			WebhookURL: "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=test",
 			AllowFrom:  []string{},
 		}
 		ch, _ := NewWeComBotChannel(cfg, msgBus)
-		if !ch.IsAllowed("any_user") {
-			t.Error("empty allowlist should allow all users")
+		if ch.IsAllowed("any_user") {
+			t.Error("empty allowlist should deny all users (fail closed)")
 		}
 	})
 

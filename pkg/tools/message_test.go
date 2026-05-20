@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -110,22 +111,23 @@ func TestMessageTool_Execute_SendFailure(t *testing.T) {
 
 	result := tool.Execute(ctx, args)
 
-	// Verify ToolResult for send failure:
-	// - Send failure returns ErrorResult (IsError=true)
+	// Verify ToolResult for send failure (now a BlockedResult: clean ForUser,
+	// technical ForLLM, original Err preserved):
 	if !result.IsError {
 		t.Error("Expected IsError=true for failed send")
 	}
 
-	// - ForLLM contains error description
-	expectedErrMsg := "sending message: network error"
-	if result.ForLLM != expectedErrMsg {
-		t.Errorf("Expected ForLLM '%s', got '%s'", expectedErrMsg, result.ForLLM)
+	// - ForLLM keeps the technical detail for the model
+	if !strings.Contains(result.ForLLM, "network error") {
+		t.Errorf("Expected ForLLM to contain 'network error', got '%s'", result.ForLLM)
+	}
+
+	// - ForUser is a clean, non-technical message
+	if result.ForUser == "" || strings.Contains(result.ForUser, "network error") {
+		t.Errorf("Expected a clean user-facing message without raw error, got '%s'", result.ForUser)
 	}
 
 	// - Err field should contain original error
-	if result.Err == nil {
-		t.Error("Expected Err to be set")
-	}
 	if result.Err != sendErr {
 		t.Errorf("Expected Err to be sendErr, got %v", result.Err)
 	}
