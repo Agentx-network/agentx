@@ -8,4 +8,6 @@ export function IsGatewayReachable():Promise<boolean>;
 
 export function ReadImageDataURL(arg1:string):Promise<string>;
 
+export function SaveImageAs(arg1:string):Promise<string>;
+
 export function SendMessage(arg1:string,arg2:string):Promise<main.ChatResponse>;

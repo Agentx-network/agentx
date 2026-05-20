@@ -146,7 +146,13 @@ func (c *ChatService) GetChatHistory(sessionKey string) ([]HistoryMessage, error
 		return readSessionFile(filepath.Join(sessionsDir, filename))
 	}
 
-	// Otherwise find the most recently updated session file
+	// Otherwise load the desktop's own conversation. The desktop chat persists
+	// as the agent MAIN session ("agent:<id>:main" → "agent_..._main.json"),
+	// whereas channel DMs (Telegram, Discord, …) persist as scoped sessions
+	// ("agent:<id>:telegram:direct:<peer>"). Previously we returned the most
+	// recently-updated session of ANY kind, so chatting on Telegram made its
+	// history show up in the desktop. Restrict to "*_main.json" so the desktop
+	// only ever shows the desktop/main conversation.
 	entries, err := os.ReadDir(sessionsDir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -159,7 +165,7 @@ func (c *ChatService) GetChatHistory(sessionKey string) ([]HistoryMessage, error
 	var bestTime time.Time
 
 	for _, entry := range entries {
-		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), "_main.json") {
 			continue
 		}
 		info, err := entry.Info()
@@ -299,7 +305,7 @@ func friendlyError(raw string) string {
 // "IMAGE:<path>" marker (emitted by the image_generate tool) and calls this to
 // display the result. Only image files under a few MB are served.
 func (c *ChatService) ReadImageDataURL(path string) (string, error) {
-	path = strings.TrimSpace(path)
+	path = normalizeImagePath(path)
 	if path == "" {
 		return "", fmt.Errorf("image path is required")
 	}
@@ -330,6 +336,46 @@ func (c *ChatService) ReadImageDataURL(path string) (string, error) {
 		return "", fmt.Errorf("read image: %w", err)
 	}
 	return "data:" + mime + ";base64," + base64.StdEncoding.EncodeToString(data), nil
+}
+
+// normalizeImagePath trims a path that may arrive wrapped by the model: a
+// "file://" URL, surrounding quotes/whitespace, or markdown angle brackets.
+func normalizeImagePath(path string) string {
+	path = strings.TrimSpace(path)
+	path = strings.Trim(path, "<>\"'")
+	path = strings.TrimPrefix(path, "file://")
+	return strings.TrimSpace(path)
+}
+
+// SaveImageAs lets the user download a generated image: it opens a native
+// Save-As dialog and copies the file to the chosen destination. Returns the
+// saved path, or "" if the user cancelled.
+func (c *ChatService) SaveImageAs(srcPath string) (string, error) {
+	srcPath = normalizeImagePath(srcPath)
+	if srcPath == "" {
+		return "", fmt.Errorf("no image path")
+	}
+	if _, err := os.Stat(srcPath); err != nil {
+		return "", fmt.Errorf("image not found: %w", err)
+	}
+	dest, err := wailsRuntime.SaveFileDialog(c.ctx, wailsRuntime.SaveDialogOptions{
+		Title:           "Save image",
+		DefaultFilename: filepath.Base(srcPath),
+	})
+	if err != nil {
+		return "", err
+	}
+	if dest == "" {
+		return "", nil // user cancelled
+	}
+	data, err := os.ReadFile(srcPath)
+	if err != nil {
+		return "", fmt.Errorf("read image: %w", err)
+	}
+	if err := os.WriteFile(dest, data, 0o644); err != nil {
+		return "", fmt.Errorf("save image: %w", err)
+	}
+	return dest, nil
 }
 
 func (c *ChatService) IsGatewayReachable() bool {

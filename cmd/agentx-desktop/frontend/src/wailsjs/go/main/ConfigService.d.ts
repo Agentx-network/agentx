@@ -23,11 +23,11 @@ export function RemoveImageProvider(arg1:string):Promise<void>;
 
 export function RemoveModel(arg1:number):Promise<void>;
 
-export function SetImageProvider(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
-
 export function SaveConfig(arg1:config.Config):Promise<void>;
 
 export function SetChannelEnabled(arg1:string,arg2:boolean):Promise<void>;
+
+export function SetImageProvider(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
 
 export function UpdateAgentDefaults(arg1:config.AgentDefaults):Promise<void>;
 

@@ -221,32 +221,70 @@ export default function ChatPage({ showToast, messages, setMessages }: Props) {
 const IMAGE_MARKER = /^IMAGE:(.+)$/gm;
 
 // ChatImage loads a locally-generated image as a data URL (via the Go binding)
-// and renders it inline. Shows the path as a fallback if it can't be read.
+// and renders it inline with a Download button. If the inline preview can't be
+// read or decoded, it degrades to a clear message + Download so the user can
+// always get the file.
 function ChatImage({ path }: { path: string }) {
   const [src, setSrc] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let active = true;
+    setSrc(null);
+    setFailed(false);
     window.go.main.ChatService.ReadImageDataURL(path)
       .then((url) => { if (active) setSrc(url); })
       .catch(() => { if (active) setFailed(true); });
     return () => { active = false; };
   }, [path]);
 
+  const download = () => {
+    window.go.main.ChatService.SaveImageAs(path).catch(() => {});
+  };
+
+  const DownloadBtn = (
+    <button
+      onClick={download}
+      className="mt-1 text-[11px] uppercase tracking-widest text-neon-cyan/80 hover:text-neon-cyan"
+    >
+      ⬇ Download
+    </button>
+  );
+
   if (failed) {
-    return <div className="text-xs text-white/40 font-mono break-all my-2">Saved to: {path}</div>;
+    return (
+      <div className="my-2">
+        <div className="text-xs text-white/40">Preview unavailable — the image was saved to disk.</div>
+        <div className="text-[11px] text-white/30 font-mono break-all">{path}</div>
+        {DownloadBtn}
+      </div>
+    );
   }
   if (!src) {
     return <div className="text-xs text-white/30 my-2">Loading image…</div>;
   }
   return (
-    <img
-      src={src}
-      alt="Generated image"
-      className="max-w-full rounded-lg border border-white/10 my-2 shadow-[0_0_20px_rgba(255,0,128,0.1)]"
-    />
+    <div className="my-2">
+      <img
+        src={src}
+        alt="Generated image"
+        onError={() => setFailed(true)}
+        className="max-w-full rounded-lg border border-white/10 shadow-[0_0_20px_rgba(255,0,128,0.1)]"
+      />
+      <div>{DownloadBtn}</div>
+    </div>
   );
+}
+
+// isLocalImagePath reports whether a markdown image src points at a local file
+// (absolute path or file:// URL) rather than a remote http(s) URL or data URI.
+// Weak models often render the generated image as `![alt](/local/path)` instead
+// of emitting the IMAGE: marker; those local paths can't load in the WebView, so
+// we route them through ChatImage (which reads them via the Go binding).
+function isLocalImagePath(src: string): boolean {
+  if (!src) return false;
+  if (src.startsWith("data:") || src.startsWith("http://") || src.startsWith("https://")) return false;
+  return src.startsWith("/") || src.startsWith("file://") || src.includes("/workspace/images/");
 }
 
 // AssistantContent renders markdown text, replacing any IMAGE:<path> markers
@@ -305,6 +343,15 @@ function MarkdownContent({ content }: { content: string }) {
           );
         },
         pre: ({ children }) => <pre className="my-2">{children}</pre>,
+        img: ({ src, alt }) => {
+          // A locally-generated image rendered as markdown (e.g. ![cat](/path))
+          // can't load directly in the WebView — route it through ChatImage,
+          // which reads the file via the Go binding. Remote URLs render as-is.
+          if (typeof src === "string" && isLocalImagePath(src)) {
+            return <ChatImage path={src} />;
+          }
+          return <img src={src} alt={alt} className="max-w-full rounded-lg border border-white/10 my-2" />;
+        },
         a: ({ href, children }) => (
           <a href={href} target="_blank" rel="noopener noreferrer" className="text-neon-pink underline hover:text-neon-pink/80">
             {children}

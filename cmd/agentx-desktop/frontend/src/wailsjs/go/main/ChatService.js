@@ -14,6 +14,10 @@ export function ReadImageDataURL(arg1) {
   return window['go']['main']['ChatService']['ReadImageDataURL'](arg1);
 }
 
+export function SaveImageAs(arg1) {
+  return window['go']['main']['ChatService']['SaveImageAs'](arg1);
+}
+
 export function SendMessage(arg1, arg2) {
   return window['go']['main']['ChatService']['SendMessage'](arg1, arg2);
 }
