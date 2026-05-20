@@ -8,7 +8,15 @@ interface Props {
   showToast: (msg: string, type: "success" | "error") => void;
 }
 
-type Tab = "provider" | "channels" | "agent";
+type Tab = "provider" | "images" | "channels" | "agent";
+
+// ImageProviderInfo mirrors main.ImageProviderInfo from the Go backend.
+interface ImageProviderInfo {
+  provider: string;
+  model: string;
+  api_key: string;
+  api_base: string;
+}
 
 export default function ConfigPage({ showToast }: Props) {
   const [tab, setTab] = useState<Tab>("agent");
@@ -16,6 +24,7 @@ export default function ConfigPage({ showToast }: Props) {
   const [models, setModels] = useState<ModelConfig[]>([]);
   const [channels, setChannels] = useState<ChannelInfo[]>([]);
   const [defaults, setDefaults] = useState<AgentDefaults | null>(null);
+  const [imageProviders, setImageProviders] = useState<ImageProviderInfo[]>([]);
 
   useEffect(() => {
     loadAll();
@@ -23,22 +32,25 @@ export default function ConfigPage({ showToast }: Props) {
 
   const loadAll = async () => {
     try {
-      const [p, m, status, d] = await Promise.all([
+      const [p, m, status, d, img] = await Promise.all([
         window.go.main.ConfigService.GetAvailableProviders(),
         window.go.main.ConfigService.GetModelList(),
         window.go.main.DashboardService.GetStatus(),
         window.go.main.ConfigService.GetAgentDefaults(),
+        window.go.main.ConfigService.GetImageProviders(),
       ]);
       setProviders(p);
       setModels(m ?? []);
       setChannels(status.channels ?? []);
       setDefaults(d);
+      setImageProviders(img ?? []);
     } catch { /* noop */ }
   };
 
   const tabs: { key: Tab; label: string; count?: number }[] = [
     { key: "agent", label: "Agent" },
     { key: "provider", label: "Provider", count: models.filter(m => m.api_key && m.api_key !== "ollama").length },
+    { key: "images", label: "Images", count: imageProviders.length },
     { key: "channels", label: "Channels", count: channels.filter(c => c.enabled).length },
   ];
 
@@ -93,6 +105,14 @@ export default function ConfigPage({ showToast }: Props) {
       {tab === "provider" && (
         <ProviderTab
           providers={providers}
+          models={models}
+          showToast={showToast}
+          onRefresh={loadAll}
+        />
+      )}
+      {tab === "images" && (
+        <ImagesTab
+          imageProviders={imageProviders}
           models={models}
           showToast={showToast}
           onRefresh={loadAll}
@@ -223,6 +243,132 @@ function ProviderTab({
 
       <NeonButton onClick={save} size="sm" disabled={selected?.needsKey && !apiKey}>
         {configuredModel?.api_key ? "Update" : "Configure"}
+      </NeonButton>
+    </div>
+  );
+}
+
+/* ─── Images Tab ─── */
+// Providers that can generate images (mirrors pkg/providers/imagecapability.go).
+const imageProviderOptions = [
+  { id: "gemini", name: "Gemini (Nano Banana)", model: "gemini-2.5-flash-image", keyURL: "https://aistudio.google.com/apikey", reuseChat: true },
+  { id: "openai", name: "OpenAI (GPT Image / DALL·E)", model: "gpt-image-1", keyURL: "https://platform.openai.com/api-keys", reuseChat: true },
+  { id: "seedance", name: "Seedance", model: "seedance-1.0", keyURL: "", reuseChat: false },
+  { id: "replicate", name: "Replicate (Flux / SDXL)", model: "black-forest-labs/flux-1.1-pro", keyURL: "https://replicate.com/account/api-tokens", reuseChat: false },
+];
+
+function ImagesTab({
+  imageProviders,
+  models,
+  showToast,
+  onRefresh,
+}: {
+  imageProviders: ImageProviderInfo[];
+  models: ModelConfig[];
+  showToast: Props["showToast"];
+  onRefresh: () => void;
+}) {
+  const [selected, setSelected] = useState(imageProviderOptions[0].id);
+  const [apiKey, setApiKey] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const option = imageProviderOptions.find(o => o.id === selected)!;
+  const configured = imageProviders.find(p => p.provider === selected);
+  // A chat provider (model_list) with the same name already supplies a key the
+  // image tool can reuse — surface that so the user knows they're set.
+  const chatKeyAvailable = option.reuseChat && models.some(
+    m => m.api_key && m.api_key !== "ollama" && (m.model || "").toLowerCase().startsWith(selected),
+  );
+
+  const maskKey = (key: string) => {
+    if (!key) return "";
+    if (key.length <= 8) return "********";
+    return key.slice(0, 4) + "****" + key.slice(-4);
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await window.go.main.ConfigService.SetImageProvider(selected, apiKey, "", "");
+      showToast("Image provider configured!", "success");
+      setApiKey("");
+      onRefresh();
+    } catch (e: any) {
+      showToast(`Failed: ${e}`, "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const remove = async (provider: string) => {
+    try {
+      await window.go.main.ConfigService.RemoveImageProvider(provider);
+      showToast("Image provider removed", "success");
+      onRefresh();
+    } catch (e: any) {
+      showToast(`Failed: ${e}`, "error");
+    }
+  };
+
+  return (
+    <div className="glass-card p-4 space-y-4">
+      <p className="text-xs text-white/50 leading-relaxed">
+        Configure a provider for image generation. Gemini and OpenAI reuse the key
+        from the Provider tab automatically — add a key here only to override or to
+        set up an image-only provider like Seedance or Replicate.
+      </p>
+
+      <SearchableSelect
+        label="Image provider"
+        placeholder="Search image provider..."
+        options={imageProviderOptions.map(o => ({
+          id: o.id,
+          label: o.name,
+          sublabel: o.model,
+          badge: imageProviders.some(p => p.provider === o.id) ? "Configured" : undefined,
+        }))}
+        value={selected}
+        onChange={(id) => { setSelected(id); setApiKey(""); }}
+      />
+
+      {configured?.api_key ? (
+        <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-neon-green/5 border border-neon-green/15">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-1.5 h-1.5 rounded-full bg-neon-green shadow-[0_0_6px_rgba(0,255,65,0.5)]" />
+            <span className="text-xs text-neon-green/80">Key set:</span>
+            <span className="text-xs text-white/60 font-mono truncate">{maskKey(configured.api_key)}</span>
+          </div>
+          <button
+            onClick={() => remove(configured.provider)}
+            className="text-[11px] uppercase tracking-widest text-neon-pink/70 hover:text-neon-pink shrink-0"
+          >
+            Remove
+          </button>
+        </div>
+      ) : chatKeyAvailable ? (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-neon-cyan/5 border border-neon-cyan/15">
+          <div className="w-1.5 h-1.5 rounded-full bg-neon-cyan shadow-[0_0_6px_rgba(0,229,255,0.5)]" />
+          <span className="text-xs text-neon-cyan/80">Using the {option.name.split(" ")[0]} key from your Provider config.</span>
+        </div>
+      ) : null}
+
+      <div>
+        <NeonInput
+          label={configured?.api_key ? "Update API Key" : "API Key"}
+          value={apiKey}
+          onChange={setApiKey}
+          type="password"
+          placeholder={configured?.api_key ? "Enter new key to update" : "Enter your API key"}
+        />
+        {option.keyURL && (
+          <a href={option.keyURL} target="_blank" rel="noopener" className="text-xs text-neon-cyan hover:underline mt-1 inline-block">
+            Get API key →
+          </a>
+        )}
+      </div>
+
+      <NeonButton onClick={save} size="sm" disabled={saving || !apiKey}>
+        {configured?.api_key ? "Update" : "Configure"}
       </NeonButton>
     </div>
   );

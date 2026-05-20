@@ -1327,6 +1327,24 @@ export namespace main {
 	        this.version = source["version"];
 	    }
 	}
+	export class ImageProviderInfo {
+	    provider: string;
+	    model: string;
+	    api_key: string;
+	    api_base: string;
+
+	    static createFrom(source: any = {}) {
+	        return new ImageProviderInfo(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.provider = source["provider"];
+	        this.model = source["model"];
+	        this.api_key = source["api_key"];
+	        this.api_base = source["api_base"];
+	    }
+	}
 	export class ProviderOption {
 	    name: string;
 	    id: string;
@@ -1335,11 +1353,11 @@ export namespace main {
 	    apiBase: string;
 	    keyURL: string;
 	    needsKey: boolean;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new ProviderOption(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];

@@ -216,6 +216,65 @@ export default function ChatPage({ showToast, messages, setMessages }: Props) {
   );
 }
 
+// IMAGE_MARKER matches an "IMAGE:<path>" line emitted by the image_generate
+// tool. Captured group is the file path.
+const IMAGE_MARKER = /^IMAGE:(.+)$/gm;
+
+// ChatImage loads a locally-generated image as a data URL (via the Go binding)
+// and renders it inline. Shows the path as a fallback if it can't be read.
+function ChatImage({ path }: { path: string }) {
+  const [src, setSrc] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    window.go.main.ChatService.ReadImageDataURL(path)
+      .then((url) => { if (active) setSrc(url); })
+      .catch(() => { if (active) setFailed(true); });
+    return () => { active = false; };
+  }, [path]);
+
+  if (failed) {
+    return <div className="text-xs text-white/40 font-mono break-all my-2">Saved to: {path}</div>;
+  }
+  if (!src) {
+    return <div className="text-xs text-white/30 my-2">Loading image…</div>;
+  }
+  return (
+    <img
+      src={src}
+      alt="Generated image"
+      className="max-w-full rounded-lg border border-white/10 my-2 shadow-[0_0_20px_rgba(255,0,128,0.1)]"
+    />
+  );
+}
+
+// AssistantContent renders markdown text, replacing any IMAGE:<path> markers
+// with the rendered image inline.
+function AssistantContent({ content }: { content: string }) {
+  if (!content.includes("IMAGE:")) {
+    return <MarkdownContent content={content} />;
+  }
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let key = 0;
+  content.replace(IMAGE_MARKER, (match, path: string, offset: number) => {
+    const before = content.slice(lastIndex, offset).replace(/\n+$/, "");
+    if (before.trim()) {
+      parts.push(<MarkdownContent key={`t-${key}`} content={before} />);
+    }
+    parts.push(<ChatImage key={`i-${key}`} path={path.trim()} />);
+    key++;
+    lastIndex = offset + match.length;
+    return match;
+  });
+  const rest = content.slice(lastIndex).replace(/^\n+/, "");
+  if (rest.trim()) {
+    parts.push(<MarkdownContent key={`t-${key}`} content={rest} />);
+  }
+  return <>{parts}</>;
+}
+
 function MarkdownContent({ content }: { content: string }) {
   return (
     <ReactMarkdown
@@ -289,7 +348,7 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
       >
         {msg.role === "assistant" ? (
           <div className="text-sm break-words leading-relaxed chat-markdown">
-            <MarkdownContent content={msg.content} />
+            <AssistantContent content={msg.content} />
           </div>
         ) : (
           <div className="text-sm whitespace-pre-wrap break-words leading-relaxed">

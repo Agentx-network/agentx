@@ -4,15 +4,15 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
-
-	"regexp"
 
 	"github.com/Agentx-network/agentx/pkg/config"
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -294,6 +294,44 @@ func friendlyError(raw string) string {
 }
 
 // IsGatewayReachable checks if the gateway is available.
+// ReadImageDataURL reads a generated image from disk and returns it as a
+// base64 data URL the webview can render inline. The chat detects an
+// "IMAGE:<path>" marker (emitted by the image_generate tool) and calls this to
+// display the result. Only image files under a few MB are served.
+func (c *ChatService) ReadImageDataURL(path string) (string, error) {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return "", fmt.Errorf("image path is required")
+	}
+	mime := ""
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".png":
+		mime = "image/png"
+	case ".jpg", ".jpeg":
+		mime = "image/jpeg"
+	case ".webp":
+		mime = "image/webp"
+	case ".gif":
+		mime = "image/gif"
+	default:
+		return "", fmt.Errorf("unsupported image type: %s", filepath.Ext(path))
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", fmt.Errorf("image not found: %w", err)
+	}
+	if info.Size() > 16<<20 {
+		return "", fmt.Errorf("image too large to display (%d bytes)", info.Size())
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("read image: %w", err)
+	}
+	return "data:" + mime + ";base64," + base64.StdEncoding.EncodeToString(data), nil
+}
+
 func (c *ChatService) IsGatewayReachable() bool {
 	cfg, err := config.LoadConfig(getConfigPath())
 	if err != nil {

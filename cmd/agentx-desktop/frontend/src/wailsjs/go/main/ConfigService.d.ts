@@ -11,13 +11,19 @@ export function GetAvailableProviders():Promise<Array<main.ProviderOption>>;
 
 export function GetConfig():Promise<config.Config>;
 
+export function GetImageProviders():Promise<Array<main.ImageProviderInfo>>;
+
 export function GetModelList():Promise<Array<config.ModelConfig>>;
 
 export function QuickSetupChannel(arg1:string,arg2:string):Promise<void>;
 
 export function QuickSetupProvider(arg1:string,arg2:string):Promise<void>;
 
+export function RemoveImageProvider(arg1:string):Promise<void>;
+
 export function RemoveModel(arg1:number):Promise<void>;
+
+export function SetImageProvider(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
 
 export function SaveConfig(arg1:config.Config):Promise<void>;
 

@@ -47,8 +47,8 @@
   {"name":"Mistral AI","id":"mistral-codestral","modelName":"Codestral","model":"mistral/codestral-latest","apiBase":"https://api.mistral.ai/v1","keyURL":"https://console.mistral.ai/api-keys","needsKey":true},
   {"name":"Mistral AI","id":"mistral-pixtral-large","modelName":"Pixtral Large","model":"mistral/pixtral-large-latest","apiBase":"https://api.mistral.ai/v1","keyURL":"https://console.mistral.ai/api-keys","needsKey":true},
 
-  {"name":"Cerebras","id":"cerebras-llama-3.3-70b","modelName":"Llama 3.3 70B","model":"cerebras/llama-3.3-70b","apiBase":"https://api.cerebras.ai/v1","keyURL":"https://inference.cerebras.ai/","needsKey":true},
-  {"name":"Cerebras","id":"cerebras-llama-3.1-8b","modelName":"Llama 3.1 8B","model":"cerebras/llama-3.1-8b","apiBase":"https://api.cerebras.ai/v1","keyURL":"https://inference.cerebras.ai/","needsKey":true},
+  {"name":"Cerebras","id":"cerebras-qwen-3-235b","modelName":"Qwen 3 235B","model":"cerebras/qwen-3-235b-a22b-instruct-2507","apiBase":"https://api.cerebras.ai/v1","keyURL":"https://inference.cerebras.ai/","needsKey":true},
+  {"name":"Cerebras","id":"cerebras-llama-3.1-8b","modelName":"Llama 3.1 8B (weak)","model":"cerebras/llama-3.1-8b","apiBase":"https://api.cerebras.ai/v1","keyURL":"https://inference.cerebras.ai/","needsKey":true},
 
   {"name":"Ollama","id":"ollama-llama3","modelName":"Llama 3","model":"ollama/llama3","apiBase":"http://localhost:11434/v1","needsKey":false},
   {"name":"Ollama","id":"ollama-llama3.1","modelName":"Llama 3.1","model":"ollama/llama3.1","apiBase":"http://localhost:11434/v1","needsKey":false},
