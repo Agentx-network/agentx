@@ -54,6 +54,7 @@ declare global {
           GetAvailableProviders(): Promise<any[]>;
           QuickSetupProvider(providerID: string, apiKey: string): Promise<void>;
           QuickSetupChannel(channel: string, token: string): Promise<void>;
+          SetChannelAllowFrom(channel: string, allowFrom: string[]): Promise<void>;
           GetImageProviders(): Promise<{ provider: string; model: string; api_key: string; api_base: string }[]>;
           SetImageProvider(provider: string, apiKey: string, model: string, apiBase: string): Promise<void>;
           RemoveImageProvider(provider: string): Promise<void>;
