@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -141,6 +142,70 @@ func (c *ConfigService) RemoveModel(index int) error {
 		return fmt.Errorf("model index %d out of range", index)
 	}
 	cfg.ModelList = append(cfg.ModelList[:index], cfg.ModelList[index+1:]...)
+	return saveAndNotify(cfg)
+}
+
+// ImageProviderInfo is the UI-facing view of one configured image provider.
+type ImageProviderInfo struct {
+	Provider string `json:"provider"`
+	Model    string `json:"model"`
+	APIKey   string `json:"api_key"`
+	APIBase  string `json:"api_base"`
+}
+
+// GetImageProviders returns the dedicated image providers configured under
+// tools.image.providers, sorted by provider name for stable UI ordering.
+func (c *ConfigService) GetImageProviders() ([]ImageProviderInfo, error) {
+	cfg, err := config.LoadConfig(getConfigPath())
+	if err != nil {
+		return nil, err
+	}
+	out := make([]ImageProviderInfo, 0, len(cfg.Tools.Image.Providers))
+	for name, ip := range cfg.Tools.Image.Providers {
+		out = append(out, ImageProviderInfo{
+			Provider: name,
+			Model:    ip.Model,
+			APIKey:   ip.APIKey,
+			APIBase:  ip.APIBase,
+		})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Provider < out[j].Provider })
+	return out, nil
+}
+
+// SetImageProvider adds or updates the API key (and optional model/base) for a
+// dedicated image provider. Provider name is lower-cased for consistency.
+func (c *ConfigService) SetImageProvider(provider, apiKey, model, apiBase string) error {
+	provider = strings.ToLower(strings.TrimSpace(provider))
+	if provider == "" {
+		return fmt.Errorf("provider name is required")
+	}
+	if strings.TrimSpace(apiKey) == "" {
+		return fmt.Errorf("API key is required for %s", provider)
+	}
+	cfg, err := config.LoadConfig(getConfigPath())
+	if err != nil {
+		return err
+	}
+	if cfg.Tools.Image.Providers == nil {
+		cfg.Tools.Image.Providers = map[string]config.ImageProviderConfig{}
+	}
+	cfg.Tools.Image.Providers[provider] = config.ImageProviderConfig{
+		APIKey:  strings.TrimSpace(apiKey),
+		Model:   strings.TrimSpace(model),
+		APIBase: strings.TrimSpace(apiBase),
+	}
+	return saveAndNotify(cfg)
+}
+
+// RemoveImageProvider deletes a dedicated image provider's config.
+func (c *ConfigService) RemoveImageProvider(provider string) error {
+	provider = strings.ToLower(strings.TrimSpace(provider))
+	cfg, err := config.LoadConfig(getConfigPath())
+	if err != nil {
+		return err
+	}
+	delete(cfg.Tools.Image.Providers, provider)
 	return saveAndNotify(cfg)
 }
 

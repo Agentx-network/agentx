@@ -18,6 +18,10 @@ export function GetConfig() {
   return window['go']['main']['ConfigService']['GetConfig']();
 }
 
+export function GetImageProviders() {
+  return window['go']['main']['ConfigService']['GetImageProviders']();
+}
+
 export function GetModelList() {
   return window['go']['main']['ConfigService']['GetModelList']();
 }
@@ -34,6 +38,10 @@ export function QuickSetupProvider(arg1, arg2) {
   return window['go']['main']['ConfigService']['QuickSetupProvider'](arg1, arg2);
 }
 
+export function RemoveImageProvider(arg1) {
+  return window['go']['main']['ConfigService']['RemoveImageProvider'](arg1);
+}
+
 export function RemoveModel(arg1) {
   return window['go']['main']['ConfigService']['RemoveModel'](arg1);
 }
@@ -44,6 +52,10 @@ export function SaveConfig(arg1) {
 
 export function SetChannelEnabled(arg1, arg2) {
   return window['go']['main']['ConfigService']['SetChannelEnabled'](arg1, arg2);
+}
+
+export function SetImageProvider(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['ConfigService']['SetImageProvider'](arg1, arg2, arg3, arg4);
 }
 
 export function UpdateAgentDefaults(arg1) {

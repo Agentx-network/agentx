@@ -10,10 +10,9 @@ import (
 	"github.com/Agentx-network/agentx/pkg/config"
 )
 
-// version is shown in the sidebar footer. It reads from pkg/buildinfo, the
-// single source of truth, so the desktop and the agent always report the same
-// number. Bump it with `make bump-version VERSION=x.y.z`.
-var version = buildinfo.Version
+// version is shown in the sidebar footer. Keep this constant in sync with
+// cmd/agentx-desktop/build/windows/info.json on each release bump.
+var version = "0.8.38"
 
 // App struct holds application lifecycle state.
 type App struct {

@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -104,6 +105,59 @@ func (al *AgentLoop) Reload(cfg *config.Config) {
 	logger.InfoCF("agent", "Agent loop reloaded with new config", nil)
 }
 
+// imageProvidersFromConfig collects image-capable providers the user has keys
+// for. Two sources are merged:
+//   - the dedicated tools.image.providers map (image-only providers like
+//     Seedance, configured in Config → Image), which takes precedence;
+//   - model_list entries whose provider also supports image output (per
+//     providers.ImageModelsFor), reusing the chat key.
+//
+// When a provider appears in both, the dedicated image config wins. The image
+// model id falls back to the capability map's default when not overridden.
+func imageProvidersFromConfig(cfg *config.Config) []tools.ImageProvider {
+	seen := map[string]bool{}
+	var out []tools.ImageProvider
+
+	// Dedicated image providers first (highest precedence).
+	for name, ip := range cfg.Tools.Image.Providers {
+		provider := providers.ProviderFromModelRef(name)
+		if ip.APIKey == "" || seen[provider] {
+			continue
+		}
+		model := ip.Model
+		if model == "" {
+			model = providers.DefaultImageModel(provider)
+		}
+		seen[provider] = true
+		out = append(out, tools.ImageProvider{
+			Provider: provider,
+			Model:    model,
+			APIKey:   ip.APIKey,
+			APIBase:  ip.APIBase,
+		})
+	}
+
+	// Then chat providers that happen to support image output.
+	for i := range cfg.ModelList {
+		m := &cfg.ModelList[i]
+		if m.APIKey == "" || m.APIKey == "ollama" {
+			continue
+		}
+		provider := providers.ProviderFromModelRef(m.Model)
+		if seen[provider] || !providers.ProviderSupportsImages(provider) {
+			continue
+		}
+		seen[provider] = true
+		out = append(out, tools.ImageProvider{
+			Provider: provider,
+			Model:    providers.DefaultImageModel(provider),
+			APIKey:   m.APIKey,
+			APIBase:  m.APIBase,
+		})
+	}
+	return out
+}
+
 // registerSharedTools registers tools that are shared across all agents (web, message, spawn).
 func registerSharedTools(
 	cfg *config.Config,
@@ -136,6 +190,22 @@ func registerSharedTools(
 			agent.Tools.Register(searchTool)
 		}
 		agent.Tools.Register(tools.NewWebFetchToolWithProxy(50000, cfg.Tools.Web.Proxy))
+
+		// Image generation. Both tools are always registered so the agent can
+		// set up a provider from chat even when none is configured yet:
+		//   - configure_image_provider saves a key the user pastes;
+		//   - image_generate resolves providers live from config each call, so a
+		//     just-saved key is used immediately (no gateway restart).
+		imageDir := filepath.Join(agent.Workspace, "images")
+		cfgPath := config.DefaultConfigPath()
+		agent.Tools.Register(tools.NewImageGenerateTool(func() []tools.ImageProvider {
+			liveCfg, err := config.LoadConfig(cfgPath)
+			if err != nil {
+				return imageProvidersFromConfig(cfg) // fall back to startup config
+			}
+			return imageProvidersFromConfig(liveCfg)
+		}, imageDir))
+		agent.Tools.Register(tools.NewConfigureImageProviderTool(cfgPath))
 
 		// Hardware tools (I2C, SPI) - Linux only, returns error on other platforms
 		agent.Tools.Register(tools.NewI2CTool())

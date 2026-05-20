@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sync/atomic"
 
 	"github.com/caarlos0/env/v11"
@@ -475,6 +476,22 @@ type ToolsConfig struct {
 	Cron   CronToolsConfig   `json:"cron"`
 	Exec   ExecConfig        `json:"exec"`
 	Skills SkillsToolsConfig `json:"skills"`
+	Image  ImageToolsConfig  `json:"image"`
+}
+
+// ImageToolsConfig configures dedicated image-generation providers. These
+// supplement model_list: a provider configured here (e.g. Seedance) can
+// generate images even if it isn't used for chat. The map is keyed by provider
+// name ("gemini", "openai", "seedance", …).
+type ImageToolsConfig struct {
+	Providers map[string]ImageProviderConfig `json:"providers,omitempty"`
+}
+
+// ImageProviderConfig holds the credentials for one image-generation provider.
+type ImageProviderConfig struct {
+	APIKey  string `json:"api_key"`
+	Model   string `json:"model,omitempty"`    // optional override; empty → capability-map default
+	APIBase string `json:"api_base,omitempty"` // optional base URL (self-hosted / Seedance)
 }
 
 type SkillsToolsConfig struct {
@@ -548,6 +565,16 @@ func LoadConfig(path string) (*Config, error) {
 	}
 
 	return cfg, nil
+}
+
+// DefaultConfigPath returns the canonical config file location
+// (~/.agentx/config.json), the same path the gateway and desktop both use.
+func DefaultConfigPath() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "config.json"
+	}
+	return filepath.Join(home, ".agentx", "config.json")
 }
 
 func SaveConfig(path string, cfg *Config) error {

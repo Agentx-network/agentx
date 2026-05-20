@@ -54,12 +54,16 @@ declare global {
           GetAvailableProviders(): Promise<any[]>;
           QuickSetupProvider(providerID: string, apiKey: string): Promise<void>;
           QuickSetupChannel(channel: string, token: string): Promise<void>;
-          SetChannelAllowFrom(channel: string, allowFrom: string[]): Promise<void>;
+          GetImageProviders(): Promise<{ provider: string; model: string; api_key: string; api_base: string }[]>;
+          SetImageProvider(provider: string, apiKey: string, model: string, apiBase: string): Promise<void>;
+          RemoveImageProvider(provider: string): Promise<void>;
         };
         ChatService: {
           SendMessage(message: string, sessionKey: string): Promise<{ response: string }>;
           IsGatewayReachable(): Promise<boolean>;
           GetChatHistory(sessionKey: string): Promise<{ role: string; content: string; timestamp: number }[]>;
+          ReadImageDataURL(path: string): Promise<string>;
+          SaveImageAs(srcPath: string): Promise<string>;
         };
         AgentSetupService: {
           GetBootstrapFiles(): Promise<{ name: string; path: string; content: string; exists: boolean }[]>;
