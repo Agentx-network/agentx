@@ -107,11 +107,10 @@ func (t *MessageTool) Execute(ctx context.Context, args map[string]any) *ToolRes
 	}
 
 	if err := t.sendCallback(channel, chatID, content); err != nil {
-		return &ToolResult{
-			ForLLM:  fmt.Sprintf("sending message: %v", err),
-			IsError: true,
-			Err:     err,
-		}
+		return BlockedResult(
+			fmt.Sprintf("I couldn't deliver that message to %s. The channel may be offline or misconfigured.", channel),
+			fmt.Sprintf("message send to %s:%s failed: %v", channel, chatID, err),
+		).WithError(err)
 	}
 
 	t.sentInRound = true

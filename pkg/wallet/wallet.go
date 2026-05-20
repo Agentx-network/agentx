@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
+	"golang.org/x/crypto/scrypt"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -409,7 +410,13 @@ func saveTokens(tokens []TokenConfig) error {
 	return os.WriteFile(p, data, 0o600)
 }
 
-// DeriveEncryptionKey derives a machine-specific AES-256 key.
+// DeriveEncryptionKey derives a machine-specific AES-256 key from host metadata.
+//
+// H2 (audit): this key is computable from largely-public metadata (hostname +
+// home path), so on its own it offers weak protection — anyone who images the
+// disk and knows the hostname can reconstruct it. It is kept as a
+// backward-compatible fallback for wallets created before passphrase support;
+// for real protection set AGENTX_WALLET_PASSPHRASE (see walletPassphrase).
 func DeriveEncryptionKey() []byte {
 	hostname, _ := os.Hostname()
 	home, _ := os.UserHomeDir()
@@ -417,9 +424,66 @@ func DeriveEncryptionKey() []byte {
 	return key[:]
 }
 
-// EncryptKey encrypts plaintext with AES-256-GCM using the derived key.
-func EncryptKey(plaintext []byte) ([]byte, error) {
-	block, err := aes.NewCipher(DeriveEncryptionKey())
+// walletPassphrase returns the optional wallet passphrase from the environment.
+// When set, the private key is encrypted with a scrypt-derived key from this
+// passphrase rather than the machine key, so an attacker who images the disk
+// still cannot decrypt without knowing the passphrase.
+func walletPassphrase() string {
+	return strings.TrimSpace(os.Getenv("AGENTX_WALLET_PASSPHRASE"))
+}
+
+func walletSaltPath() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".agentx", "wallet.salt")
+}
+
+// loadOrCreateSalt returns the per-install scrypt salt. create=true generates
+// and persists (mode 0600) a random salt on first use; create=false only reads
+// an existing one (used on decrypt, where a missing salt means this wallet was
+// never passphrase-encrypted).
+func loadOrCreateSalt(create bool) ([]byte, error) {
+	p := walletSaltPath()
+	if data, err := os.ReadFile(p); err == nil && len(data) >= 16 {
+		return data, nil
+	}
+	if !create {
+		return nil, fmt.Errorf("wallet salt not found")
+	}
+	salt := make([]byte, 16)
+	if _, err := io.ReadFull(rand.Reader, salt); err != nil {
+		return nil, err
+	}
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		return nil, err
+	}
+	if err := os.WriteFile(p, salt, 0o600); err != nil {
+		return nil, err
+	}
+	return salt, nil
+}
+
+func derivePassphraseKey(pass string, salt []byte) ([]byte, error) {
+	// scrypt N=2^15, r=8, p=1 — interactive-login strength, ~tens of ms.
+	return scrypt.Key([]byte(pass), salt, 1<<15, 8, 1, 32)
+}
+
+// encryptionKeys returns the candidate AES-256 keys, best first. With a
+// passphrase set it prefers the scrypt key; the machine key is always appended
+// as a fallback so wallets created before a passphrase existed still decrypt.
+func encryptionKeys(forEncrypt bool) [][]byte {
+	var keys [][]byte
+	if pass := walletPassphrase(); pass != "" {
+		if salt, err := loadOrCreateSalt(forEncrypt); err == nil {
+			if k, err := derivePassphraseKey(pass, salt); err == nil {
+				keys = append(keys, k)
+			}
+		}
+	}
+	return append(keys, DeriveEncryptionKey())
+}
+
+func sealWithKey(key, plaintext []byte) ([]byte, error) {
+	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
 	}
@@ -434,9 +498,8 @@ func EncryptKey(plaintext []byte) ([]byte, error) {
 	return gcm.Seal(nonce, nonce, plaintext, nil), nil
 }
 
-// DecryptKey decrypts ciphertext with AES-256-GCM using the derived key.
-func DecryptKey(ciphertext []byte) ([]byte, error) {
-	block, err := aes.NewCipher(DeriveEncryptionKey())
+func openWithKey(key, ciphertext []byte) ([]byte, error) {
+	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
 	}
@@ -450,6 +513,30 @@ func DecryptKey(ciphertext []byte) ([]byte, error) {
 	}
 	nonce, ct := ciphertext[:nonceSize], ciphertext[nonceSize:]
 	return gcm.Open(nil, nonce, ct, nil)
+}
+
+// EncryptKey encrypts plaintext with AES-256-GCM using the preferred key
+// (passphrase-derived if AGENTX_WALLET_PASSPHRASE is set, else machine key).
+func EncryptKey(plaintext []byte) ([]byte, error) {
+	return sealWithKey(encryptionKeys(true)[0], plaintext)
+}
+
+// DecryptKey decrypts ciphertext, trying each candidate key in turn. GCM is
+// authenticated, so a wrong key fails cleanly — letting us transparently read
+// both passphrase- and machine-encrypted wallets.
+func DecryptKey(ciphertext []byte) ([]byte, error) {
+	var lastErr error
+	for _, k := range encryptionKeys(false) {
+		if pt, err := openWithKey(k, ciphertext); err == nil {
+			return pt, nil
+		} else {
+			lastErr = err
+		}
+	}
+	if lastErr == nil {
+		lastErr = fmt.Errorf("no decryption key available")
+	}
+	return nil, lastErr
 }
 
 // QueryBSCBalance queries native BNB balance via BSC RPC.

@@ -401,6 +401,7 @@ function ChannelsTab({
     : null;
   const [selected, setSelected] = useState<string | null>(defaultChannel);
   const [token, setToken] = useState("");
+  const [allowFrom, setAllowFrom] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -419,6 +420,21 @@ function ChannelsTab({
       await window.go.main.ConfigService.QuickSetupChannel(selected, token);
       showToast(`${selectedChannel?.name} configured!`, "success");
       setToken("");
+      onRefresh();
+    } catch (e: any) {
+      showToast(`Failed: ${e}`, "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAllowFrom = async () => {
+    if (!selected) return;
+    setSaving(true);
+    try {
+      const list = allowFrom.split(",").map((s) => s.trim()).filter(Boolean);
+      await window.go.main.ConfigService.SetChannelAllowFrom(selected, list);
+      showToast("Allowed senders updated", "success");
       onRefresh();
     } catch (e: any) {
       showToast(`Failed: ${e}`, "error");
@@ -478,6 +494,25 @@ function ChannelsTab({
             <NeonButton onClick={handleSetup} size="sm" disabled={!token || saving}>
               {saving ? "Saving..." : isEnabled ? "Update" : "Configure"}
             </NeonButton>
+
+            {/* Allow-list: channels fail closed, so this must be set or the bot
+                rejects everyone. */}
+            <div className="pt-3 mt-1 border-t border-white/[0.06] space-y-2">
+              <NeonInput
+                label="Allowed senders"
+                value={allowFrom}
+                onChange={setAllowFrom}
+                placeholder="e.g. 123456789, @alice   (or *)"
+              />
+              <p className="text-[11px] text-white/40 leading-relaxed">
+                Comma-separated user IDs/usernames allowed to message this bot.
+                <span className="text-neon-pink/70"> Required:</span> if left empty the bot rejects
+                everyone. Use <span className="font-mono text-white/60">*</span> to allow anyone (not recommended).
+              </p>
+              <NeonButton onClick={handleAllowFrom} size="sm" disabled={saving}>
+                Save allow-list
+              </NeonButton>
+            </div>
           </>
         )}
       </div>

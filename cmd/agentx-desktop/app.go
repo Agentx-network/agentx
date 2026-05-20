@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/Agentx-network/agentx/pkg/buildinfo"
 	"github.com/Agentx-network/agentx/pkg/config"
 )
 

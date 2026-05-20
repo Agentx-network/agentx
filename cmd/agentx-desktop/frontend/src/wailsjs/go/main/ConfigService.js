@@ -30,6 +30,10 @@ export function QuickSetupChannel(arg1, arg2) {
   return window['go']['main']['ConfigService']['QuickSetupChannel'](arg1, arg2);
 }
 
+export function SetChannelAllowFrom(arg1, arg2) {
+  return window['go']['main']['ConfigService']['SetChannelAllowFrom'](arg1, arg2);
+}
+
 export function QuickSetupProvider(arg1, arg2) {
   return window['go']['main']['ConfigService']['QuickSetupProvider'](arg1, arg2);
 }
