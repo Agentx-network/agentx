@@ -6,14 +6,14 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/Agentx-network/agentx/pkg/buildinfo"
 	"github.com/Agentx-network/agentx/pkg/config"
 )
 
-// version is shown in the sidebar footer. Do not edit by hand — run
-// `make bump-version VERSION=x.y.z`, which updates this constant, the Windows
-// VERSIONINFO (build/windows/info.json), and the NSIS installer (project.nsi)
-// together so they can't drift apart.
-var version = "0.8.37"
+// version is shown in the sidebar footer. It reads from pkg/buildinfo, the
+// single source of truth, so the desktop and the agent always report the same
+// number. Bump it with `make bump-version VERSION=x.y.z`.
+var version = buildinfo.Version
 
 // App struct holds application lifecycle state.
 type App struct {

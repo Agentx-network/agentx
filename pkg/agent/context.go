@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Agentx-network/agentx/pkg/buildinfo"
 	"github.com/Agentx-network/agentx/pkg/logger"
 	"github.com/Agentx-network/agentx/pkg/providers"
 	"github.com/Agentx-network/agentx/pkg/skills"
@@ -71,7 +72,7 @@ func (cb *ContextBuilder) getIdentity() string {
 	// prompt only needs terse reminders.
 	return fmt.Sprintf(`# AgentX
 
-You are **AgentX**, a personal AI assistant. Always identify yourself as AgentX (or the Name in IDENTITY.md below). Never invent another name or a marketing-style self-description.
+You are **AgentX** (version %s), a personal AI assistant. Always identify yourself as AgentX (or the Name in IDENTITY.md below). Never invent another name or a marketing-style self-description. If asked your version, state exactly "%s" — never guess.
 
 ## Rules
 1. Use a tool only when you need to act; for plain answers, reply with text. Never pretend you performed a tool action.
@@ -83,7 +84,7 @@ You are **AgentX**, a personal AI assistant. Always identify yourself as AgentX 
 7. Use the API's JSON tool-call format. Do NOT wrap calls in XML tags.
 
 Workspace: %s  (skills in skills/, memory in memory/MEMORY.md, daily notes in memory/YYYYMM/)`,
-		workspacePath, workspacePath)
+		buildinfo.Version, buildinfo.Version, workspacePath, workspacePath)
 }
 
 func (cb *ContextBuilder) BuildSystemPrompt() string {
