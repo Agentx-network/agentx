@@ -24,25 +24,38 @@ type CronTool struct {
 	msgBus      *bus.MessageBus
 	execTool    *ExecTool
 	cfg         *config.Config
+	cfgPath     string // when set, reminder targeting reads live config from here
 	channel     string
 	chatID      string
 	mu          sync.RWMutex
+}
+
+// liveConfig returns the freshest config: re-read from disk when cfgPath is set
+// (so an owner claimed mid-session is visible), else the startup config.
+func (t *CronTool) liveConfig() *config.Config {
+	if t.cfgPath != "" {
+		if live, err := config.LoadConfig(t.cfgPath); err == nil {
+			return live
+		}
+	}
+	return t.cfg
 }
 
 // NewCronTool creates a new CronTool
 // execTimeout: 0 means no timeout, >0 sets the timeout duration
 func NewCronTool(
 	cronService *cron.CronService, executor JobExecutor, msgBus *bus.MessageBus, workspace string, restrict bool,
-	execTimeout time.Duration, config *config.Config,
+	execTimeout time.Duration, cfg *config.Config,
 ) *CronTool {
-	execTool := NewExecToolWithConfig(workspace, restrict, config)
+	execTool := NewExecToolWithConfig(workspace, restrict, cfg)
 	execTool.SetTimeout(execTimeout)
 	return &CronTool{
 		cronService: cronService,
 		executor:    executor,
 		msgBus:      msgBus,
 		execTool:    execTool,
-		cfg:         config,
+		cfg:         cfg,
+		cfgPath:     config.DefaultConfigPath(),
 	}
 }
 
@@ -55,11 +68,12 @@ func NewCronTool(
 //   - if nothing is connected, return an honest error instead of scheduling a
 //     reminder that can never be delivered.
 func (t *CronTool) resolveReminderTarget(sessChannel, sessChatID string) (channel, chatID string, errResult *ToolResult) {
-	if t.cfg != nil && t.cfg.IsPushChannel(sessChannel) && t.cfg.ChannelEnabled(sessChannel) && sessChatID != "" {
+	cfg := t.liveConfig()
+	if cfg != nil && cfg.IsPushChannel(sessChannel) && cfg.ChannelEnabled(sessChannel) && sessChatID != "" {
 		return sessChannel, sessChatID, nil
 	}
-	if t.cfg != nil {
-		if ch, owner := t.cfg.FirstConnectedPushChannel(); ch != "" {
+	if cfg != nil {
+		if ch, owner := cfg.FirstConnectedPushChannel(); ch != "" {
 			return ch, owner, nil
 		}
 	}
@@ -79,7 +93,11 @@ func (t *CronTool) Name() string {
 
 // Description returns the tool description
 func (t *CronTool) Description() string {
-	return "Schedule reminders, tasks, or system commands. IMPORTANT: When user asks to be reminded or scheduled, you MUST call this tool. Use 'at_seconds' for one-time reminders (e.g., 'remind me in 10 minutes' → at_seconds=600). Use 'every_seconds' ONLY for recurring tasks (e.g., 'every 2 hours' → every_seconds=7200). Use 'cron_expr' for complex recurring schedules. Use 'command' to execute shell commands directly."
+	return "Schedule reminders, pings, alerts, tasks, or system commands for a future time or interval. " +
+		"IMPORTANT: for ANY 'remind me', 'ping me', 'alert me', 'notify me' at/in/every <time> request you MUST use this tool " +
+		"(NEVER spawn — a subagent can't wait). Use 'at_seconds' for one-time (e.g. 'ping me in 2 minutes' → at_seconds=120). " +
+		"Use 'every_seconds' for recurring (e.g. 'every 2 hours' → every_seconds=7200). Use 'cron_expr' for complex schedules. " +
+		"Use 'command' to run a shell command on schedule. Delivery goes to a connected push channel (e.g. Telegram) automatically."
 }
 
 // Parameters returns the tool parameters schema

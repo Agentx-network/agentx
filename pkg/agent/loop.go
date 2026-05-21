@@ -255,16 +255,30 @@ func registerSharedTools(
 				fmt.Printf("\n🤖 %s\n", content)
 				return nil
 			}
+			// Read live config so a chat ID claimed mid-session is visible.
+			liveCfg := cfg
+			if c, err := config.LoadConfig(config.DefaultConfigPath()); err == nil {
+				liveCfg = c
+			}
 			// Honest delivery (Tier 0): the outbound bus is fire-and-forget and
 			// the channel manager silently drops messages for channels it can't
 			// route (e.g. "desktop", or a channel that isn't connected). Reject
-			// up front so the tool reports a real failure instead of a fake
-			// "sent" the user never receives.
-			if !cfg.IsPushChannel(channel) {
+			// up front so the tool reports a real failure instead of a fake "sent".
+			if !liveCfg.IsPushChannel(channel) {
 				return fmt.Errorf("%q can't receive proactive messages (not a connected channel)", channel)
 			}
-			if !cfg.ChannelEnabled(channel) {
+			if !liveCfg.ChannelEnabled(channel) {
 				return fmt.Errorf("the %s channel isn't connected — set it up in Config → Channels", channel)
+			}
+			// The agent often passes the desktop's chatID ("chat"/"direct") or
+			// nothing; for a push channel that's an invalid target. Use the
+			// channel owner's real chat ID instead.
+			if chatID == "" || chatID == "chat" || chatID == "direct" {
+				owner := liveCfg.OwnerChatID(channel)
+				if owner == "" {
+					return fmt.Errorf("I don't know your %s chat ID yet — message the bot on %s once so it learns your ID, then I can reach you there", channel, channel)
+				}
+				chatID = owner
 			}
 			msgBus.PublishOutbound(bus.OutboundMessage{
 				Channel: channel,

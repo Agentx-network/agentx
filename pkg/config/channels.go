@@ -93,6 +93,41 @@ func (c *Config) OwnerChatID(name string) string {
 	return ""
 }
 
+// SetChannelAllowFrom replaces the allow-list for the named channel. Returns
+// false if the channel name is unknown.
+func (c *Config) SetChannelAllowFrom(name string, list []string) bool {
+	fsl := FlexibleStringSlice(list)
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "telegram":
+		c.Channels.Telegram.AllowFrom = fsl
+	case "discord":
+		c.Channels.Discord.AllowFrom = fsl
+	case "slack":
+		c.Channels.Slack.AllowFrom = fsl
+	case "whatsapp":
+		c.Channels.WhatsApp.AllowFrom = fsl
+	case "feishu":
+		c.Channels.Feishu.AllowFrom = fsl
+	case "dingtalk":
+		c.Channels.DingTalk.AllowFrom = fsl
+	case "qq":
+		c.Channels.QQ.AllowFrom = fsl
+	case "line":
+		c.Channels.LINE.AllowFrom = fsl
+	case "onebot":
+		c.Channels.OneBot.AllowFrom = fsl
+	case "wecom":
+		c.Channels.WeCom.AllowFrom = fsl
+	case "wecom_app":
+		c.Channels.WeComApp.AllowFrom = fsl
+	case "maixcam":
+		c.Channels.MaixCam.AllowFrom = fsl
+	default:
+		return false
+	}
+	return true
+}
+
 // IsPushChannel reports whether the named channel can receive proactive
 // (delayed/scheduled) messages.
 func (c *Config) IsPushChannel(name string) bool {
