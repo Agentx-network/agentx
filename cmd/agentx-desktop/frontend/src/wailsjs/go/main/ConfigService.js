@@ -30,10 +30,6 @@ export function QuickSetupChannel(arg1, arg2) {
   return window['go']['main']['ConfigService']['QuickSetupChannel'](arg1, arg2);
 }
 
-export function SetChannelAllowFrom(arg1, arg2) {
-  return window['go']['main']['ConfigService']['SetChannelAllowFrom'](arg1, arg2);
-}
-
 export function QuickSetupProvider(arg1, arg2) {
   return window['go']['main']['ConfigService']['QuickSetupProvider'](arg1, arg2);
 }
@@ -48,6 +44,10 @@ export function RemoveModel(arg1) {
 
 export function SaveConfig(arg1) {
   return window['go']['main']['ConfigService']['SaveConfig'](arg1);
+}
+
+export function SetChannelAllowFrom(arg1, arg2) {
+  return window['go']['main']['ConfigService']['SetChannelAllowFrom'](arg1, arg2);
 }
 
 export function SetChannelEnabled(arg1, arg2) {

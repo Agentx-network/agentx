@@ -220,6 +220,17 @@ func registerSharedTools(
 				fmt.Printf("\n🤖 %s\n", content)
 				return nil
 			}
+			// Honest delivery (Tier 0): the outbound bus is fire-and-forget and
+			// the channel manager silently drops messages for channels it can't
+			// route (e.g. "desktop", or a channel that isn't connected). Reject
+			// up front so the tool reports a real failure instead of a fake
+			// "sent" the user never receives.
+			if !cfg.IsPushChannel(channel) {
+				return fmt.Errorf("%q can't receive proactive messages (not a connected channel)", channel)
+			}
+			if !cfg.ChannelEnabled(channel) {
+				return fmt.Errorf("the %s channel isn't connected — set it up in Config → Channels", channel)
+			}
 			msgBus.PublishOutbound(bus.OutboundMessage{
 				Channel: channel,
 				ChatID:  chatID,

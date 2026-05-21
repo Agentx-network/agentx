@@ -23,6 +23,7 @@ type CronTool struct {
 	executor    JobExecutor
 	msgBus      *bus.MessageBus
 	execTool    *ExecTool
+	cfg         *config.Config
 	channel     string
 	chatID      string
 	mu          sync.RWMutex
@@ -41,7 +42,34 @@ func NewCronTool(
 		executor:    executor,
 		msgBus:      msgBus,
 		execTool:    execTool,
+		cfg:         config,
 	}
+}
+
+// resolveReminderTarget decides where a scheduled reminder should actually be
+// delivered. Delayed messages can only reach a "push" channel (Telegram, etc.)
+// — the desktop/CLI are request/response only, so a job left targeting them is
+// silently dropped by the channel manager. So:
+//   - if the user is already on an enabled push channel, keep it;
+//   - otherwise redirect to the first connected push channel + its owner chat ID;
+//   - if nothing is connected, return an honest error instead of scheduling a
+//     reminder that can never be delivered.
+func (t *CronTool) resolveReminderTarget(sessChannel, sessChatID string) (channel, chatID string, errResult *ToolResult) {
+	if t.cfg != nil && t.cfg.IsPushChannel(sessChannel) && t.cfg.ChannelEnabled(sessChannel) && sessChatID != "" {
+		return sessChannel, sessChatID, nil
+	}
+	if t.cfg != nil {
+		if ch, owner := t.cfg.FirstConnectedPushChannel(); ch != "" {
+			return ch, owner, nil
+		}
+	}
+	return "", "", BlockedResult(
+		"I can only send a reminder to a connected channel like Telegram, and none is set up yet. "+
+			"Connect one in Config → Channels (and put your chat ID in 'Allowed senders'), then I can ping you.",
+		"No deliverable push channel is configured (need an enabled telegram/discord/etc. with an allow_from owner ID). "+
+			"The current surface (desktop/CLI) cannot receive delayed reminders. Tell the user to connect a channel; "+
+			"do NOT claim the reminder was scheduled.",
+	)
 }
 
 // Name returns the tool name
@@ -130,17 +158,26 @@ func (t *CronTool) Execute(ctx context.Context, args map[string]any) *ToolResult
 
 func (t *CronTool) addJob(args map[string]any) *ToolResult {
 	t.mu.RLock()
-	channel := t.channel
-	chatID := t.chatID
+	sessChannel := t.channel
+	sessChatID := t.chatID
 	t.mu.RUnlock()
-
-	if channel == "" || chatID == "" {
-		return ErrorResult("no session context (channel/chat_id not set). Use this tool in an active conversation.")
-	}
 
 	message, ok := args["message"].(string)
 	if !ok || message == "" {
 		return ErrorResult("message is required for add")
+	}
+
+	// Resolve where this reminder can actually be delivered. A command-only job
+	// (no chat delivery) keeps the session context; a chat reminder must target
+	// a push channel that can receive it later.
+	command, _ := args["command"].(string)
+	channel, chatID := sessChannel, sessChatID
+	if command == "" {
+		var errResult *ToolResult
+		channel, chatID, errResult = t.resolveReminderTarget(sessChannel, sessChatID)
+		if errResult != nil {
+			return errResult
+		}
 	}
 
 	var schedule cron.CronSchedule
@@ -178,12 +215,8 @@ func (t *CronTool) addJob(args map[string]any) *ToolResult {
 		deliver = d
 	}
 
-	command, _ := args["command"].(string)
 	if command != "" {
-		// Commands must be processed by agent/exec tool, so deliver must be false (or handled specifically)
-		// Actually, let's keep deliver=false to let the system know it's not a simple chat message
-		// But for our new logic in ExecuteJob, we can handle it regardless of deliver flag if Payload.Command is set.
-		// However, logically, it's not "delivered" to chat directly as is.
+		// Commands run through the exec tool, not delivered as a chat message.
 		deliver = false
 	}
 
@@ -211,7 +244,16 @@ func (t *CronTool) addJob(args map[string]any) *ToolResult {
 		t.cronService.UpdateJob(job)
 	}
 
-	return SilentResult(fmt.Sprintf("Cron job added: %s (id: %s)", job.Name, job.ID))
+	// Tell the model where it will actually be delivered so it can set the
+	// user's expectation (especially when a desktop reminder was redirected to a
+	// push channel like Telegram).
+	if command == "" && channel != sessChannel {
+		return SilentResult(fmt.Sprintf(
+			"Cron job added (id: %s). NOTE: this surface can't receive delayed reminders, so it will be delivered via %s. Tell the user it'll arrive on %s.",
+			job.ID, channel, channel,
+		))
+	}
+	return SilentResult(fmt.Sprintf("Cron job added: %s (id: %s, delivery via %s)", job.Name, job.ID, channel))
 }
 
 func (t *CronTool) listJobs() *ToolResult {
