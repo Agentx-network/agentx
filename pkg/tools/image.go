@@ -40,9 +40,11 @@ func NewImageGenerateTool(resolve func() []ImageProvider, persist func(ImageProv
 func (t *ImageGenerateTool) Name() string { return "image_generate" }
 
 func (t *ImageGenerateTool) Description() string {
-	return "Generate an image from a text prompt using a configured image-capable provider " +
-		"(e.g. Gemini, OpenAI). Returns the saved image file path. Only call this when the user " +
-		"asks to create/draw/generate an image."
+	return "Generate an image from a text prompt. ALWAYS call this FIRST whenever the user asks to " +
+		"create/draw/generate/make a picture or image — it automatically uses the user's already-configured " +
+		"AI provider (e.g. Gemini, OpenAI) and its key. Do NOT ask the user for an API key before calling this; " +
+		"only if this tool replies that the current provider can't make images should you then ask for one. " +
+		"Returns the saved image path."
 }
 
 func (t *ImageGenerateTool) Parameters() map[string]any {
