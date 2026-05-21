@@ -158,6 +158,32 @@ func imageProvidersFromConfig(cfg *config.Config) []tools.ImageProvider {
 	return out
 }
 
+// persistImageProvider saves an image provider into the dedicated
+// tools.image.providers config (so it shows on the Config → Images page) if it
+// isn't already there. Best-effort: errors are ignored — failing to persist
+// must never block image generation.
+func persistImageProvider(cfgPath string, p tools.ImageProvider) {
+	if p.Provider == "" || p.APIKey == "" {
+		return
+	}
+	cfg, err := config.LoadConfig(cfgPath)
+	if err != nil {
+		return
+	}
+	if cfg.Tools.Image.Providers == nil {
+		cfg.Tools.Image.Providers = map[string]config.ImageProviderConfig{}
+	}
+	if existing, ok := cfg.Tools.Image.Providers[p.Provider]; ok && existing.APIKey != "" {
+		return // already configured — don't overwrite the user's entry
+	}
+	cfg.Tools.Image.Providers[p.Provider] = config.ImageProviderConfig{
+		APIKey:  p.APIKey,
+		Model:   p.Model,
+		APIBase: p.APIBase,
+	}
+	_ = config.SaveConfig(cfgPath, cfg)
+}
+
 // registerSharedTools registers tools that are shared across all agents (web, message, spawn).
 func registerSharedTools(
 	cfg *config.Config,
@@ -198,13 +224,22 @@ func registerSharedTools(
 		//     just-saved key is used immediately (no gateway restart).
 		imageDir := filepath.Join(agent.Workspace, "images")
 		cfgPath := config.DefaultConfigPath()
-		agent.Tools.Register(tools.NewImageGenerateTool(func() []tools.ImageProvider {
-			liveCfg, err := config.LoadConfig(cfgPath)
-			if err != nil {
-				return imageProvidersFromConfig(cfg) // fall back to startup config
-			}
-			return imageProvidersFromConfig(liveCfg)
-		}, imageDir))
+		agent.Tools.Register(tools.NewImageGenerateTool(
+			func() []tools.ImageProvider {
+				liveCfg, err := config.LoadConfig(cfgPath)
+				if err != nil {
+					return imageProvidersFromConfig(cfg) // fall back to startup config
+				}
+				return imageProvidersFromConfig(liveCfg)
+			},
+			// persist: copy an auto-detected (chat-config) provider into the
+			// dedicated Images config so it appears on the Config page. Only
+			// writes when the provider isn't already saved there.
+			func(p tools.ImageProvider) {
+				persistImageProvider(cfgPath, p)
+			},
+			imageDir,
+		))
 		agent.Tools.Register(tools.NewConfigureImageProviderTool(cfgPath))
 
 		// Hardware tools (I2C, SPI) - Linux only, returns error on other platforms

@@ -65,18 +65,18 @@ func TestImageGenerateResolvesLive(t *testing.T) {
 	tool := NewImageGenerateTool(func() []ImageProvider {
 		calls++
 		return live
-	}, t.TempDir())
+	}, nil, t.TempDir())
 
 	// No providers yet → blocked with setup guidance.
 	res := tool.Execute(context.Background(), map[string]any{"prompt": "a cat"})
-	if !res.IsError || !strings.Contains(res.ForLLM, "No image-capable provider is configured") {
+	if !res.IsError || !strings.Contains(res.ForLLM, "No image-capable provider is available") {
 		t.Fatalf("expected no-provider guidance, got: %s", res.ForLLM)
 	}
 
 	// Add a provider live; the same tool instance must now use it.
 	live = append(live, ImageProvider{Provider: "replicate", Model: "", APIKey: "k"})
 	res = tool.Execute(context.Background(), map[string]any{"prompt": "a cat"})
-	if strings.Contains(res.ForLLM, "No image-capable provider is configured") {
+	if strings.Contains(res.ForLLM, "No image-capable provider is available") {
 		t.Errorf("resolver not consulted; still reports no provider: %s", res.ForLLM)
 	}
 	if calls != 2 {
