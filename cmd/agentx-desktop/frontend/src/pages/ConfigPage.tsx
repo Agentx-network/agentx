@@ -106,6 +106,7 @@ export default function ConfigPage({ showToast }: Props) {
         <ProviderTab
           providers={providers}
           models={models}
+          activeModelName={defaults?.model_name || defaults?.model || ""}
           showToast={showToast}
           onRefresh={loadAll}
         />
@@ -153,16 +154,23 @@ function StatusChip({ label, value, active }: { label: string; value: string; ac
 function ProviderTab({
   providers,
   models,
+  activeModelName,
   showToast,
   onRefresh,
 }: {
   providers: ProviderOption[];
   models: ModelConfig[];
+  activeModelName?: string;
   showToast: Props["showToast"];
   onRefresh: () => void;
 }) {
-  // Default to the provider that has a real key configured, or first available
-  const activeModel = models.find(m => m.api_key && m.api_key !== "ollama") || models[0];
+  // Default the dropdown to the agent's ACTIVE model (Config → Agent / the Model
+  // chip), so it matches what's actually running. Fall back to the first
+  // key-configured model, then the first provider.
+  const activeModel =
+    (activeModelName && models.find(m => m.model_name === activeModelName)) ||
+    models.find(m => m.api_key && m.api_key !== "ollama") ||
+    models[0];
   const defaultId = activeModel
     ? providers.find(p => p.model === activeModel.model)?.id ?? ""
     : "";
