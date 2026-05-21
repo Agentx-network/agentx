@@ -9,6 +9,7 @@ package channels
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/Agentx-network/agentx/pkg/bus"
@@ -203,11 +204,50 @@ func (m *Manager) initChannels() error {
 		}
 	}
 
+	// Install the first-message owner-claim hook on every channel. When a
+	// channel has no allow-list yet, the first sender becomes its owner — we
+	// persist their chat ID so the channel is locked to them AND we have a
+	// target for proactive notifications (reminders, alerts).
+	for _, ch := range m.channels {
+		ch.SetOwnerClaimHook(m.persistChannelOwner)
+	}
+
 	logger.InfoCF("channels", "Channel initialization completed", map[string]any{
 		"enabled_channels": len(m.channels),
 	})
 
 	return nil
+}
+
+// persistChannelOwner saves the first sender on a channel as its owner
+// (allow_from) so future restarts keep the lock and proactive messages have a
+// target. No-op if an owner is already set. Best-effort.
+func (m *Manager) persistChannelOwner(channelName, senderID string) {
+	id := senderID
+	if i := strings.Index(id, "|"); i > 0 { // telegram "id|username" → keep id
+		id = id[:i]
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return
+	}
+	path := config.DefaultConfigPath()
+	cfg, err := config.LoadConfig(path)
+	if err != nil {
+		return
+	}
+	if len(cfg.ChannelAllowFrom(channelName)) > 0 {
+		return // an owner is already configured; don't override
+	}
+	if !cfg.SetChannelAllowFrom(channelName, []string{id}) {
+		return
+	}
+	if err := config.SaveConfig(path, cfg); err != nil {
+		logger.ErrorCF("channels", "Failed to persist channel owner", map[string]any{"channel": channelName, "error": err.Error()})
+		return
+	}
+	m.config.SetChannelAllowFrom(channelName, []string{id}) // keep in-memory cfg in sync
+	logger.InfoCF("channels", "Persisted channel owner to config", map[string]any{"channel": channelName, "owner": id})
 }
 
 func (m *Manager) StartAll(ctx context.Context) error {

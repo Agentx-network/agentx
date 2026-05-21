@@ -17,8 +17,6 @@ export function GetModelList():Promise<Array<config.ModelConfig>>;
 
 export function QuickSetupChannel(arg1:string,arg2:string):Promise<void>;
 
-export function SetChannelAllowFrom(arg1:string,arg2:Array<string>):Promise<void>;
-
 export function QuickSetupProvider(arg1:string,arg2:string):Promise<void>;
 
 export function RemoveImageProvider(arg1:string):Promise<void>;
@@ -26,6 +24,8 @@ export function RemoveImageProvider(arg1:string):Promise<void>;
 export function RemoveModel(arg1:number):Promise<void>;
 
 export function SaveConfig(arg1:config.Config):Promise<void>;
+
+export function SetChannelAllowFrom(arg1:string,arg2:Array<string>):Promise<void>;
 
 export function SetChannelEnabled(arg1:string,arg2:boolean):Promise<void>;
 

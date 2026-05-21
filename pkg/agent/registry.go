@@ -49,6 +49,14 @@ func (r *AgentRegistry) initFantasyModels(cfg *config.Config) {
 				"provider": model.Provider(),
 				"model":    model.Model(),
 			})
+
+		// Tier 0: warn loudly when a small model is selected — most "agent
+		// fumbled" behavior (broken tool calls, narration instead of acting,
+		// truncated output) traces back to a low-capability model, not a bug.
+		if providers.IsLowCapabilityModel(model.Model()) {
+			logger.WarnCF("agent", "Selected model is small and may be unreliable for tool use / multi-step tasks — prefer a larger model (e.g. Qwen 3 235B, Llama 3.3 70B, Gemini 2.5 Flash, Claude/GPT-class)",
+				map[string]any{"agent_id": id, "model": model.Model()})
+		}
 	}
 }
 

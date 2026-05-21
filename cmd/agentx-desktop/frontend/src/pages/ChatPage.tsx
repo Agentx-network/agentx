@@ -28,6 +28,15 @@ export default function ChatPage({ showToast, messages, setMessages }: Props) {
     scrollToBottom();
   }, [messages, streamingText, scrollToBottom]);
 
+  // An inline image grows the layout AFTER it finishes decoding, which would
+  // otherwise leave the view parked mid-image. Re-scroll to the true bottom
+  // once each image reports loaded. (Only fires on first load — cached images
+  // are painted synchronously and never emit this.)
+  useEffect(() => {
+    window.addEventListener("agentx:image-loaded", scrollToBottom);
+    return () => window.removeEventListener("agentx:image-loaded", scrollToBottom);
+  }, [scrollToBottom]);
+
   // Check gateway connectivity
   useEffect(() => {
     const check = async () => {
@@ -224,16 +233,24 @@ const IMAGE_MARKER = /^IMAGE:(.+)$/gm;
 // and renders it inline with a Download button. If the inline preview can't be
 // read or decoded, it degrades to a clear message + Download so the user can
 // always get the file.
-function ChatImage({ path }: { path: string }) {
-  const [src, setSrc] = useState<string | null>(null);
+// imageCache holds resolved data URLs by path so an image is fetched ONCE, not
+// re-read on every chat re-render (e.g. each keystroke). Re-fetching is what
+// caused the inline image to flicker and the view to jump.
+const imageCache = new Map<string, string>();
+
+const ChatImage = React.memo(function ChatImage({ path }: { path: string }) {
+  const [src, setSrc] = useState<string | null>(() => imageCache.get(path) ?? null);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
+    // Cache hit → nothing to do (no flicker, no refetch).
+    if (imageCache.has(path)) {
+      setSrc(imageCache.get(path)!);
+      return;
+    }
     let active = true;
-    setSrc(null);
-    setFailed(false);
     window.go.main.ChatService.ReadImageDataURL(path)
-      .then((url) => { if (active) setSrc(url); })
+      .then((url) => { imageCache.set(path, url); if (active) setSrc(url); })
       .catch(() => { if (active) setFailed(true); });
     return () => { active = false; };
   }, [path]);
@@ -269,12 +286,16 @@ function ChatImage({ path }: { path: string }) {
         src={src}
         alt="Generated image"
         onError={() => setFailed(true)}
+        // When the image finishes loading the layout grows; tell the chat to
+        // re-scroll so the latest message stays in view instead of landing
+        // mid-image.
+        onLoad={() => window.dispatchEvent(new Event("agentx:image-loaded"))}
         className="max-w-full rounded-lg border border-white/10 shadow-[0_0_20px_rgba(255,0,128,0.1)]"
       />
       <div>{DownloadBtn}</div>
     </div>
   );
-}
+});
 
 // isLocalImagePath reports whether a markdown image src points at a local file
 // (absolute path or file:// URL) rather than a remote http(s) URL or data URI.
@@ -376,7 +397,10 @@ function MarkdownContent({ content }: { content: string }) {
   );
 }
 
-function MessageBubble({ msg }: { msg: ChatMessage }) {
+// Memoized so typing in the input (which re-renders ChatPage on every
+// keystroke) does not re-render every existing bubble — each msg object is a
+// stable reference, so settled bubbles skip re-rendering entirely.
+const MessageBubble = React.memo(function MessageBubble({ msg }: { msg: ChatMessage }) {
   return (
     <div
       className={`flex items-end gap-2 ${
@@ -412,4 +436,4 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
       </div>
     </div>
   );
-}
+});

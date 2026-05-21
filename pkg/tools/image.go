@@ -23,23 +23,28 @@ type ImageProvider struct {
 // the user adds mid-chat — through configure_image_provider or the Config page
 // — is picked up immediately, without restarting the gateway.
 type ImageGenerateTool struct {
-	resolve   func() []ImageProvider
+	resolve   func() []ImageProvider // currently-usable image providers (live from config)
+	persist   func(ImageProvider)    // optional: save an auto-detected provider to the Images config
 	outputDir string
 }
 
-// NewImageGenerateTool builds the tool. resolve returns the currently-configured
-// image-capable providers (re-read from config each call); outputDir is where
+// NewImageGenerateTool builds the tool. resolve returns the currently-usable
+// image-capable providers (re-read from config each call); persist (optional)
+// saves a provider that was auto-detected from the chat config into the
+// dedicated Images config so it shows on the Config page; outputDir is where
 // images are saved (typically <workspace>/images).
-func NewImageGenerateTool(resolve func() []ImageProvider, outputDir string) *ImageGenerateTool {
-	return &ImageGenerateTool{resolve: resolve, outputDir: outputDir}
+func NewImageGenerateTool(resolve func() []ImageProvider, persist func(ImageProvider), outputDir string) *ImageGenerateTool {
+	return &ImageGenerateTool{resolve: resolve, persist: persist, outputDir: outputDir}
 }
 
 func (t *ImageGenerateTool) Name() string { return "image_generate" }
 
 func (t *ImageGenerateTool) Description() string {
-	return "Generate an image from a text prompt using a configured image-capable provider " +
-		"(e.g. Gemini, OpenAI). Returns the saved image file path. Only call this when the user " +
-		"asks to create/draw/generate an image."
+	return "Generate an image from a text prompt. ALWAYS call this FIRST whenever the user asks to " +
+		"create/draw/generate/make a picture or image — it automatically uses the user's already-configured " +
+		"AI provider (e.g. Gemini, OpenAI) and its key. Do NOT ask the user for an API key before calling this; " +
+		"only if this tool replies that the current provider can't make images should you then ask for one. " +
+		"Returns the saved image path."
 }
 
 func (t *ImageGenerateTool) Parameters() map[string]any {
@@ -78,11 +83,12 @@ func (t *ImageGenerateTool) Execute(ctx context.Context, args map[string]any) *T
 	// then retry.
 	if len(configured) == 0 {
 		return BlockedResult(
-			"I can generate images, but no image provider is set up yet. Which would you like to use — "+
-				"Gemini, OpenAI, or Replicate? Tell me the provider and paste its API key, and I'll save it and create your image.",
-			"No image-capable provider is configured. Ask the user which provider (gemini/openai/replicate) "+
-				"and for its API key. When they give a key, call configure_image_provider to save it, then call "+
-				"image_generate again. Do NOT claim you generated an image until image_generate succeeds.",
+			"Your current AI provider can't generate images. Which image provider should I use — "+
+				"Gemini, OpenAI, or Replicate? Tell me which one and paste its API key, and I'll set it up and create your image.",
+			"No image-capable provider is available (the user's current chat provider has no image model, and none is "+
+				"configured). Tell the user their current provider can't make images and ask which image provider "+
+				"(gemini/openai/replicate) to use + its API key. When they give a key, call configure_image_provider, "+
+				"then image_generate again. Do NOT claim you generated an image until image_generate succeeds.",
 		)
 	}
 
@@ -122,6 +128,14 @@ func (t *ImageGenerateTool) Execute(ctx context.Context, args map[string]any) *T
 	model := strings.TrimSpace(asString(args["model"]))
 	if !providers.IsImageModel(chosen.Provider, model) {
 		model = chosen.Model
+	}
+
+	// Persist the provider we're about to use into the dedicated Images config,
+	// so a provider auto-detected from the chat config (e.g. the user's Gemini
+	// key) becomes visible/manageable on the Config → Images page. Idempotent;
+	// best-effort (never blocks generation).
+	if t.persist != nil {
+		t.persist(ImageProvider{Provider: chosen.Provider, Model: model, APIKey: chosen.APIKey, APIBase: chosen.APIBase})
 	}
 
 	res, err := image.Generate(ctx, image.GenerateOptions{

@@ -3,6 +3,7 @@ package channels
 import (
 	"context"
 	"strings"
+	"sync"
 
 	"github.com/Agentx-network/agentx/pkg/bus"
 	"github.com/Agentx-network/agentx/pkg/logger"
@@ -15,6 +16,7 @@ type Channel interface {
 	Send(ctx context.Context, msg bus.OutboundMessage) error
 	IsRunning() bool
 	IsAllowed(senderID string) bool
+	SetOwnerClaimHook(func(channelName, senderID string))
 }
 
 // StreamableChannel is an optional interface for channels that support streaming deltas.
@@ -25,11 +27,13 @@ type StreamableChannel interface {
 }
 
 type BaseChannel struct {
-	config    any
-	bus       *bus.MessageBus
-	running   bool
-	name      string
-	allowList []string
+	config     any
+	bus        *bus.MessageBus
+	running    bool
+	name       string
+	allowList  []string
+	mu         sync.Mutex
+	ownerClaim func(channelName, senderID string) // persists the first sender as owner
 }
 
 func NewBaseChannel(name string, config any, bus *bus.MessageBus, allowList []string) *BaseChannel {
@@ -103,8 +107,35 @@ func (c *BaseChannel) IsAllowed(senderID string) bool {
 	return false
 }
 
+// SetOwnerClaimHook installs a callback used to persist the first sender as the
+// channel's owner (see HandleMessage). Set by the channel manager.
+func (c *BaseChannel) SetOwnerClaimHook(fn func(channelName, senderID string)) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.ownerClaim = fn
+}
+
 func (c *BaseChannel) HandleMessage(senderID, chatID, content string, media []string, metadata map[string]string) {
-	if !c.IsAllowed(senderID) {
+	c.mu.Lock()
+	emptyAllow := len(c.allowList) == 0
+	claim := c.ownerClaim
+	c.mu.Unlock()
+
+	if emptyAllow {
+		// First-message owner claim: the channel has no allow-list yet, so the
+		// FIRST person to message it becomes the owner. We capture their ID
+		// (so we can both restrict access to them and proactively notify them
+		// later — e.g. reminders), allow this message through, and from now on
+		// the channel is locked to that owner (fail-closed for everyone else).
+		c.mu.Lock()
+		c.allowList = append(c.allowList, senderID)
+		c.mu.Unlock()
+		logger.InfoCF("channels", "Owner claimed by first message — channel now locked to this sender",
+			map[string]any{"channel": c.name, "sender": senderID})
+		if claim != nil {
+			claim(c.name, senderID)
+		}
+	} else if !c.IsAllowed(senderID) {
 		return
 	}
 

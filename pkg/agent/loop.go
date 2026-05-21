@@ -158,6 +158,32 @@ func imageProvidersFromConfig(cfg *config.Config) []tools.ImageProvider {
 	return out
 }
 
+// persistImageProvider saves an image provider into the dedicated
+// tools.image.providers config (so it shows on the Config → Images page) if it
+// isn't already there. Best-effort: errors are ignored — failing to persist
+// must never block image generation.
+func persistImageProvider(cfgPath string, p tools.ImageProvider) {
+	if p.Provider == "" || p.APIKey == "" {
+		return
+	}
+	cfg, err := config.LoadConfig(cfgPath)
+	if err != nil {
+		return
+	}
+	if cfg.Tools.Image.Providers == nil {
+		cfg.Tools.Image.Providers = map[string]config.ImageProviderConfig{}
+	}
+	if existing, ok := cfg.Tools.Image.Providers[p.Provider]; ok && existing.APIKey != "" {
+		return // already configured — don't overwrite the user's entry
+	}
+	cfg.Tools.Image.Providers[p.Provider] = config.ImageProviderConfig{
+		APIKey:  p.APIKey,
+		Model:   p.Model,
+		APIBase: p.APIBase,
+	}
+	_ = config.SaveConfig(cfgPath, cfg)
+}
+
 // registerSharedTools registers tools that are shared across all agents (web, message, spawn).
 func registerSharedTools(
 	cfg *config.Config,
@@ -198,13 +224,22 @@ func registerSharedTools(
 		//     just-saved key is used immediately (no gateway restart).
 		imageDir := filepath.Join(agent.Workspace, "images")
 		cfgPath := config.DefaultConfigPath()
-		agent.Tools.Register(tools.NewImageGenerateTool(func() []tools.ImageProvider {
-			liveCfg, err := config.LoadConfig(cfgPath)
-			if err != nil {
-				return imageProvidersFromConfig(cfg) // fall back to startup config
-			}
-			return imageProvidersFromConfig(liveCfg)
-		}, imageDir))
+		agent.Tools.Register(tools.NewImageGenerateTool(
+			func() []tools.ImageProvider {
+				liveCfg, err := config.LoadConfig(cfgPath)
+				if err != nil {
+					return imageProvidersFromConfig(cfg) // fall back to startup config
+				}
+				return imageProvidersFromConfig(liveCfg)
+			},
+			// persist: copy an auto-detected (chat-config) provider into the
+			// dedicated Images config so it appears on the Config page. Only
+			// writes when the provider isn't already saved there.
+			func(p tools.ImageProvider) {
+				persistImageProvider(cfgPath, p)
+			},
+			imageDir,
+		))
 		agent.Tools.Register(tools.NewConfigureImageProviderTool(cfgPath))
 
 		// Hardware tools (I2C, SPI) - Linux only, returns error on other platforms
@@ -219,6 +254,31 @@ func registerSharedTools(
 			if channel == constants.ChannelCLI {
 				fmt.Printf("\n🤖 %s\n", content)
 				return nil
+			}
+			// Read live config so a chat ID claimed mid-session is visible.
+			liveCfg := cfg
+			if c, err := config.LoadConfig(config.DefaultConfigPath()); err == nil {
+				liveCfg = c
+			}
+			// Honest delivery (Tier 0): the outbound bus is fire-and-forget and
+			// the channel manager silently drops messages for channels it can't
+			// route (e.g. "desktop", or a channel that isn't connected). Reject
+			// up front so the tool reports a real failure instead of a fake "sent".
+			if !liveCfg.IsPushChannel(channel) {
+				return fmt.Errorf("%q can't receive proactive messages (not a connected channel)", channel)
+			}
+			if !liveCfg.ChannelEnabled(channel) {
+				return fmt.Errorf("the %s channel isn't connected — set it up in Config → Channels", channel)
+			}
+			// The agent often passes the desktop's chatID ("chat"/"direct") or
+			// nothing; for a push channel that's an invalid target. Use the
+			// channel owner's real chat ID instead.
+			if chatID == "" || chatID == "chat" || chatID == "direct" {
+				owner := liveCfg.OwnerChatID(channel)
+				if owner == "" {
+					return fmt.Errorf("I don't know your %s chat ID yet — message the bot on %s once so it learns your ID, then I can reach you there", channel, channel)
+				}
+				chatID = owner
 			}
 			msgBus.PublishOutbound(bus.OutboundMessage{
 				Channel: channel,

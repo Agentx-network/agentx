@@ -1,6 +1,44 @@
 package channels
 
-import "testing"
+import (
+	"context"
+	"testing"
+	"time"
+
+	"github.com/Agentx-network/agentx/pkg/bus"
+)
+
+// First-message owner-claim: a channel with no allow-list locks to the first
+// sender (captured via the hook) and rejects everyone else afterward.
+func TestOwnerClaimOnFirstMessage(t *testing.T) {
+	mb := bus.NewMessageBus()
+	ch := NewBaseChannel("telegram", nil, mb, nil) // empty allow-list
+
+	var claimed string
+	ch.SetOwnerClaimHook(func(channel, senderID string) { claimed = channel + ":" + senderID })
+
+	// First sender → claimed, allowed, published.
+	ch.HandleMessage("1046193410", "1046193410", "hi", nil, nil)
+	if claimed != "telegram:1046193410" {
+		t.Fatalf("owner not claimed via hook, got %q", claimed)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if msg, ok := mb.ConsumeInbound(ctx); !ok || msg.SenderID != "1046193410" {
+		t.Fatalf("first message should be published; ok=%v msg=%+v", ok, msg)
+	}
+	if !ch.IsAllowed("1046193410") {
+		t.Error("owner should be allowed after claim")
+	}
+
+	// A different sender is now rejected (not published).
+	ch.HandleMessage("999999", "999999", "intruder", nil, nil)
+	ctx2, cancel2 := context.WithTimeout(context.Background(), 150*time.Millisecond)
+	defer cancel2()
+	if _, ok := mb.ConsumeInbound(ctx2); ok {
+		t.Error("a non-owner message must NOT be published after the owner is claimed")
+	}
+}
 
 func TestBaseChannelIsAllowed(t *testing.T) {
 	tests := []struct {

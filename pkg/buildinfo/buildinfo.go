@@ -7,4 +7,4 @@
 package buildinfo
 
 // Version is the current AgentX release version.
-const Version = "0.8.39"
+const Version = "0.8.42"

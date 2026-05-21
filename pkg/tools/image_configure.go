@@ -27,9 +27,10 @@ func NewConfigureImageProviderTool(configPath string) *ConfigureImageProviderToo
 func (t *ConfigureImageProviderTool) Name() string { return "configure_image_provider" }
 
 func (t *ConfigureImageProviderTool) Description() string {
-	return "Save an image-generation provider's API key so images can be generated. " +
-		"Call this when the user gives you an API key for an image provider (Gemini, OpenAI, " +
-		"Replicate, or Seedance). After it succeeds, call image_generate."
+	return "Save an image-generation provider's API key. ONLY call this when the user has ALREADY " +
+		"given you an actual API key in their message. NEVER call it to ask for a key, with an empty key, " +
+		"or before trying image_generate — image_generate already uses the user's configured provider. " +
+		"After saving a key here, call image_generate."
 }
 
 func (t *ConfigureImageProviderTool) Parameters() map[string]any {
