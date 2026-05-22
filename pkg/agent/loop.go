@@ -253,9 +253,17 @@ func registerSharedTools(
 		))
 		agent.Tools.Register(tools.NewConfigureImageProviderTool(cfgPath))
 
-		// Hardware tools (I2C, SPI) - Linux only, returns error on other platforms
-		agent.Tools.Register(tools.NewI2CTool())
-		agent.Tools.Register(tools.NewSPITool())
+		// Hardware tools (I2C, SPI) — only registered when the host actually has
+		// the bus device files. Their schemas are the two largest in the toolset
+		// and are sent on every request, so skipping them on machines with no
+		// such hardware (desktops, servers) saves prompt tokens for small models
+		// without removing any real capability (the tools would only ever error).
+		if tools.I2CToolAvailable() {
+			agent.Tools.Register(tools.NewI2CTool())
+		}
+		if tools.SPIToolAvailable() {
+			agent.Tools.Register(tools.NewSPITool())
+		}
 
 		// Message tool
 		messageTool := tools.NewMessageTool()

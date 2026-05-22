@@ -16,6 +16,17 @@ func NewSPITool() *SPITool {
 	return &SPITool{}
 }
 
+// SPIToolAvailable reports whether this host actually exposes SPI devices
+// (/dev/spidev*). Used to skip registering the tool — and its schema, sent on
+// every request — on machines with no SPI hardware, trimming prompt tokens.
+func SPIToolAvailable() bool {
+	if runtime.GOOS != "linux" {
+		return false
+	}
+	m, _ := filepath.Glob("/dev/spidev*")
+	return len(m) > 0
+}
+
 func (t *SPITool) Name() string {
 	return "spi"
 }

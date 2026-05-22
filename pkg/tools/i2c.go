@@ -16,6 +16,18 @@ func NewI2CTool() *I2CTool {
 	return &I2CTool{}
 }
 
+// I2CToolAvailable reports whether this host actually exposes I2C buses
+// (/dev/i2c-*). Used to skip registering the tool — and its sizable JSON schema,
+// which is sent to the model on every request — on machines with no I2C
+// hardware (e.g. desktops), trimming prompt tokens for small-context models.
+func I2CToolAvailable() bool {
+	if runtime.GOOS != "linux" {
+		return false
+	}
+	m, _ := filepath.Glob("/dev/i2c-*")
+	return len(m) > 0
+}
+
 func (t *I2CTool) Name() string {
 	return "i2c"
 }
