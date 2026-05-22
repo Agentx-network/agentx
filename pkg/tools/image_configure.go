@@ -87,6 +87,18 @@ func (t *ConfigureImageProviderTool) Execute(_ context.Context, args map[string]
 	if cfg.Tools.Image.Providers == nil {
 		cfg.Tools.Image.Providers = map[string]config.ImageProviderConfig{}
 	}
+
+	// Already configured with this exact key → no-op. Stops the redundant
+	// "ask for a key again" loop where the model re-runs configure for a
+	// provider that's already set up instead of just generating.
+	if existing, ok := cfg.Tools.Image.Providers[provider]; ok && existing.APIKey == apiKey {
+		return &ToolResult{
+			ForUser: fmt.Sprintf("%s is already set up for images. What would you like me to create?", providerLabel(provider)),
+			ForLLM: fmt.Sprintf("%s is already configured with this key — do NOT ask for a key again. "+
+				"If the user already gave an image subject, call image_generate now; otherwise ask what to depict.", provider),
+			IsError: false,
+		}
+	}
 	cfg.Tools.Image.Providers[provider] = config.ImageProviderConfig{
 		APIKey:  apiKey,
 		Model:   model,

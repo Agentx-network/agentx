@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/Agentx-network/agentx/pkg/image"
@@ -44,7 +45,8 @@ func (t *ImageGenerateTool) Description() string {
 		"create/draw/generate/make a picture or image — it automatically uses the user's already-configured " +
 		"AI provider (e.g. Gemini, OpenAI) and its key. Do NOT ask the user for an API key before calling this; " +
 		"only if this tool replies that the current provider can't make images should you then ask for one. " +
-		"Returns the saved image path."
+		"Pass the subject the USER described in `prompt`; if the user did not say what to depict, ask them first " +
+		"and never invent a subject. Returns the saved image path."
 }
 
 func (t *ImageGenerateTool) Parameters() map[string]any {
@@ -53,7 +55,7 @@ func (t *ImageGenerateTool) Parameters() map[string]any {
 		"properties": map[string]any{
 			"prompt": map[string]any{
 				"type":        "string",
-				"description": "Text description of the image to generate.",
+				"description": "The subject to depict, taken from what the USER asked for. Do NOT invent or assume a subject — if the user was vague, ask them first.",
 			},
 			"provider": map[string]any{
 				"type":        "string",
@@ -73,6 +75,20 @@ func (t *ImageGenerateTool) Execute(ctx context.Context, args map[string]any) *T
 	prompt = strings.TrimSpace(prompt)
 	if prompt == "" {
 		return ErrorResult("prompt is required to generate an image")
+	}
+
+	// Deterministic "ask first" guard. The prompt rule tells the model to ask
+	// what to depict when the user didn't specify — but that's advisory, and
+	// models (especially weaker ones) sometimes invent a subject anyway. This
+	// catches the case in CODE: if the subject is vague/placeholder, refuse and
+	// bounce the model back to ask the user, regardless of which model is in use.
+	if isVaguePrompt(prompt) {
+		return BlockedResult(
+			"What would you like the image to show? Tell me the subject and I'll create it.",
+			"The image subject is missing or too vague (the user didn't say what to depict). "+
+				"Do NOT invent a subject. Ask the user what they want the image to show, then call image_generate "+
+				"with their actual description.",
+		)
 	}
 
 	// Resolve providers live so a key the user just added is visible.
@@ -151,6 +167,17 @@ func (t *ImageGenerateTool) Execute(ctx context.Context, args map[string]any) *T
 		return BlockedResult(forUser, forLLM)
 	}
 
+	// Verify the file actually landed on disk before telling the model it
+	// succeeded — otherwise a silent write failure would have the model claim
+	// "here's your image" with a path that renders as a broken preview.
+	if info, statErr := os.Stat(res.Path); statErr != nil || info.Size() == 0 {
+		return BlockedResult(
+			"I generated the image but couldn't save it to disk. Please try again.",
+			fmt.Sprintf("image.Generate returned path %q but the file is missing or empty (%v). "+
+				"Do NOT claim the image was created; tell the user saving failed.", res.Path, statErr),
+		)
+	}
+
 	// The IMAGE: marker lets the desktop chat render the file inline (Phase 3).
 	msg := fmt.Sprintf("Generated your image with %s and saved it to:\nIMAGE:%s", chosen.Provider, res.Path)
 	return UserResult(msg)
@@ -159,6 +186,28 @@ func (t *ImageGenerateTool) Execute(ctx context.Context, args map[string]any) *T
 func asString(v any) string {
 	s, _ := v.(string)
 	return s
+}
+
+// isVaguePrompt reports whether an image subject is effectively unspecified —
+// either a bare verb/placeholder ("something", "a picture", "an image") or too
+// short to describe anything. Used to enforce "ask the user first" in code
+// rather than trusting the model to obey the prompt rule.
+func isVaguePrompt(prompt string) bool {
+	p := strings.ToLower(strings.TrimSpace(prompt))
+	p = strings.Trim(p, ".!?,'\"")
+	switch p {
+	case "", "something", "anything", "whatever", "a picture", "an image", "a image",
+		"picture", "image", "a drawing", "drawing", "art", "some art", "generate",
+		"create", "make one", "surprise me", "you decide", "your choice", "idk",
+		"i don't know", "i dont know", "anything you want", "whatever you want":
+		return true
+	}
+	// A "subject" with no real content (e.g. just "a", "the image of") can't
+	// describe anything depictable.
+	if len(p) < 3 {
+		return true
+	}
+	return false
 }
 
 // providerLabel returns a human-friendly provider name for messages.
