@@ -6,6 +6,8 @@ export function GetChatHistory(arg1:string):Promise<Array<main.HistoryMessage>>;
 
 export function IsGatewayReachable():Promise<boolean>;
 
+export function PollNotifications():Promise<Array<string>>;
+
 export function ReadImageDataURL(arg1:string):Promise<string>;
 
 export function SaveImageAs(arg1:string):Promise<string>;

@@ -37,6 +37,37 @@ export default function ChatPage({ showToast, messages, setMessages }: Props) {
     return () => window.removeEventListener("agentx:image-loaded", scrollToBottom);
   }, [scrollToBottom]);
 
+  // Poll for proactively-delivered messages (cron reminders that fire while the
+  // user isn't mid-request). The gateway queues them for the "desktop" channel;
+  // here we drain them and render each as an assistant message so a plain
+  // "remind me in 1 min…" shows up right in this chat.
+  useEffect(() => {
+    let active = true;
+    const poll = async () => {
+      try {
+        const msgs: string[] = await window.go.main.ChatService.PollNotifications();
+        if (active && msgs && msgs.length > 0) {
+          setMessages((prev) => [
+            ...prev,
+            ...msgs.map((content) => ({
+              id: `msg-${++messageIdCounter}`,
+              role: "assistant" as const,
+              content,
+              timestamp: Date.now(),
+            })),
+          ]);
+        }
+      } catch {
+        // Gateway not reachable / no notifications — ignore and retry next tick.
+      }
+    };
+    const interval = setInterval(poll, 4000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [setMessages]);
+
   // Check gateway connectivity
   useEffect(() => {
     const check = async () => {

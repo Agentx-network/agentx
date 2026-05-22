@@ -116,6 +116,18 @@ func gatewayCmd(debug bool) error {
 	// Inject channel manager into agent loop for command handling
 	agentLoop.SetChannelManager(channelManager)
 
+	// The desktop chat has no push connection — proactive messages (cron
+	// reminders, async results) targeting the "desktop" channel are queued here
+	// and drained by the desktop app via /api/notifications.
+	notifier := newDesktopNotifier()
+	channelManager.SetLocalDeliveryHook(func(msg bus.OutboundMessage) bool {
+		if msg.Channel == "desktop" {
+			notifier.enqueue(msg.ChatID, msg.Content)
+			return true
+		}
+		return false
+	})
+
 	var transcriber *voice.GroqTranscriber
 	groqAPIKey := cfg.Providers.Groq.APIKey
 	if groqAPIKey == "" {
@@ -274,6 +286,20 @@ func gatewayCmd(debug bool) error {
 			fmt.Fprintf(w, "data: %s\n\n", data)
 		}
 		flusher.Flush()
+	})
+
+	// Register notifications endpoint: the desktop app polls this to drain any
+	// proactively-delivered messages (cron reminders fired while the user wasn't
+	// mid-request). Returns and clears the queue for the given chat.
+	healthServer.HandleFunc("/api/notifications", func(w http.ResponseWriter, r *http.Request) {
+		chatID := r.URL.Query().Get("chatID")
+		if chatID == "" {
+			chatID = "chat"
+		}
+		messages := notifier.drain(chatID)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		_ = json.NewEncoder(w).Encode(map[string]any{"messages": messages})
 	})
 
 	// Register reload endpoint: desktop GUI POSTs here after the user saves

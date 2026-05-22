@@ -65,6 +65,7 @@ declare global {
           GetChatHistory(sessionKey: string): Promise<{ role: string; content: string; timestamp: number }[]>;
           ReadImageDataURL(path: string): Promise<string>;
           SaveImageAs(srcPath: string): Promise<string>;
+          PollNotifications(): Promise<string[]>;
         };
         AgentSetupService: {
           GetBootstrapFiles(): Promise<{ name: string; path: string; content: string; exists: boolean }[]>;

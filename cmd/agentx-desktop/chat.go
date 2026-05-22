@@ -393,3 +393,30 @@ func (c *ChatService) IsGatewayReachable() bool {
 	defer resp.Body.Close()
 	return resp.StatusCode == http.StatusOK
 }
+
+// PollNotifications drains any proactively-delivered messages for the desktop
+// chat (cron reminders that fired while the user wasn't mid-request). The chat
+// page calls this on a short timer and renders each as an assistant message.
+func (c *ChatService) PollNotifications() ([]string, error) {
+	cfg, err := config.LoadConfig(getConfigPath())
+	if err != nil {
+		return nil, err
+	}
+	url := fmt.Sprintf("http://%s:%d/api/notifications?chatID=chat", cfg.Gateway.Host, cfg.Gateway.Port)
+	client := &http.Client{Timeout: 3 * time.Second}
+	resp, err := client.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("notifications endpoint returned %d", resp.StatusCode)
+	}
+	var out struct {
+		Messages []string `json:"messages"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, err
+	}
+	return out.Messages, nil
+}

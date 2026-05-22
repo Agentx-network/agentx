@@ -25,7 +25,17 @@ type Manager struct {
 	config       *config.Config
 	dispatchTask *asyncTask
 	streamTask   *asyncTask
+	localDeliver func(bus.OutboundMessage) bool // optional sink for unregistered channels (e.g. "desktop")
 	mu           sync.RWMutex
+}
+
+// SetLocalDeliveryHook installs a sink for outbound messages whose channel has
+// no registered Channel (e.g. "desktop", which is delivered to the GUI by
+// polling rather than a push connection). The hook returns true if it handled
+// the message; otherwise the dispatcher logs it as an unknown channel. Set once
+// at startup before dispatching begins.
+func (m *Manager) SetLocalDeliveryHook(fn func(bus.OutboundMessage) bool) {
+	m.localDeliver = fn
 }
 
 type asyncTask struct {
@@ -413,6 +423,12 @@ func (m *Manager) dispatchOutbound(ctx context.Context) {
 			m.mu.RUnlock()
 
 			if !exists {
+				// No registered channel — try the local delivery sink (desktop
+				// GUI, which the app drains by polling) before treating it as a
+				// genuinely undeliverable unknown channel.
+				if m.localDeliver != nil && m.localDeliver(msg) {
+					continue
+				}
 				logger.WarnCF("channels", "Unknown channel for outbound message", map[string]any{
 					"channel": msg.Channel,
 				})
