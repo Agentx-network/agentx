@@ -25,6 +25,7 @@ export default function OnboardPage({ showToast, onComplete }: Props) {
   const [chosenModel, setChosenModel] = useState<string | null>(null);
   const [customModel, setCustomModel] = useState("");
   const [fetchingModels, setFetchingModels] = useState(false);
+  const [showModelOptions, setShowModelOptions] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -47,6 +48,7 @@ export default function OnboardPage({ showToast, onComplete }: Props) {
     setModels([]);
     setChosenModel(null);
     setCustomModel("");
+    setShowModelOptions(false);
   };
 
   const fetchModels = async () => {
@@ -151,45 +153,55 @@ export default function OnboardPage({ showToast, onComplete }: Props) {
                   </a>
                 )}
 
-                {/* Model selection: default is the catalog model. For providers
-                    that expose a live model list, fetch the current models so
-                    the latest are available; a custom field is always offered. */}
-                <div className="space-y-2 pt-2 border-t border-white/10">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs uppercase tracking-widest text-white/50">Model</span>
-                    {canDiscover && (
-                      <button
-                        onClick={fetchModels}
-                        disabled={!apiKey || fetchingModels}
-                        className="text-xs text-neon-cyan hover:text-glow-cyan disabled:text-white/20 uppercase tracking-widest"
-                      >
-                        {fetchingModels ? "Fetching…" : "↻ Fetch latest models"}
-                      </button>
+                {/* The provider dropdown already sets a sensible default model
+                    (shown above), so model selection is collapsed by default.
+                    Expand only to pull the provider's latest live list or type
+                    a custom model id — the few cases the catalog can't cover. */}
+                {!showModelOptions ? (
+                  <button
+                    onClick={() => setShowModelOptions(true)}
+                    className="text-xs text-white/35 hover:text-neon-cyan transition-colors"
+                  >
+                    ▸ Change model (use latest or custom)
+                  </button>
+                ) : (
+                  <div className="space-y-2 pt-2 border-t border-white/10">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs uppercase tracking-widest text-white/50">Model</span>
+                      {canDiscover && (
+                        <button
+                          onClick={fetchModels}
+                          disabled={!apiKey || fetchingModels}
+                          className="text-xs text-neon-cyan hover:text-glow-cyan disabled:text-white/20 uppercase tracking-widest"
+                        >
+                          {fetchingModels ? "Fetching…" : "↻ Fetch latest models"}
+                        </button>
+                      )}
+                    </div>
+
+                    {models.length > 0 ? (
+                      <SearchableSelect
+                        label=""
+                        placeholder="Pick a model…"
+                        options={models.map((m) => ({ id: m.id, label: m.label, sublabel: m.id }))}
+                        value={chosenModel ?? selectedProvider.model}
+                        onChange={(id) => { setChosenModel(id); setCustomModel(""); }}
+                      />
+                    ) : (
+                      <p className="text-xs text-white/35">
+                        Default: <span className="font-mono text-white/60">{selectedProvider.model}</span>
+                        {canDiscover ? " — or fetch the latest list above." : ""}
+                      </p>
                     )}
-                  </div>
 
-                  {models.length > 0 ? (
-                    <SearchableSelect
-                      label=""
-                      placeholder="Pick a model…"
-                      options={models.map((m) => ({ id: m.id, label: m.label, sublabel: m.id }))}
-                      value={chosenModel ?? selectedProvider.model}
-                      onChange={(id) => { setChosenModel(id); setCustomModel(""); }}
+                    <NeonInput
+                      label="Custom model (optional)"
+                      value={customModel}
+                      onChange={setCustomModel}
+                      placeholder={`e.g. ${providerPrefix}/your-model-id`}
                     />
-                  ) : (
-                    <p className="text-xs text-white/35">
-                      Default: <span className="font-mono text-white/60">{selectedProvider.model}</span>
-                      {canDiscover && " — or fetch the latest list above."}
-                    </p>
-                  )}
-
-                  <NeonInput
-                    label="Custom model (optional)"
-                    value={customModel}
-                    onChange={setCustomModel}
-                    placeholder={`e.g. ${providerPrefix}/your-model-id`}
-                  />
-                </div>
+                  </div>
+                )}
 
                 <NeonButton
                   onClick={handleSetup}
