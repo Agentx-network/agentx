@@ -540,6 +540,14 @@ func (c *TelegramChannel) handleMessage(ctx context.Context, message *telego.Mes
 		}
 	}
 
+	// New turn for this chat → clear any stale streaming state left over from a
+	// previous reply. The stream consumer checks streamMsgIDs FIRST, so a stale
+	// ID would make this turn's response edit the PREVIOUS message instead of
+	// posting a new one — the user then sees "no response after the first
+	// message". Each turn must start with clean streaming state.
+	c.streamMsgIDs.Delete(chatIDStr)
+	c.streamBuffers.Delete(chatIDStr)
+
 	// Create cancel function for thinking state
 	_, thinkCancel := context.WithTimeout(ctx, 5*time.Minute)
 	c.stopThinking.Store(chatIDStr, &thinkingCancel{fn: thinkCancel})

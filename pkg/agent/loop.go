@@ -788,6 +788,31 @@ func (al *AgentLoop) runLLMIteration(
 				strings.Contains(errMsg, "invalidparameter") ||
 				strings.Contains(errMsg, "length")
 
+			// Rate-limit auto-retry: a single transient 429/quota blip would
+			// otherwise surface to the user as "Error: Rate limited" even though
+			// waiting a few seconds usually clears it (this is the regular-model
+			// equivalent of the fantasy runner's rate-limit retry). Wait the
+			// provider's suggested delay (bounded 2–30s) and retry. A hard daily
+			// cap (e.g. Gemini free tier) will still fail after the bounded
+			// attempts, but a brief per-minute window self-heals.
+			if !isContextError && retry < maxRetries {
+				if classified := providers.ClassifyError(err, agent.ID, agent.Model); classified != nil &&
+					classified.Reason == providers.FailoverRateLimit {
+					wait := parseRetryAfter(err.Error())
+					logger.WarnCF("agent", "Rate-limited, auto-retrying after wait", map[string]any{
+						"agent_id": agent.ID,
+						"retry":    retry,
+						"wait":     wait.String(),
+					})
+					select {
+					case <-time.After(wait):
+					case <-ctx.Done():
+						return "", iteration, ctx.Err()
+					}
+					continue
+				}
+			}
+
 			if isContextError && retry < maxRetries {
 				logger.WarnCF("agent", "Context window error detected, attempting compression", map[string]any{
 					"error": err.Error(),
