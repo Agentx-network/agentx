@@ -20,15 +20,16 @@ type JobExecutor interface {
 
 // CronTool provides scheduling capabilities for the agent
 type CronTool struct {
-	cronService *cron.CronService
-	executor    JobExecutor
-	msgBus      *bus.MessageBus
-	execTool    *ExecTool
-	cfg         *config.Config
-	cfgPath     string // when set, reminder targeting reads live config from here
-	channel     string
-	chatID      string
-	mu          sync.RWMutex
+	cronService      *cron.CronService
+	executor         JobExecutor
+	msgBus           *bus.MessageBus
+	execTool         *ExecTool
+	cfg              *config.Config
+	cfgPath          string // when set, reminder targeting reads live config from here
+	channel          string
+	chatID           string
+	scheduledInRound bool // whether a job was added during the current processing round
+	mu               sync.RWMutex
 }
 
 // liveConfig returns the freshest config: re-read from disk when cfgPath is set
@@ -68,6 +69,7 @@ func NewCronTool(
 //   - otherwise redirect to the first connected push channel + its owner chat ID;
 //   - if nothing is connected, return an honest error instead of scheduling a
 //     reminder that can never be delivered.
+//
 // resolveReminderTarget decides where a delayed reminder will be delivered.
 //   - requested != "": the user explicitly named a channel (e.g. "ping me on
 //     Telegram") → it must be a connected push channel with a known owner ID.
@@ -189,12 +191,23 @@ func (t *CronTool) Parameters() map[string]any {
 	}
 }
 
-// SetContext sets the current session context for job creation
+// SetContext sets the current session context for job creation. It also resets
+// the per-round "scheduled" flag (called at the start of each processing round).
 func (t *CronTool) SetContext(channel, chatID string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.channel = channel
 	t.chatID = chatID
+	t.scheduledInRound = false
+}
+
+// HasScheduledInRound reports whether a job was added during the current round.
+// Used by the deterministic reminder fallback to avoid double-scheduling when
+// the model already created the cron job itself.
+func (t *CronTool) HasScheduledInRound() bool {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return t.scheduledInRound
 }
 
 // Execute runs the tool with the given arguments
@@ -308,6 +321,12 @@ func (t *CronTool) addJob(args map[string]any) *ToolResult {
 		// Need to save the updated payload
 		t.cronService.UpdateJob(job)
 	}
+
+	// Mark that a job was scheduled this round (the deterministic reminder
+	// fallback checks this to avoid double-scheduling).
+	t.mu.Lock()
+	t.scheduledInRound = true
+	t.mu.Unlock()
 
 	// Tell the model where it will actually be delivered so it can set the
 	// user's expectation correctly.

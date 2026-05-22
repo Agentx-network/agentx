@@ -627,6 +627,44 @@ func (al *AgentLoop) processSystemMessage(ctx context.Context, msg bus.InboundMe
 }
 
 // runAgentLoop is the core message processing logic.
+// scheduleReminderFallback creates a cron reminder directly (used when the
+// model failed to). Returns a user-facing confirmation, or the tool's error
+// message if delivery can't be targeted (e.g. an unconnected channel). Empty
+// string means nothing was scheduled.
+func (al *AgentLoop) scheduleReminderFallback(ctx context.Context, ct *tools.CronTool, opts processOptions, delaySec int, subject, reqChannel string) string {
+	text := "⏰ Reminder!"
+	if subject != "" {
+		text = "⏰ Reminder: " + subject
+	}
+	ct.SetContext(opts.Channel, opts.ChatID)
+	args := map[string]any{
+		"action":     "add",
+		"at_seconds": float64(delaySec),
+		"message":    text,
+		"deliver":    true,
+	}
+	if reqChannel != "" {
+		args["channel"] = reqChannel
+	}
+	res := ct.Execute(ctx, args)
+	if res.IsError {
+		logger.WarnCF("agent", "Reminder fallback could not schedule", map[string]any{"detail": res.ForLLM})
+		return res.ForUser // e.g. "the telegram channel isn't connected…"
+	}
+	logger.InfoCF("agent", "Scheduled reminder via deterministic fallback", map[string]any{
+		"delay_seconds": delaySec, "channel": reqChannel, "subject": subject,
+	})
+	where := "here in this chat"
+	if reqChannel != "" {
+		where = "on " + reqChannel
+	}
+	subjPart := ""
+	if subject != "" {
+		subjPart = " to " + subject
+	}
+	return fmt.Sprintf("Got it — I'll remind you%s in %s (%s). ⏰", subjPart, humanizeDelay(delaySec), where)
+}
+
 func (al *AgentLoop) runAgentLoop(ctx context.Context, agent *AgentInstance, opts processOptions) (string, error) {
 	// 0. Record last channel for heartbeat notifications (skip internal channels)
 	if opts.Channel != "" && opts.ChatID != "" {
@@ -672,6 +710,23 @@ func (al *AgentLoop) runAgentLoop(ctx context.Context, agent *AgentInstance, opt
 	}
 	if err != nil {
 		return "", err
+	}
+
+	// 4b. Deterministic reminder fallback. Weak models sometimes refuse a clear
+	// "remind/ping me in <time>" request instead of calling the cron tool. If the
+	// user clearly asked for a timed reminder and no cron job was scheduled this
+	// round, parse it and schedule it in code — so reminders work regardless of
+	// the model's tool-use reliability.
+	if !constants.IsInternalChannel(opts.Channel) {
+		if delaySec, subject, reqChannel, ok := parseReminderIntent(opts.UserMessage); ok {
+			if cronTool, found := agent.Tools.Get("cron"); found {
+				if ct, isCron := cronTool.(*tools.CronTool); isCron && !ct.HasScheduledInRound() {
+					if msg := al.scheduleReminderFallback(ctx, ct, opts, delaySec, subject, reqChannel); msg != "" {
+						finalContent = msg
+					}
+				}
+			}
+		}
 	}
 
 	// If last tool had ForUser content and we already sent it, we might not need to send final response
