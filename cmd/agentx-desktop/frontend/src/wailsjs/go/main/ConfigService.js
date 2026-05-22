@@ -26,6 +26,10 @@ export function GetModelList() {
   return window['go']['main']['ConfigService']['GetModelList']();
 }
 
+export function ListProviderModels(arg1, arg2, arg3) {
+  return window['go']['main']['ConfigService']['ListProviderModels'](arg1, arg2, arg3);
+}
+
 export function QuickSetupChannel(arg1, arg2) {
   return window['go']['main']['ConfigService']['QuickSetupChannel'](arg1, arg2);
 }
@@ -56,6 +60,10 @@ export function SetChannelEnabled(arg1, arg2) {
 
 export function SetImageProvider(arg1, arg2, arg3, arg4) {
   return window['go']['main']['ConfigService']['SetImageProvider'](arg1, arg2, arg3, arg4);
+}
+
+export function SetupModel(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['ConfigService']['SetupModel'](arg1, arg2, arg3, arg4);
 }
 
 export function UpdateAgentDefaults(arg1) {

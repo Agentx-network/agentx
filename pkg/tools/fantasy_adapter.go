@@ -3,11 +3,44 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"regexp"
+	"strconv"
+	"strings"
 
 	"charm.land/fantasy"
 
 	"github.com/Agentx-network/agentx/pkg/logger"
 )
+
+// mangledSurrogateRe matches a UTF-16 surrogate pair that the fantasy SDK
+// (v0.11.0) corrupts while streaming tool-call arguments: it turns the "\u" of
+// a "💧"-style escape into a newline, so an emoji like 💧 arrives in
+// the parsed argument as the literal text "d83d" + "dca7" separated by
+// whitespace. The hex halves are constrained to the high (D800–DBFF) and low
+// (DC00–DFFF) surrogate ranges, so this can only ever match a corrupted emoji,
+// never ordinary text.
+// Each corrupted "\u" becomes a single whitespace char, so match exactly one
+// separator before each surrogate half (consuming the inserted whitespace
+// without eating a legitimate preceding space).
+var mangledSurrogateRe = regexp.MustCompile(`\s([dD][89abAB][0-9a-fA-F]{2})\s([dD][c-fC-F][0-9a-fA-F]{2})`)
+
+// repairMangledSurrogates reconstructs emojis corrupted by the fantasy SDK's
+// tool-argument streaming (see mangledSurrogateRe). It only rewrites text that
+// matches a valid high+low surrogate pair, leaving everything else untouched.
+func repairMangledSurrogates(s string) string {
+	if !strings.ContainsAny(s, "dD") {
+		return s
+	}
+	return mangledSurrogateRe.ReplaceAllStringFunc(s, func(m string) string {
+		sub := mangledSurrogateRe.FindStringSubmatch(m)
+		hi, err1 := strconv.ParseUint(sub[1], 16, 32)
+		lo, err2 := strconv.ParseUint(sub[2], 16, 32)
+		if err1 != nil || err2 != nil {
+			return m
+		}
+		return string(rune(0x10000 + (hi-0xD800)*0x400 + (lo - 0xDC00)))
+	})
+}
 
 // toolContextKey is the key type for storing ToolContext in context.Context.
 type toolContextKey struct{}
@@ -93,6 +126,14 @@ func (a *FantasyToolAdapter) Run(ctx context.Context, call fantasy.ToolCall) (fa
 	}
 	if args == nil {
 		args = map[string]any{}
+	}
+
+	// Repair emojis the fantasy SDK corrupted while streaming the arguments
+	// (e.g. a reminder message "drink water 💧" arriving as "...d83d dca7...").
+	for k, v := range args {
+		if sv, ok := v.(string); ok {
+			args[k] = repairMangledSurrogates(sv)
+		}
 	}
 
 	// Set context on contextual tools

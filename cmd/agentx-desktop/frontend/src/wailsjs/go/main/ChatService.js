@@ -10,6 +10,10 @@ export function IsGatewayReachable() {
   return window['go']['main']['ChatService']['IsGatewayReachable']();
 }
 
+export function PollNotifications() {
+  return window['go']['main']['ChatService']['PollNotifications']();
+}
+
 export function ReadImageDataURL(arg1) {
   return window['go']['main']['ChatService']['ReadImageDataURL'](arg1);
 }

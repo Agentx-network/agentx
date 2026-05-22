@@ -54,6 +54,14 @@ type DownloadOptions struct {
 	LoggerPrefix string
 }
 
+// MediaDir is the directory where inbound attachments (images, voice notes,
+// documents the user sends to a channel) are downloaded. It's a stable,
+// well-known location so the file tools can permit reads from it even when
+// they're otherwise restricted to the workspace.
+func MediaDir() string {
+	return filepath.Join(os.TempDir(), "agentx_media")
+}
+
 // DownloadFile downloads a file from URL to a local temp directory.
 // Returns the local file path or empty string on error.
 func DownloadFile(url, filename string, opts DownloadOptions) string {
@@ -65,7 +73,7 @@ func DownloadFile(url, filename string, opts DownloadOptions) string {
 		opts.LoggerPrefix = "utils"
 	}
 
-	mediaDir := filepath.Join(os.TempDir(), "agentx_media")
+	mediaDir := MediaDir()
 	if err := os.MkdirAll(mediaDir, 0o700); err != nil {
 		logger.ErrorCF(opts.LoggerPrefix, "Failed to create media directory", map[string]any{
 			"error": err.Error(),

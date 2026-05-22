@@ -40,6 +40,21 @@ func TestOwnerClaimOnFirstMessage(t *testing.T) {
 	}
 }
 
+// AllowListConfigured gates channels' early reject checks: it must be false
+// while unclaimed (so the first message reaches the owner-claim) and true once
+// an owner exists. Regression for the bug where Telegram/Discord/Slack rejected
+// the first message before it could claim the owner.
+func TestAllowListConfigured(t *testing.T) {
+	empty := NewBaseChannel("telegram", nil, nil, nil)
+	if empty.AllowListConfigured() {
+		t.Error("empty allow-list should report not configured (unclaimed)")
+	}
+	set := NewBaseChannel("telegram", nil, nil, []string{"123456"})
+	if !set.AllowListConfigured() {
+		t.Error("non-empty allow-list should report configured")
+	}
+}
+
 func TestBaseChannelIsAllowed(t *testing.T) {
 	tests := []struct {
 		name      string

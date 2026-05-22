@@ -714,7 +714,7 @@ func (c *OneBotChannel) handleRawEvent(raw *oneBotRawEvent) {
 	switch raw.PostType {
 	case "message":
 		if userID, err := parseJSONInt64(raw.UserID); err == nil && userID > 0 {
-			if !c.IsAllowed(strconv.FormatInt(userID, 10)) {
+			if c.AllowListConfigured() && !c.IsAllowed(strconv.FormatInt(userID, 10)) {
 				logger.DebugCF("onebot", "Message rejected by allowlist", map[string]any{
 					"user_id": userID,
 				})

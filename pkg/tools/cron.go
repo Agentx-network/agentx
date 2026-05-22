@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,15 +20,16 @@ type JobExecutor interface {
 
 // CronTool provides scheduling capabilities for the agent
 type CronTool struct {
-	cronService *cron.CronService
-	executor    JobExecutor
-	msgBus      *bus.MessageBus
-	execTool    *ExecTool
-	cfg         *config.Config
-	cfgPath     string // when set, reminder targeting reads live config from here
-	channel     string
-	chatID      string
-	mu          sync.RWMutex
+	cronService      *cron.CronService
+	executor         JobExecutor
+	msgBus           *bus.MessageBus
+	execTool         *ExecTool
+	cfg              *config.Config
+	cfgPath          string // when set, reminder targeting reads live config from here
+	channel          string
+	chatID           string
+	scheduledInRound bool // whether a job was added during the current processing round
+	mu               sync.RWMutex
 }
 
 // liveConfig returns the freshest config: re-read from disk when cfgPath is set
@@ -67,11 +69,54 @@ func NewCronTool(
 //   - otherwise redirect to the first connected push channel + its owner chat ID;
 //   - if nothing is connected, return an honest error instead of scheduling a
 //     reminder that can never be delivered.
-func (t *CronTool) resolveReminderTarget(sessChannel, sessChatID string) (channel, chatID string, errResult *ToolResult) {
+//
+// resolveReminderTarget decides where a delayed reminder will be delivered.
+//   - requested != "": the user explicitly named a channel (e.g. "ping me on
+//     Telegram") → it must be a connected push channel with a known owner ID.
+//   - otherwise: deliver wherever the user is. The desktop chat is a valid
+//     target (the gateway queues it and the app polls), so a plain "remind me…"
+//     from the desktop fires back into that same chat — no Telegram needed.
+func (t *CronTool) resolveReminderTarget(sessChannel, sessChatID, requested string) (channel, chatID string, errResult *ToolResult) {
 	cfg := t.liveConfig()
+	requested = strings.ToLower(strings.TrimSpace(requested))
+
+	// Explicit channel requested by the user.
+	if requested != "" && requested != sessChannel {
+		if cfg != nil && cfg.IsPushChannel(requested) {
+			if !cfg.ChannelEnabled(requested) {
+				return "", "", BlockedResult(
+					fmt.Sprintf("The %s channel isn't connected yet — set it up in Config → Channels, then I can ping you there.", requested),
+					fmt.Sprintf("Requested channel %q is not enabled. Tell the user to connect it in Config → Channels; do NOT claim the reminder was scheduled.", requested),
+				)
+			}
+			owner := cfg.OwnerChatID(requested)
+			if owner == "" {
+				return "", "", BlockedResult(
+					fmt.Sprintf("I don't know your %s chat ID yet — message the bot on %s once so it learns your ID, then I can reach you there.", requested, requested),
+					fmt.Sprintf("Requested channel %q has no owner chat ID. Tell the user to message the bot once; do NOT claim the reminder was scheduled.", requested),
+				)
+			}
+			return requested, owner, nil
+		}
+		// Unknown/non-push requested channel → fall through to defaults below.
+	}
+
+	// Current session is itself a connected push channel → use it directly.
 	if cfg != nil && cfg.IsPushChannel(sessChannel) && cfg.ChannelEnabled(sessChannel) && sessChatID != "" {
 		return sessChannel, sessChatID, nil
 	}
+
+	// Desktop is a valid local delivery target (gateway queues; the app polls).
+	if sessChannel == "desktop" {
+		cid := sessChatID
+		if cid == "" {
+			cid = "chat"
+		}
+		return "desktop", cid, nil
+	}
+
+	// Other surfaces (e.g. CLI) can't receive a delayed push of their own — try
+	// any connected push channel before giving up.
 	if cfg != nil {
 		if ch, owner := cfg.FirstConnectedPushChannel(); ch != "" {
 			return ch, owner, nil
@@ -80,8 +125,7 @@ func (t *CronTool) resolveReminderTarget(sessChannel, sessChatID string) (channe
 	return "", "", BlockedResult(
 		"I can only send a reminder to a connected channel like Telegram, and none is set up yet. "+
 			"Connect one in Config → Channels (and put your chat ID in 'Allowed senders'), then I can ping you.",
-		"No deliverable push channel is configured (need an enabled telegram/discord/etc. with an allow_from owner ID). "+
-			"The current surface (desktop/CLI) cannot receive delayed reminders. Tell the user to connect a channel; "+
+		"No deliverable channel is available for this surface. Tell the user to connect a push channel; "+
 			"do NOT claim the reminder was scheduled.",
 	)
 }
@@ -134,6 +178,10 @@ func (t *CronTool) Parameters() map[string]any {
 				"type":        "string",
 				"description": "Job ID (for remove/enable/disable)",
 			},
+			"channel": map[string]any{
+				"type":        "string",
+				"description": "Optional: where to deliver the reminder. Set ONLY if the user explicitly named a channel (e.g. 'telegram' for \"ping me on Telegram\"). Leave EMPTY to deliver wherever the user is right now (e.g. the desktop chat).",
+			},
 			"deliver": map[string]any{
 				"type":        "boolean",
 				"description": "If true, send message directly to channel. If false, let agent process message (for complex tasks). Default: true",
@@ -143,12 +191,23 @@ func (t *CronTool) Parameters() map[string]any {
 	}
 }
 
-// SetContext sets the current session context for job creation
+// SetContext sets the current session context for job creation. It also resets
+// the per-round "scheduled" flag (called at the start of each processing round).
 func (t *CronTool) SetContext(channel, chatID string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.channel = channel
 	t.chatID = chatID
+	t.scheduledInRound = false
+}
+
+// HasScheduledInRound reports whether a job was added during the current round.
+// Used by the deterministic reminder fallback to avoid double-scheduling when
+// the model already created the cron job itself.
+func (t *CronTool) HasScheduledInRound() bool {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return t.scheduledInRound
 }
 
 // Execute runs the tool with the given arguments
@@ -189,10 +248,11 @@ func (t *CronTool) addJob(args map[string]any) *ToolResult {
 	// (no chat delivery) keeps the session context; a chat reminder must target
 	// a push channel that can receive it later.
 	command, _ := args["command"].(string)
+	requestedChannel, _ := args["channel"].(string)
 	channel, chatID := sessChannel, sessChatID
 	if command == "" {
 		var errResult *ToolResult
-		channel, chatID, errResult = t.resolveReminderTarget(sessChannel, sessChatID)
+		channel, chatID, errResult = t.resolveReminderTarget(sessChannel, sessChatID, requestedChannel)
 		if errResult != nil {
 			return errResult
 		}
@@ -262,12 +322,23 @@ func (t *CronTool) addJob(args map[string]any) *ToolResult {
 		t.cronService.UpdateJob(job)
 	}
 
+	// Mark that a job was scheduled this round (the deterministic reminder
+	// fallback checks this to avoid double-scheduling).
+	t.mu.Lock()
+	t.scheduledInRound = true
+	t.mu.Unlock()
+
 	// Tell the model where it will actually be delivered so it can set the
-	// user's expectation (especially when a desktop reminder was redirected to a
-	// push channel like Telegram).
+	// user's expectation correctly.
+	if command == "" && channel == "desktop" {
+		return SilentResult(fmt.Sprintf(
+			"Cron job added (id: %s). It will appear right here in this chat when it fires — tell the user it'll show up here.",
+			job.ID,
+		))
+	}
 	if command == "" && channel != sessChannel {
 		return SilentResult(fmt.Sprintf(
-			"Cron job added (id: %s). NOTE: this surface can't receive delayed reminders, so it will be delivered via %s. Tell the user it'll arrive on %s.",
+			"Cron job added (id: %s). It will be delivered via %s — tell the user it'll arrive on %s.",
 			job.ID, channel, channel,
 		))
 	}

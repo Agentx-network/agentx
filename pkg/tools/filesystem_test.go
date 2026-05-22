@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Agentx-network/agentx/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -485,4 +486,43 @@ func TestRootRW_Write(t *testing.T) {
 	content, err = io.ReadAll(f2)
 	assert.NoError(t, err)
 	assert.Equal(t, newData, content)
+}
+
+// A sandboxed read_file must still be able to read inbound attachments from the
+// shared media dir (e.g. a PDF the user sent), even though it's outside the
+// workspace — while a path outside both remains denied.
+func TestSandboxReadFile_AllowsMediaDir(t *testing.T) {
+	workspace := t.TempDir()
+	fs := &sandboxFs{workspace: workspace}
+
+	// File in the media dir is readable.
+	mediaDir := utilsMediaDirForTest(t)
+	mediaFile := filepath.Join(mediaDir, "abcd_report.pdf")
+	if err := os.WriteFile(mediaFile, []byte("hello from media"), 0o600); err != nil {
+		t.Fatalf("write media file: %v", err)
+	}
+	defer os.Remove(mediaFile)
+	got, err := fs.ReadFile(mediaFile)
+	if err != nil {
+		t.Fatalf("expected media-dir read to succeed, got: %v", err)
+	}
+	if string(got) != "hello from media" {
+		t.Errorf("got %q", got)
+	}
+
+	// File outside workspace AND media dir is still denied.
+	outside := filepath.Join(t.TempDir(), "secret.txt")
+	_ = os.WriteFile(outside, []byte("nope"), 0o600)
+	if _, err := fs.ReadFile(outside); err == nil {
+		t.Error("expected a read outside workspace/media dir to be denied")
+	}
+}
+
+func utilsMediaDirForTest(t *testing.T) string {
+	t.Helper()
+	d := utils.MediaDir()
+	if err := os.MkdirAll(d, 0o700); err != nil {
+		t.Fatalf("mkdir media dir: %v", err)
+	}
+	return d
 }

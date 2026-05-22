@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Agentx-network/agentx/pkg/fileutil"
+	"github.com/Agentx-network/agentx/pkg/utils"
 )
 
 // validatePath ensures the given path is within the workspace if restrict is true.
@@ -83,6 +84,21 @@ func isWithinWorkspace(candidate, workspace string) bool {
 	return err == nil && filepath.IsLocal(rel)
 }
 
+// isInMediaDir reports whether path points inside the shared attachment
+// download directory (utils.MediaDir()). Files there were downloaded from a
+// channel the user sent them to, so reads are permitted even in sandbox mode.
+func isInMediaDir(path string) bool {
+	mediaDir, err := filepath.Abs(utils.MediaDir())
+	if err != nil {
+		return false
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+	return isWithinWorkspace(abs, mediaDir)
+}
+
 type ReadFileTool struct {
 	fs fileSystem
 }
@@ -102,7 +118,9 @@ func (t *ReadFileTool) Name() string {
 }
 
 func (t *ReadFileTool) Description() string {
-	return "Read the contents of a file"
+	return "Read the contents of a file. Text files are returned as-is; PDF files are automatically " +
+		"converted to plain text so you can read and summarize them. Use this to read a document the user " +
+		"sent or referenced."
 }
 
 func (t *ReadFileTool) Parameters() map[string]any {
@@ -128,6 +146,20 @@ func (t *ReadFileTool) Execute(ctx context.Context, args map[string]any) *ToolRe
 	if err != nil {
 		return ErrorResult(err.Error())
 	}
+
+	// PDFs are binary containers — returning their raw bytes gives the model
+	// garbage. Detect by magic header and extract the readable text instead.
+	if isPDF(content) {
+		text, perr := extractPDFText(content)
+		if perr != nil {
+			return ErrorResult(perr.Error())
+		}
+		if strings.TrimSpace(text) == "" {
+			return NewToolResult("(This PDF has no extractable text — it may be a scanned/image-only document, which would require OCR to read.)")
+		}
+		return NewToolResult(text)
+	}
+
 	return NewToolResult(string(content))
 }
 
@@ -308,6 +340,14 @@ func (r *sandboxFs) execute(path string, fn func(root *os.Root, relPath string) 
 }
 
 func (r *sandboxFs) ReadFile(path string) ([]byte, error) {
+	// Inbound attachments (e.g. a PDF the user sent the bot) are downloaded to
+	// the shared media dir, outside the workspace os.Root. Allow reading from
+	// that fixed, app-owned location so the agent can open files the user
+	// explicitly sent — without opening up arbitrary filesystem reads.
+	if isInMediaDir(path) {
+		return os.ReadFile(path)
+	}
+
 	var content []byte
 	err := r.execute(path, func(root *os.Root, relPath string) error {
 		fileContent, err := root.ReadFile(relPath)

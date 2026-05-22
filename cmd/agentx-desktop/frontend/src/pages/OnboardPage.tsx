@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import type { ProviderOption } from "../lib/types";
+import type { ProviderOption, DiscoveredModel } from "../lib/types";
 import NeonButton from "../components/ui/NeonButton";
 import NeonCard from "../components/ui/NeonCard";
 import NeonInput from "../components/ui/NeonInput";
@@ -11,11 +11,21 @@ interface Props {
   onComplete: () => void;
 }
 
+// Providers whose live model list we can fetch (GET /models).
+const DISCOVERY_PROVIDERS = ["gemini", "google", "openai", "openrouter"];
+
 export default function OnboardPage({ showToast, onComplete }: Props) {
   const [providers, setProviders] = useState<ProviderOption[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [apiKey, setApiKey] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Dynamic model discovery + custom model entry.
+  const [models, setModels] = useState<DiscoveredModel[]>([]);
+  const [chosenModel, setChosenModel] = useState<string | null>(null);
+  const [customModel, setCustomModel] = useState("");
+  const [fetchingModels, setFetchingModels] = useState(false);
+  const [showModelOptions, setShowModelOptions] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -28,12 +38,53 @@ export default function OnboardPage({ showToast, onComplete }: Props) {
   }, []);
 
   const selectedProvider = providers.find((p) => p.id === selected);
+  const providerPrefix = selectedProvider ? selectedProvider.model.split("/")[0] : "";
+  const canDiscover = DISCOVERY_PROVIDERS.includes(providerPrefix);
+
+  // Reset model state whenever the provider changes.
+  const onProviderChange = (id: string) => {
+    setSelected(id);
+    setApiKey("");
+    setModels([]);
+    setChosenModel(null);
+    setCustomModel("");
+    setShowModelOptions(false);
+  };
+
+  const fetchModels = async () => {
+    if (!selectedProvider) return;
+    setFetchingModels(true);
+    try {
+      const live = await window.go.main.ConfigService.ListProviderModels(
+        providerPrefix, selectedProvider.apiBase, apiKey,
+      );
+      setModels(live);
+      if (live.length === 0) {
+        showToast("No models returned — you can still type a custom model below.", "error");
+      } else {
+        showToast(`Found ${live.length} models.`, "success");
+      }
+    } catch (e: any) {
+      showToast(`Couldn't fetch models: ${e}. Use the default or type a custom model.`, "error");
+    } finally {
+      setFetchingModels(false);
+    }
+  };
 
   const handleSetup = async () => {
-    if (!selected) return;
+    if (!selectedProvider) return;
     setSaving(true);
     try {
-      await window.go.main.ConfigService.QuickSetupProvider(selected, apiKey);
+      const custom = customModel.trim();
+      const isCustomOrDynamic = custom !== "" || (chosenModel && chosenModel !== selectedProvider.model);
+      if (selectedProvider.needsKey && isCustomOrDynamic) {
+        const ref = custom || chosenModel!;
+        const label = custom || models.find((m) => m.id === chosenModel)?.label || ref;
+        await window.go.main.ConfigService.SetupModel(label, ref, selectedProvider.apiBase, apiKey);
+      } else {
+        // Default catalog model (or local/no-key provider).
+        await window.go.main.ConfigService.QuickSetupProvider(selected!, apiKey);
+      }
       showToast("Provider configured!", "success");
       onComplete();
     } catch (e: any) {
@@ -65,7 +116,7 @@ export default function OnboardPage({ showToast, onComplete }: Props) {
               badge: p.needsKey ? undefined : "Local",
             }))}
             value={selected}
-            onChange={(id) => { setSelected(id); setApiKey(""); }}
+            onChange={onProviderChange}
           />
         </div>
       </NeonCard>
@@ -101,6 +152,57 @@ export default function OnboardPage({ showToast, onComplete }: Props) {
                     Get your API key at {selectedProvider.keyURL.replace("https://", "")} →
                   </a>
                 )}
+
+                {/* The provider dropdown already sets a sensible default model
+                    (shown above), so model selection is collapsed by default.
+                    Expand only to pull the provider's latest live list or type
+                    a custom model id — the few cases the catalog can't cover. */}
+                {!showModelOptions ? (
+                  <button
+                    onClick={() => setShowModelOptions(true)}
+                    className="text-xs text-white/35 hover:text-neon-cyan transition-colors"
+                  >
+                    ▸ Change model (use latest or custom)
+                  </button>
+                ) : (
+                  <div className="space-y-2 pt-2 border-t border-white/10">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs uppercase tracking-widest text-white/50">Model</span>
+                      {canDiscover && (
+                        <button
+                          onClick={fetchModels}
+                          disabled={!apiKey || fetchingModels}
+                          className="text-xs text-neon-cyan hover:text-glow-cyan disabled:text-white/20 uppercase tracking-widest"
+                        >
+                          {fetchingModels ? "Fetching…" : "↻ Fetch latest models"}
+                        </button>
+                      )}
+                    </div>
+
+                    {models.length > 0 ? (
+                      <SearchableSelect
+                        label=""
+                        placeholder="Pick a model…"
+                        options={models.map((m) => ({ id: m.id, label: m.label, sublabel: m.id }))}
+                        value={chosenModel ?? selectedProvider.model}
+                        onChange={(id) => { setChosenModel(id); setCustomModel(""); }}
+                      />
+                    ) : (
+                      <p className="text-xs text-white/35">
+                        Default: <span className="font-mono text-white/60">{selectedProvider.model}</span>
+                        {canDiscover ? " — or fetch the latest list above." : ""}
+                      </p>
+                    )}
+
+                    <NeonInput
+                      label="Custom model (optional)"
+                      value={customModel}
+                      onChange={setCustomModel}
+                      placeholder={`e.g. ${providerPrefix}/your-model-id`}
+                    />
+                  </div>
+                )}
+
                 <NeonButton
                   onClick={handleSetup}
                   disabled={!apiKey || saving}

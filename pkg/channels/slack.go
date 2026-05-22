@@ -201,7 +201,7 @@ func (c *SlackChannel) handleMessageEvent(ev *slackevents.MessageEvent) {
 	}
 
 	// check allowlist to avoid downloading attachments for rejected users
-	if !c.IsAllowed(ev.User) {
+	if c.AllowListConfigured() && !c.IsAllowed(ev.User) {
 		logger.DebugCF("slack", "Message rejected by allowlist", map[string]any{
 			"user_id": ev.User,
 		})
@@ -308,7 +308,7 @@ func (c *SlackChannel) handleAppMention(ev *slackevents.AppMentionEvent) {
 		return
 	}
 
-	if !c.IsAllowed(ev.User) {
+	if c.AllowListConfigured() && !c.IsAllowed(ev.User) {
 		logger.DebugCF("slack", "Mention rejected by allowlist", map[string]any{
 			"user_id": ev.User,
 		})
@@ -374,7 +374,7 @@ func (c *SlackChannel) handleSlashCommand(event socketmode.Event) {
 		c.socketClient.Ack(*event.Request)
 	}
 
-	if !c.IsAllowed(cmd.UserID) {
+	if c.AllowListConfigured() && !c.IsAllowed(cmd.UserID) {
 		logger.DebugCF("slack", "Slash command rejected by allowlist", map[string]any{
 			"user_id": cmd.UserID,
 		})

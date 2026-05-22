@@ -400,8 +400,12 @@ func (c *TelegramChannel) handleMessage(ctx context.Context, message *telego.Mes
 		senderID = fmt.Sprintf("%d|%s", user.ID, user.Username)
 	}
 
-	// check allowlist to avoid downloading attachments for rejected users
-	if !c.IsAllowed(senderID) {
+	// Early allow-list check to avoid downloading attachments for rejected
+	// users. Only reject once the channel HAS an owner — when the allow-list is
+	// still empty, this is the first message and must reach HandleMessage so the
+	// first-message owner-claim can capture this sender (otherwise the channel
+	// could never be claimed and would reject everyone forever).
+	if c.AllowListConfigured() && !c.IsAllowed(senderID) {
 		logger.DebugCF("telegram", "Message rejected by allowlist", map[string]any{
 			"user_id": senderID,
 		})
@@ -539,6 +543,14 @@ func (c *TelegramChannel) handleMessage(ctx context.Context, message *telego.Mes
 			cf.Cancel()
 		}
 	}
+
+	// New turn for this chat → clear any stale streaming state left over from a
+	// previous reply. The stream consumer checks streamMsgIDs FIRST, so a stale
+	// ID would make this turn's response edit the PREVIOUS message instead of
+	// posting a new one — the user then sees "no response after the first
+	// message". Each turn must start with clean streaming state.
+	c.streamMsgIDs.Delete(chatIDStr)
+	c.streamBuffers.Delete(chatIDStr)
 
 	// Create cancel function for thinking state
 	_, thinkCancel := context.WithTimeout(ctx, 5*time.Minute)

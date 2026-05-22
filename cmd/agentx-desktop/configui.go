@@ -14,6 +14,7 @@ import (
 
 	"github.com/Agentx-network/agentx/pkg/config"
 	"github.com/Agentx-network/agentx/pkg/logger"
+	"github.com/Agentx-network/agentx/pkg/providers"
 )
 
 //go:embed catalog.json
@@ -262,6 +263,16 @@ func (c *ConfigService) UpdateAgentDefaults(defaults config.AgentDefaults) error
 	return saveAndNotify(cfg)
 }
 
+// ListProviderModels fetches the provider's live model list (Gemini, OpenAI,
+// OpenRouter) so the UI can show current models — including ones newer than the
+// shipped catalog — instead of a hardcoded list. provider is the AgentX prefix
+// ("gemini"/"openai"/"openrouter"); apiBase may be empty to use the default.
+// Returns an error for unsupported providers or on network/auth failure, so the
+// UI can fall back to the static catalog.
+func (c *ConfigService) ListProviderModels(provider, apiBase, apiKey string) ([]providers.DiscoveredModel, error) {
+	return providers.ListModels(context.Background(), provider, apiBase, apiKey)
+}
+
 func (c *ConfigService) GetAvailableProviders() []ProviderOption {
 	var providers []ProviderOption
 	if err := json.Unmarshal(catalogJSON, &providers); err != nil {
@@ -312,6 +323,42 @@ func (c *ConfigService) QuickSetupProvider(providerID string, apiKey string) err
 
 	cfg.ModelList = append(cfg.ModelList, newModel)
 	cfg.Agents.Defaults.ModelName = provider.ModelName
+	return saveAndNotify(cfg)
+}
+
+// SetupModel configures a model by its full reference, supporting dynamically
+// discovered models (via ListProviderModels) and custom model strings the user
+// types in — anything not in the static catalog. apiBase/apiKey come from the
+// chosen provider; displayName is what shows in the model picker.
+func (c *ConfigService) SetupModel(displayName, modelRef, apiBase, apiKey string) error {
+	modelRef = strings.TrimSpace(modelRef)
+	if modelRef == "" {
+		return fmt.Errorf("a model is required")
+	}
+	name := strings.TrimSpace(displayName)
+	if name == "" {
+		name = modelRef
+	}
+
+	cfg, err := config.LoadConfig(getConfigPath())
+	if err != nil {
+		return err
+	}
+	newModel := config.ModelConfig{
+		ModelName: name,
+		Model:     modelRef,
+		APIBase:   apiBase,
+		APIKey:    apiKey,
+	}
+	for i, m := range cfg.ModelList {
+		if m.ModelName == name || m.Model == modelRef {
+			cfg.ModelList[i] = newModel
+			cfg.Agents.Defaults.ModelName = name
+			return saveAndNotify(cfg)
+		}
+	}
+	cfg.ModelList = append(cfg.ModelList, newModel)
+	cfg.Agents.Defaults.ModelName = name
 	return saveAndNotify(cfg)
 }
 

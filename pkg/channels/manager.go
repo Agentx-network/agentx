@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Agentx-network/agentx/pkg/bus"
 	"github.com/Agentx-network/agentx/pkg/config"
@@ -24,7 +25,17 @@ type Manager struct {
 	config       *config.Config
 	dispatchTask *asyncTask
 	streamTask   *asyncTask
+	localDeliver func(bus.OutboundMessage) bool // optional sink for unregistered channels (e.g. "desktop")
 	mu           sync.RWMutex
+}
+
+// SetLocalDeliveryHook installs a sink for outbound messages whose channel has
+// no registered Channel (e.g. "desktop", which is delivered to the GUI by
+// polling rather than a push connection). The hook returns true if it handled
+// the message; otherwise the dispatcher logs it as an unknown channel. Set once
+// at startup before dispatching begins.
+func (m *Manager) SetLocalDeliveryHook(fn func(bus.OutboundMessage) bool) {
+	m.localDeliver = fn
 }
 
 type asyncTask struct {
@@ -412,20 +423,59 @@ func (m *Manager) dispatchOutbound(ctx context.Context) {
 			m.mu.RUnlock()
 
 			if !exists {
+				// No registered channel — try the local delivery sink (desktop
+				// GUI, which the app drains by polling) before treating it as a
+				// genuinely undeliverable unknown channel.
+				if m.localDeliver != nil && m.localDeliver(msg) {
+					continue
+				}
 				logger.WarnCF("channels", "Unknown channel for outbound message", map[string]any{
 					"channel": msg.Channel,
 				})
 				continue
 			}
 
-			if err := channel.Send(ctx, msg); err != nil {
-				logger.ErrorCF("channels", "Error sending message to channel", map[string]any{
+			if err := sendWithRetry(ctx, channel, msg); err != nil {
+				logger.ErrorCF("channels", "Error sending message to channel (gave up after retries)", map[string]any{
 					"channel": msg.Channel,
 					"error":   err.Error(),
 				})
 			}
 		}
 	}
+}
+
+// sendWithRetry delivers an outbound message with bounded exponential backoff.
+// The bus is fire-and-forget and a single transient failure (network blip,
+// brief 5xx/429 from the channel API) previously meant the message was silently
+// lost forever — the most common cause of "I scheduled a ping but never got it".
+// Retrying a few times with short backoff recovers from transient faults while
+// staying bounded so the single dispatcher goroutine isn't stalled for long.
+func sendWithRetry(ctx context.Context, channel Channel, msg bus.OutboundMessage) error {
+	const maxAttempts = 3
+	backoff := 800 * time.Millisecond
+
+	var err error
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		if err = channel.Send(ctx, msg); err == nil {
+			return nil
+		}
+		if attempt == maxAttempts {
+			break
+		}
+		logger.WarnCF("channels", "Outbound send failed, retrying", map[string]any{
+			"channel": msg.Channel,
+			"attempt": attempt,
+			"error":   err.Error(),
+		})
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(backoff):
+		}
+		backoff *= 2
+	}
+	return err
 }
 
 func (m *Manager) dispatchStream(ctx context.Context) {

@@ -53,6 +53,8 @@ declare global {
           UpdateAgentDefaults(defaults: any): Promise<void>;
           GetAvailableProviders(): Promise<any[]>;
           QuickSetupProvider(providerID: string, apiKey: string): Promise<void>;
+          ListProviderModels(provider: string, apiBase: string, apiKey: string): Promise<{ id: string; label: string }[]>;
+          SetupModel(displayName: string, modelRef: string, apiBase: string, apiKey: string): Promise<void>;
           QuickSetupChannel(channel: string, token: string): Promise<void>;
           SetChannelAllowFrom(channel: string, allowFrom: string[]): Promise<void>;
           GetImageProviders(): Promise<{ provider: string; model: string; api_key: string; api_base: string }[]>;
@@ -65,6 +67,7 @@ declare global {
           GetChatHistory(sessionKey: string): Promise<{ role: string; content: string; timestamp: number }[]>;
           ReadImageDataURL(path: string): Promise<string>;
           SaveImageAs(srcPath: string): Promise<string>;
+          PollNotifications(): Promise<string[]>;
         };
         AgentSetupService: {
           GetBootstrapFiles(): Promise<{ name: string; path: string; content: string; exists: boolean }[]>;

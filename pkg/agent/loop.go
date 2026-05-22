@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -118,8 +119,18 @@ func imageProvidersFromConfig(cfg *config.Config) []tools.ImageProvider {
 	seen := map[string]bool{}
 	var out []tools.ImageProvider
 
-	// Dedicated image providers first (highest precedence).
-	for name, ip := range cfg.Tools.Image.Providers {
+	// Dedicated image providers first (highest precedence). Iterate in sorted
+	// key order — Go map iteration is randomized, which would otherwise make the
+	// default provider (out[0], used by image_generate when none is requested)
+	// vary run-to-run for the same config. Deterministic order means the same
+	// config always picks the same provider.
+	dedicatedNames := make([]string, 0, len(cfg.Tools.Image.Providers))
+	for name := range cfg.Tools.Image.Providers {
+		dedicatedNames = append(dedicatedNames, name)
+	}
+	sort.Strings(dedicatedNames)
+	for _, name := range dedicatedNames {
+		ip := cfg.Tools.Image.Providers[name]
 		provider := providers.ProviderFromModelRef(name)
 		if ip.APIKey == "" || seen[provider] {
 			continue
@@ -242,9 +253,17 @@ func registerSharedTools(
 		))
 		agent.Tools.Register(tools.NewConfigureImageProviderTool(cfgPath))
 
-		// Hardware tools (I2C, SPI) - Linux only, returns error on other platforms
-		agent.Tools.Register(tools.NewI2CTool())
-		agent.Tools.Register(tools.NewSPITool())
+		// Hardware tools (I2C, SPI) — only registered when the host actually has
+		// the bus device files. Their schemas are the two largest in the toolset
+		// and are sent on every request, so skipping them on machines with no
+		// such hardware (desktops, servers) saves prompt tokens for small models
+		// without removing any real capability (the tools would only ever error).
+		if tools.I2CToolAvailable() {
+			agent.Tools.Register(tools.NewI2CTool())
+		}
+		if tools.SPIToolAvailable() {
+			agent.Tools.Register(tools.NewSPITool())
+		}
 
 		// Message tool
 		messageTool := tools.NewMessageTool()
@@ -286,6 +305,21 @@ func registerSharedTools(
 				Content: content,
 			})
 			return nil
+		})
+		// Redirect target resolver: when the model calls `message` without a
+		// usable channel (the common "ping me on Telegram from desktop" case),
+		// route to the first connected push channel + owner chat ID instead of
+		// bouncing as REDUNDANT.
+		messageTool.SetPushTargetResolver(func() (string, string, bool) {
+			liveCfg := cfg
+			if c, err := config.LoadConfig(config.DefaultConfigPath()); err == nil {
+				liveCfg = c
+			}
+			ch, ownerID := liveCfg.FirstConnectedPushChannel()
+			if ch == "" {
+				return "", "", false
+			}
+			return ch, ownerID, true
 		})
 		agent.Tools.Register(messageTool)
 
@@ -336,7 +370,12 @@ func (al *AgentLoop) Run(ctx context.Context) error {
 
 			response, err := al.processMessage(ctx, msg)
 			if err != nil {
-				response = fmt.Sprintf("Error processing message: %v", err)
+				// Log the full error; show the user a brief, clean one-liner
+				// (no raw provider URLs/quota dumps or link previews).
+				logger.ErrorCF("agent", "Message processing failed", map[string]any{
+					"channel": msg.Channel, "error": err.Error(),
+				})
+				response = HumanizeError(err)
 			}
 
 			if response != "" {
@@ -436,6 +475,33 @@ func (al *AgentLoop) ProcessHeartbeat(ctx context.Context, content, channel, cha
 	})
 }
 
+// docReadableExts are file types read_file can return as usable text (PDFs are
+// extracted to text; the rest are already text). Images/audio are excluded —
+// they're handled elsewhere and would only return binary garbage.
+var docReadableExts = map[string]bool{
+	".pdf": true, ".txt": true, ".md": true, ".markdown": true, ".csv": true,
+	".json": true, ".log": true, ".yaml": true, ".yml": true, ".xml": true,
+	".html": true, ".htm": true, ".tsv": true, ".ini": true, ".toml": true,
+}
+
+// attachedDocsNote builds a short instruction listing readable document
+// attachments so the model knows their on-disk paths and to call read_file.
+// Returns "" when there are no readable documents among the media.
+func attachedDocsNote(media []string) string {
+	var docs []string
+	for _, p := range media {
+		if docReadableExts[strings.ToLower(filepath.Ext(p))] {
+			docs = append(docs, p)
+		}
+	}
+	if len(docs) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("\n\n[The user attached %d document(s). Their contents are NOT shown above — "+
+		"call read_file on each path below to read them, then answer based on what you read:\n%s]",
+		len(docs), strings.Join(docs, "\n"))
+}
+
 func (al *AgentLoop) processMessage(ctx context.Context, msg bus.InboundMessage) (string, error) {
 	// Add message preview to log (show full content for error messages)
 	var logContent string
@@ -490,11 +556,19 @@ func (al *AgentLoop) processMessage(ctx context.Context, msg bus.InboundMessage)
 			"matched_by":  route.MatchedBy,
 		})
 
+	// Surface attached document paths so the agent knows it can read them.
+	// Without this the file is downloaded to disk but the model never learns the
+	// path, so it can't call read_file on (e.g.) a PDF the user sent.
+	userMessage := msg.Content
+	if note := attachedDocsNote(msg.Media); note != "" {
+		userMessage += note
+	}
+
 	return al.runAgentLoop(ctx, agent, processOptions{
 		SessionKey:      sessionKey,
 		Channel:         msg.Channel,
 		ChatID:          msg.ChatID,
-		UserMessage:     msg.Content,
+		UserMessage:     userMessage,
 		DefaultResponse: defaultResponse,
 		EnableSummary:   true,
 		SendResponse:    false,
@@ -558,6 +632,44 @@ func (al *AgentLoop) processSystemMessage(ctx context.Context, msg bus.InboundMe
 }
 
 // runAgentLoop is the core message processing logic.
+// scheduleReminderFallback creates a cron reminder directly (used when the
+// model failed to). Returns a user-facing confirmation, or the tool's error
+// message if delivery can't be targeted (e.g. an unconnected channel). Empty
+// string means nothing was scheduled.
+func (al *AgentLoop) scheduleReminderFallback(ctx context.Context, ct *tools.CronTool, opts processOptions, delaySec int, subject, reqChannel string) string {
+	text := "⏰ Reminder!"
+	if subject != "" {
+		text = "⏰ Reminder: " + subject
+	}
+	ct.SetContext(opts.Channel, opts.ChatID)
+	args := map[string]any{
+		"action":     "add",
+		"at_seconds": float64(delaySec),
+		"message":    text,
+		"deliver":    true,
+	}
+	if reqChannel != "" {
+		args["channel"] = reqChannel
+	}
+	res := ct.Execute(ctx, args)
+	if res.IsError {
+		logger.WarnCF("agent", "Reminder fallback could not schedule", map[string]any{"detail": res.ForLLM})
+		return res.ForUser // e.g. "the telegram channel isn't connected…"
+	}
+	logger.InfoCF("agent", "Scheduled reminder via deterministic fallback", map[string]any{
+		"delay_seconds": delaySec, "channel": reqChannel, "subject": subject,
+	})
+	where := "here in this chat"
+	if reqChannel != "" {
+		where = "on " + reqChannel
+	}
+	subjPart := ""
+	if subject != "" {
+		subjPart = " to " + subject
+	}
+	return fmt.Sprintf("Got it — I'll remind you%s in %s (%s). ⏰", subjPart, humanizeDelay(delaySec), where)
+}
+
 func (al *AgentLoop) runAgentLoop(ctx context.Context, agent *AgentInstance, opts processOptions) (string, error) {
 	// 0. Record last channel for heartbeat notifications (skip internal channels)
 	if opts.Channel != "" && opts.ChatID != "" {
@@ -603,6 +715,23 @@ func (al *AgentLoop) runAgentLoop(ctx context.Context, agent *AgentInstance, opt
 	}
 	if err != nil {
 		return "", err
+	}
+
+	// 4b. Deterministic reminder fallback. Weak models sometimes refuse a clear
+	// "remind/ping me in <time>" request instead of calling the cron tool. If the
+	// user clearly asked for a timed reminder and no cron job was scheduled this
+	// round, parse it and schedule it in code — so reminders work regardless of
+	// the model's tool-use reliability.
+	if !constants.IsInternalChannel(opts.Channel) {
+		if delaySec, subject, reqChannel, ok := parseReminderIntent(opts.UserMessage); ok {
+			if cronTool, found := agent.Tools.Get("cron"); found {
+				if ct, isCron := cronTool.(*tools.CronTool); isCron && !ct.HasScheduledInRound() {
+					if msg := al.scheduleReminderFallback(ctx, ct, opts, delaySec, subject, reqChannel); msg != "" {
+						finalContent = msg
+					}
+				}
+			}
+		}
 	}
 
 	// If last tool had ForUser content and we already sent it, we might not need to send final response
@@ -761,6 +890,31 @@ func (al *AgentLoop) runLLMIteration(
 				strings.Contains(errMsg, "context") ||
 				strings.Contains(errMsg, "invalidparameter") ||
 				strings.Contains(errMsg, "length")
+
+			// Rate-limit auto-retry: a single transient 429/quota blip would
+			// otherwise surface to the user as "Error: Rate limited" even though
+			// waiting a few seconds usually clears it (this is the regular-model
+			// equivalent of the fantasy runner's rate-limit retry). Wait the
+			// provider's suggested delay (bounded 2–30s) and retry. A hard daily
+			// cap (e.g. Gemini free tier) will still fail after the bounded
+			// attempts, but a brief per-minute window self-heals.
+			if !isContextError && retry < maxRetries {
+				if classified := providers.ClassifyError(err, agent.ID, agent.Model); classified != nil &&
+					classified.Reason == providers.FailoverRateLimit {
+					wait := parseRetryAfter(err.Error())
+					logger.WarnCF("agent", "Rate-limited, auto-retrying after wait", map[string]any{
+						"agent_id": agent.ID,
+						"retry":    retry,
+						"wait":     wait.String(),
+					})
+					select {
+					case <-time.After(wait):
+					case <-ctx.Done():
+						return "", iteration, ctx.Err()
+					}
+					continue
+				}
+			}
 
 			if isContextError && retry < maxRetries {
 				logger.WarnCF("agent", "Context window error detected, attempting compression", map[string]any{

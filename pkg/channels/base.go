@@ -115,21 +115,36 @@ func (c *BaseChannel) SetOwnerClaimHook(fn func(channelName, senderID string)) {
 	c.ownerClaim = fn
 }
 
-func (c *BaseChannel) HandleMessage(senderID, chatID, content string, media []string, metadata map[string]string) {
+// AllowListConfigured reports whether the channel has any allow-list entries
+// yet. When false, the channel is unclaimed and the NEXT sender becomes its
+// owner (see HandleMessage's first-message claim). Channels that do their own
+// pre-checks (e.g. to avoid downloading attachments for rejected users) MUST
+// gate those on this — rejecting an unclaimed channel's first message would
+// prevent the owner-claim from ever running.
+func (c *BaseChannel) AllowListConfigured() bool {
 	c.mu.Lock()
-	emptyAllow := len(c.allowList) == 0
+	defer c.mu.Unlock()
+	return len(c.allowList) > 0
+}
+
+func (c *BaseChannel) HandleMessage(senderID, chatID, content string, media []string, metadata map[string]string) {
+	// First-message owner claim: the channel has no allow-list yet, so the FIRST
+	// person to message it becomes the owner. The check-and-claim must be atomic
+	// under a single lock — otherwise two messages arriving together could both
+	// observe an empty allow-list and both get claimed as owner. Doing the append
+	// inside the same critical section guarantees exactly one claimer; any
+	// concurrent message sees the now-populated list and falls through to the
+	// normal allow check (fail-closed for everyone but the owner).
+	c.mu.Lock()
 	claim := c.ownerClaim
+	claimed := false
+	if len(c.allowList) == 0 {
+		c.allowList = append(c.allowList, senderID)
+		claimed = true
+	}
 	c.mu.Unlock()
 
-	if emptyAllow {
-		// First-message owner claim: the channel has no allow-list yet, so the
-		// FIRST person to message it becomes the owner. We capture their ID
-		// (so we can both restrict access to them and proactively notify them
-		// later — e.g. reminders), allow this message through, and from now on
-		// the channel is locked to that owner (fail-closed for everyone else).
-		c.mu.Lock()
-		c.allowList = append(c.allowList, senderID)
-		c.mu.Unlock()
+	if claimed {
 		logger.InfoCF("channels", "Owner claimed by first message — channel now locked to this sender",
 			map[string]any{"channel": c.name, "sender": senderID})
 		if claim != nil {
