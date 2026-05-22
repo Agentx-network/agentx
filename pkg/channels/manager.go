@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Agentx-network/agentx/pkg/bus"
 	"github.com/Agentx-network/agentx/pkg/config"
@@ -418,14 +419,47 @@ func (m *Manager) dispatchOutbound(ctx context.Context) {
 				continue
 			}
 
-			if err := channel.Send(ctx, msg); err != nil {
-				logger.ErrorCF("channels", "Error sending message to channel", map[string]any{
+			if err := sendWithRetry(ctx, channel, msg); err != nil {
+				logger.ErrorCF("channels", "Error sending message to channel (gave up after retries)", map[string]any{
 					"channel": msg.Channel,
 					"error":   err.Error(),
 				})
 			}
 		}
 	}
+}
+
+// sendWithRetry delivers an outbound message with bounded exponential backoff.
+// The bus is fire-and-forget and a single transient failure (network blip,
+// brief 5xx/429 from the channel API) previously meant the message was silently
+// lost forever — the most common cause of "I scheduled a ping but never got it".
+// Retrying a few times with short backoff recovers from transient faults while
+// staying bounded so the single dispatcher goroutine isn't stalled for long.
+func sendWithRetry(ctx context.Context, channel Channel, msg bus.OutboundMessage) error {
+	const maxAttempts = 3
+	backoff := 800 * time.Millisecond
+
+	var err error
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		if err = channel.Send(ctx, msg); err == nil {
+			return nil
+		}
+		if attempt == maxAttempts {
+			break
+		}
+		logger.WarnCF("channels", "Outbound send failed, retrying", map[string]any{
+			"channel": msg.Channel,
+			"attempt": attempt,
+			"error":   err.Error(),
+		})
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(backoff):
+		}
+		backoff *= 2
+	}
+	return err
 }
 
 func (m *Manager) dispatchStream(ctx context.Context) {

@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -118,8 +119,18 @@ func imageProvidersFromConfig(cfg *config.Config) []tools.ImageProvider {
 	seen := map[string]bool{}
 	var out []tools.ImageProvider
 
-	// Dedicated image providers first (highest precedence).
-	for name, ip := range cfg.Tools.Image.Providers {
+	// Dedicated image providers first (highest precedence). Iterate in sorted
+	// key order — Go map iteration is randomized, which would otherwise make the
+	// default provider (out[0], used by image_generate when none is requested)
+	// vary run-to-run for the same config. Deterministic order means the same
+	// config always picks the same provider.
+	dedicatedNames := make([]string, 0, len(cfg.Tools.Image.Providers))
+	for name := range cfg.Tools.Image.Providers {
+		dedicatedNames = append(dedicatedNames, name)
+	}
+	sort.Strings(dedicatedNames)
+	for _, name := range dedicatedNames {
+		ip := cfg.Tools.Image.Providers[name]
 		provider := providers.ProviderFromModelRef(name)
 		if ip.APIKey == "" || seen[provider] {
 			continue
@@ -286,6 +297,21 @@ func registerSharedTools(
 				Content: content,
 			})
 			return nil
+		})
+		// Redirect target resolver: when the model calls `message` without a
+		// usable channel (the common "ping me on Telegram from desktop" case),
+		// route to the first connected push channel + owner chat ID instead of
+		// bouncing as REDUNDANT.
+		messageTool.SetPushTargetResolver(func() (string, string, bool) {
+			liveCfg := cfg
+			if c, err := config.LoadConfig(config.DefaultConfigPath()); err == nil {
+				liveCfg = c
+			}
+			ch, ownerID := liveCfg.FirstConnectedPushChannel()
+			if ch == "" {
+				return "", "", false
+			}
+			return ch, ownerID, true
 		})
 		agent.Tools.Register(messageTool)
 

@@ -3,12 +3,20 @@ package tools
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 type SendCallback func(channel, chatID, content string) error
 
+// PushTargetResolver returns the preferred proactive-notification target — a
+// connected push channel (e.g. telegram) and the owner's chat ID — or ok=false
+// when no push channel is connected. Lives in the agent layer because it needs
+// live channel config.
+type PushTargetResolver func() (channel, chatID string, ok bool)
+
 type MessageTool struct {
 	sendCallback   SendCallback
+	pushTarget     PushTargetResolver
 	defaultChannel string
 	defaultChatID  string
 	sentInRound    bool // Tracks whether a message was sent in the current processing round
@@ -65,14 +73,20 @@ func (t *MessageTool) SetSendCallback(callback SendCallback) {
 	t.sendCallback = callback
 }
 
+// SetPushTargetResolver wires the resolver used to redirect a proactive message
+// to a connected push channel when the model didn't name a usable one.
+func (t *MessageTool) SetPushTargetResolver(r PushTargetResolver) {
+	t.pushTarget = r
+}
+
 func (t *MessageTool) Execute(ctx context.Context, args map[string]any) *ToolResult {
-	content, ok := args["content"].(string)
-	if !ok {
+	content, _ := args["content"].(string)
+	if strings.TrimSpace(content) == "" {
 		return &ToolResult{ForLLM: "content is required", IsError: true}
 	}
 
-	channel, _ := args["channel"].(string)
-	chatID, _ := args["chat_id"].(string)
+	channel := strings.TrimSpace(asString(args["channel"]))
+	chatID := strings.TrimSpace(asString(args["chat_id"]))
 
 	if channel == "" {
 		channel = t.defaultChannel
@@ -81,24 +95,51 @@ func (t *MessageTool) Execute(ctx context.Context, args map[string]any) *ToolRes
 		chatID = t.defaultChatID
 	}
 
+	// Where the user currently is (used to detect a redundant same-channel send).
+	curChannel, curChatID := "", ""
+	if tc, ok := GetToolContext(ctx); ok {
+		curChannel, curChatID = tc.Channel, tc.ChatID
+	}
+
+	// The message tool exists to notify the user on a PUSH channel (Telegram,
+	// etc.) — typically while they're chatting somewhere that can't receive a
+	// proactive push (desktop/CLI). When the resolved target is empty, or is the
+	// very channel the user is already in, redirect to a connected push channel
+	// instead of bouncing. This is the common "ping me on Telegram from the
+	// desktop app" case, where the model omits the channel and it would
+	// otherwise default back to desktop and be rejected as redundant.
+	redundant := channel == "" || (curChannel != "" && channel == curChannel && chatID == curChatID)
+	if redundant && t.pushTarget != nil {
+		if pc, pcid, ok := t.pushTarget(); ok && pc != curChannel {
+			channel, chatID, redundant = pc, pcid, false
+		}
+	}
+
 	if channel == "" || chatID == "" {
+		if curChannel != "" {
+			return &ToolResult{
+				ForLLM: "REDUNDANT: there is no separate channel to notify — the user is already in \"" + curChannel + "\". " +
+					"To reply in the current conversation, respond with plain text content; do NOT call the message tool. " +
+					"The message tool is ONLY for reaching the user on a DIFFERENT, connected push channel (e.g. Telegram). " +
+					"If no push channel is connected, tell the user to connect one in Config → Channels.",
+				IsError: true,
+			}
+		}
 		return &ToolResult{ForLLM: "No target channel/chat specified", IsError: true}
 	}
 
-	// Reject same-channel sends. Weak LLMs use this tool to "reply" in the
-	// current chat, which strands the real content on the outbound bus while
-	// the user sees only "Message sent to ...". Tell the model to use plain
-	// text instead.
-	if tc, ok := GetToolContext(ctx); ok {
-		if channel == tc.Channel && chatID == tc.ChatID {
-			return &ToolResult{
-				ForLLM: "REDUNDANT: You tried to send a message to the SAME channel/chat the user is already in (" +
-					channel + ":" + chatID + "). " +
-					"To reply in the current conversation, respond with plain text content — do NOT call the message tool. " +
-					"The message tool is ONLY for sending notifications to OTHER channels (e.g., user is in desktop but you want to ping their Telegram). " +
-					"Try again: either respond as plain text, or specify a different channel.",
-				IsError: true,
-			}
+	// Target is the same channel/chat the user is already in, and there was no
+	// push channel to redirect to. Weak LLMs use the message tool to "reply" in
+	// the current chat, which strands the content on the outbound bus while the
+	// user sees only "Message sent to ...". Tell the model to use plain text.
+	if redundant {
+		return &ToolResult{
+			ForLLM: "REDUNDANT: You tried to send a message to the SAME channel/chat the user is already in (" +
+				channel + ":" + chatID + "). " +
+				"To reply in the current conversation, respond with plain text content — do NOT call the message tool. " +
+				"The message tool is ONLY for sending notifications to OTHER channels (e.g., user is in desktop but you want to ping their Telegram). " +
+				"Try again: either respond as plain text, or specify a different channel.",
+			IsError: true,
 		}
 	}
 
