@@ -1506,6 +1506,25 @@ export namespace main {
 
 }
 
+export namespace providers {
+	
+	export class DiscoveredModel {
+	    id: string;
+	    label: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new DiscoveredModel(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.label = source["label"];
+	    }
+	}
+
+}
+
 export namespace wallet {
 	
 	export class TokenBalance {

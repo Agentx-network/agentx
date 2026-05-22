@@ -85,6 +85,12 @@ export interface ProviderOption {
   needsKey: boolean;
 }
 
+// DiscoveredModel is a model fetched live from a provider's models API.
+export interface DiscoveredModel {
+  id: string;    // full model ref, e.g. "gemini/gemini-2.5-flash"
+  label: string; // display name
+}
+
 export interface DownloadProgress {
   downloaded: number;
   total: number;
