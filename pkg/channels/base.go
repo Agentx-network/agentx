@@ -115,6 +115,18 @@ func (c *BaseChannel) SetOwnerClaimHook(fn func(channelName, senderID string)) {
 	c.ownerClaim = fn
 }
 
+// AllowListConfigured reports whether the channel has any allow-list entries
+// yet. When false, the channel is unclaimed and the NEXT sender becomes its
+// owner (see HandleMessage's first-message claim). Channels that do their own
+// pre-checks (e.g. to avoid downloading attachments for rejected users) MUST
+// gate those on this — rejecting an unclaimed channel's first message would
+// prevent the owner-claim from ever running.
+func (c *BaseChannel) AllowListConfigured() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return len(c.allowList) > 0
+}
+
 func (c *BaseChannel) HandleMessage(senderID, chatID, content string, media []string, metadata map[string]string) {
 	// First-message owner claim: the channel has no allow-list yet, so the FIRST
 	// person to message it becomes the owner. The check-and-claim must be atomic

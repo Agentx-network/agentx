@@ -176,8 +176,9 @@ func (c *DiscordChannel) handleMessage(s *discordgo.Session, m *discordgo.Messag
 		return
 	}
 
-	// Check allowlist first to avoid downloading attachments and transcribing for rejected users
-	if !c.IsAllowed(m.Author.ID) {
+	// Check allowlist first to avoid downloading attachments and transcribing for rejected users.
+	// Skip when unclaimed (empty allow-list) so the first message can claim the owner via HandleMessage.
+	if c.AllowListConfigured() && !c.IsAllowed(m.Author.ID) {
 		logger.DebugCF("discord", "Message rejected by allowlist", map[string]any{
 			"user_id": m.Author.ID,
 		})

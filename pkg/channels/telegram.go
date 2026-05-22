@@ -400,8 +400,12 @@ func (c *TelegramChannel) handleMessage(ctx context.Context, message *telego.Mes
 		senderID = fmt.Sprintf("%d|%s", user.ID, user.Username)
 	}
 
-	// check allowlist to avoid downloading attachments for rejected users
-	if !c.IsAllowed(senderID) {
+	// Early allow-list check to avoid downloading attachments for rejected
+	// users. Only reject once the channel HAS an owner — when the allow-list is
+	// still empty, this is the first message and must reach HandleMessage so the
+	// first-message owner-claim can capture this sender (otherwise the channel
+	// could never be claimed and would reject everyone forever).
+	if c.AllowListConfigured() && !c.IsAllowed(senderID) {
 		logger.DebugCF("telegram", "Message rejected by allowlist", map[string]any{
 			"user_id": senderID,
 		})
