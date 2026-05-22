@@ -196,6 +196,54 @@ func TestMessageTool_Execute_NotConfigured(t *testing.T) {
 	}
 }
 
+// In the desktop chat the model often calls message without a channel, so the
+// target would default back to "desktop" and be rejected as redundant. With a
+// push-target resolver, an empty/same-channel target redirects to the connected
+// push channel (Telegram) instead of bouncing.
+func TestMessageTool_Execute_RedirectsToPushChannel(t *testing.T) {
+	tool := NewMessageTool()
+	tool.SetContext("desktop", "chat")
+	tool.SetPushTargetResolver(func() (string, string, bool) {
+		return "telegram", "1046193410", true
+	})
+
+	var sentChannel, sentChatID string
+	tool.SetSendCallback(func(channel, chatID, content string) error {
+		sentChannel, sentChatID = channel, chatID
+		return nil
+	})
+
+	// Simulate the user currently chatting in desktop.
+	ctx := WithToolContext(context.Background(), ToolContext{Channel: "desktop", ChatID: "chat"})
+	result := tool.Execute(ctx, map[string]any{"content": "ping!"})
+
+	if result.IsError {
+		t.Fatalf("expected redirect to succeed, got error: %s", result.ForLLM)
+	}
+	if sentChannel != "telegram" || sentChatID != "1046193410" {
+		t.Errorf("expected redirect to telegram:1046193410, got %s:%s", sentChannel, sentChatID)
+	}
+}
+
+// When there is no push channel to redirect to and the target is the channel the
+// user is already in, the tool must reject as REDUNDANT (use plain text).
+func TestMessageTool_Execute_RedundantWhenNoPushChannel(t *testing.T) {
+	tool := NewMessageTool()
+	tool.SetContext("desktop", "chat")
+	tool.SetPushTargetResolver(func() (string, string, bool) { return "", "", false })
+	tool.SetSendCallback(func(channel, chatID, content string) error { return nil })
+
+	ctx := WithToolContext(context.Background(), ToolContext{Channel: "desktop", ChatID: "chat"})
+	result := tool.Execute(ctx, map[string]any{"content": "hello"})
+
+	if !result.IsError {
+		t.Error("expected REDUNDANT error when target is the current channel and no push channel exists")
+	}
+	if !strings.Contains(result.ForLLM, "REDUNDANT") {
+		t.Errorf("expected REDUNDANT message, got: %s", result.ForLLM)
+	}
+}
+
 func TestMessageTool_Name(t *testing.T) {
 	tool := NewMessageTool()
 	if tool.Name() != "message" {

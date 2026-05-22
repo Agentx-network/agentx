@@ -338,15 +338,14 @@ func (c *WeComBotChannel) processMessage(ctx context.Context, msg WeComBotMessag
 		})
 		return
 	}
+	// Clean up old messages periodically (keep last 1000). Both the len() read
+	// and the reset must happen under the same lock as the write above — reading
+	// the map size outside the lock raced with concurrent message goroutines.
+	if len(c.processedMsgs) > 1000 {
+		c.processedMsgs = make(map[string]bool)
+	}
 	c.processedMsgs[msgID] = true
 	c.msgMu.Unlock()
-
-	// Clean up old messages periodically (keep last 1000)
-	if len(c.processedMsgs) > 1000 {
-		c.msgMu.Lock()
-		c.processedMsgs = make(map[string]bool)
-		c.msgMu.Unlock()
-	}
 
 	senderID := msg.From.UserID
 
