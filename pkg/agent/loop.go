@@ -370,7 +370,12 @@ func (al *AgentLoop) Run(ctx context.Context) error {
 
 			response, err := al.processMessage(ctx, msg)
 			if err != nil {
-				response = fmt.Sprintf("Error processing message: %v", err)
+				// Log the full error; show the user a brief, clean one-liner
+				// (no raw provider URLs/quota dumps or link previews).
+				logger.ErrorCF("agent", "Message processing failed", map[string]any{
+					"channel": msg.Channel, "error": err.Error(),
+				})
+				response = HumanizeError(err)
 			}
 
 			if response != "" {

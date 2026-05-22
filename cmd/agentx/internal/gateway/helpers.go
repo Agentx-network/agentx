@@ -273,9 +273,11 @@ func gatewayCmd(debug bool) error {
 
 		// Send final event with full response
 		if procErr != nil {
+			// Show the desktop a brief, clean message (the full error is logged
+			// gateway-side); avoids dumping raw provider quota/URL detail.
 			data, _ := json.Marshal(map[string]any{
 				"type":  "error",
-				"error": procErr.Error(),
+				"error": agent.HumanizeError(procErr),
 			})
 			fmt.Fprintf(w, "data: %s\n\n", data)
 		} else {
