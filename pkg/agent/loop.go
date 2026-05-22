@@ -470,6 +470,33 @@ func (al *AgentLoop) ProcessHeartbeat(ctx context.Context, content, channel, cha
 	})
 }
 
+// docReadableExts are file types read_file can return as usable text (PDFs are
+// extracted to text; the rest are already text). Images/audio are excluded —
+// they're handled elsewhere and would only return binary garbage.
+var docReadableExts = map[string]bool{
+	".pdf": true, ".txt": true, ".md": true, ".markdown": true, ".csv": true,
+	".json": true, ".log": true, ".yaml": true, ".yml": true, ".xml": true,
+	".html": true, ".htm": true, ".tsv": true, ".ini": true, ".toml": true,
+}
+
+// attachedDocsNote builds a short instruction listing readable document
+// attachments so the model knows their on-disk paths and to call read_file.
+// Returns "" when there are no readable documents among the media.
+func attachedDocsNote(media []string) string {
+	var docs []string
+	for _, p := range media {
+		if docReadableExts[strings.ToLower(filepath.Ext(p))] {
+			docs = append(docs, p)
+		}
+	}
+	if len(docs) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("\n\n[The user attached %d document(s). Their contents are NOT shown above — "+
+		"call read_file on each path below to read them, then answer based on what you read:\n%s]",
+		len(docs), strings.Join(docs, "\n"))
+}
+
 func (al *AgentLoop) processMessage(ctx context.Context, msg bus.InboundMessage) (string, error) {
 	// Add message preview to log (show full content for error messages)
 	var logContent string
@@ -524,11 +551,19 @@ func (al *AgentLoop) processMessage(ctx context.Context, msg bus.InboundMessage)
 			"matched_by":  route.MatchedBy,
 		})
 
+	// Surface attached document paths so the agent knows it can read them.
+	// Without this the file is downloaded to disk but the model never learns the
+	// path, so it can't call read_file on (e.g.) a PDF the user sent.
+	userMessage := msg.Content
+	if note := attachedDocsNote(msg.Media); note != "" {
+		userMessage += note
+	}
+
 	return al.runAgentLoop(ctx, agent, processOptions{
 		SessionKey:      sessionKey,
 		Channel:         msg.Channel,
 		ChatID:          msg.ChatID,
-		UserMessage:     msg.Content,
+		UserMessage:     userMessage,
 		DefaultResponse: defaultResponse,
 		EnableSummary:   true,
 		SendResponse:    false,
