@@ -85,6 +85,102 @@ func TestListModels_UnsupportedProvider(t *testing.T) {
 	}
 }
 
+func TestValidateKey_OpenRouter(t *testing.T) {
+	// Valid: /auth/key returns 200 when the bearer matches.
+	good := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/auth/key" {
+			t.Errorf("expected /auth/key, got %s", r.URL.Path)
+		}
+		if r.Header.Get("Authorization") != "Bearer sk-or-good" {
+			w.WriteHeader(401)
+			return
+		}
+		w.Write([]byte(`{"data":{"label":"test"}}`))
+	}))
+	defer good.Close()
+	if err := ValidateKey(context.Background(), "openrouter", good.URL, "sk-or-good"); err != nil {
+		t.Errorf("valid key should pass, got: %v", err)
+	}
+
+	// Invalid: server returns 401.
+	bad := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(401)
+		_, _ = w.Write([]byte(`{"error":{"message":"No auth credentials found","code":401}}`))
+	}))
+	defer bad.Close()
+	if err := ValidateKey(context.Background(), "openrouter", bad.URL, "sk-or-bogus"); err == nil {
+		t.Error("invalid key should fail validation")
+	}
+
+	// Empty key always fails fast (no network call).
+	if err := ValidateKey(context.Background(), "openrouter", "", "  "); err == nil {
+		t.Error("empty/whitespace key should fail")
+	}
+}
+
+func TestValidateKey_OpenAICompatible(t *testing.T) {
+	// Mistral, DeepSeek, Cerebras, Groq, Moonshot/Kimi, etc. all share the same
+	// /v1/models + Bearer auth shape. One server stands in for all of them.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/models" {
+			t.Errorf("expected /models, got %s", r.URL.Path)
+		}
+		if r.Header.Get("Authorization") != "Bearer good-key" {
+			w.WriteHeader(401)
+			_, _ = w.Write([]byte(`{"error":{"message":"invalid api key"}}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"data":[{"id":"mistral-large"}]}`))
+	}))
+	defer srv.Close()
+
+	for _, p := range []string{"mistral", "deepseek", "cerebras", "groq", "moonshot", "kimi", "qwen"} {
+		t.Run(p+"_good", func(t *testing.T) {
+			if err := ValidateKey(context.Background(), p, srv.URL, "good-key"); err != nil {
+				t.Errorf("valid key for %s should pass, got: %v", p, err)
+			}
+		})
+		t.Run(p+"_bad", func(t *testing.T) {
+			if err := ValidateKey(context.Background(), p, srv.URL, "wrong-key"); err == nil {
+				t.Errorf("invalid key for %s should fail validation", p)
+			}
+		})
+	}
+}
+
+func TestValidateKey_Anthropic(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("x-api-key") != "sk-ant-good" || r.Header.Get("anthropic-version") == "" {
+			w.WriteHeader(401)
+			return
+		}
+		_, _ = w.Write([]byte(`{"data":[]}`))
+	}))
+	defer srv.Close()
+
+	if err := ValidateKey(context.Background(), "anthropic", srv.URL, "sk-ant-good"); err != nil {
+		t.Errorf("valid anthropic key should pass: %v", err)
+	}
+	if err := ValidateKey(context.Background(), "anthropic", srv.URL, "sk-ant-bad"); err == nil {
+		t.Error("bad anthropic key should fail")
+	}
+}
+
+func TestValidateKey_UnknownProviderSkips(t *testing.T) {
+	// Truly unknown provider (no validation endpoint mapped) → skip cleanly,
+	// don't false-positive. Chat-path HumanizeError still catches bad keys later.
+	if err := ValidateKey(context.Background(), "some-new-provider", "", "anything"); err != nil {
+		t.Errorf("unknown provider should skip, got: %v", err)
+	}
+}
+
+func TestValidateKey_OllamaLocal(t *testing.T) {
+	// Local provider — no real key to validate, must always pass.
+	if err := ValidateKey(context.Background(), "ollama", "", "ollama"); err != nil {
+		t.Errorf("ollama (local) must skip validation, got: %v", err)
+	}
+}
+
 func hasID(models []DiscoveredModel, id string) bool {
 	for _, m := range models {
 		if m.ID == id {

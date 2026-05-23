@@ -75,6 +75,32 @@ export default function OnboardPage({ showToast, onComplete }: Props) {
     if (!selectedProvider) return;
     setSaving(true);
     try {
+      // Validate the key against the provider BEFORE saving, so a bad key
+      // (typo, whitespace, wrong account) is caught here instead of at first
+      // chat. Providers without a stable validation endpoint return "" (skip).
+      if (selectedProvider.needsKey && apiKey.trim() !== "") {
+        const reason = await window.go.main.ConfigService.ValidateProviderKey(
+          providerPrefix, selectedProvider.apiBase, apiKey,
+        );
+        if (reason) {
+          // The generic humanizer says 'check it in Config → Provider', but
+          // the user is already on the provider screen at onboarding — so we
+          // restate it in plain, direct language pointing to the field above.
+          const lower = reason.toLowerCase();
+          let friendly = reason;
+          if (lower.includes("rejected the api key") || lower.includes("invalid")) {
+            friendly = `Invalid ${selectedProvider.name} API key. Please double-check the key above and try again.`;
+          } else if (lower.includes("couldn't reach") || lower.includes("network")) {
+            friendly = `Couldn't reach ${selectedProvider.name} to verify the key — check your internet and try again.`;
+          } else if (lower.includes("rate") || lower.includes("limit") || lower.includes("quota")) {
+            friendly = `${selectedProvider.name} is rate-limiting key checks right now. Wait a moment and try again.`;
+          }
+          showToast(friendly, "error");
+          setSaving(false);
+          return;
+        }
+      }
+
       const custom = customModel.trim();
       const isCustomOrDynamic = custom !== "" || (chosenModel && chosenModel !== selectedProvider.model);
       if (selectedProvider.needsKey && isCustomOrDynamic) {
