@@ -6,13 +6,21 @@ import (
 	"strings"
 )
 
-// reminderTrigger matches an explicit request to be reminded/pinged.
-var reminderTrigger = regexp.MustCompile(`(?i)\b(remind|ping|alert|notify|wake)\s+me\b`)
+// reminderTrigger matches an explicit request to schedule a timed reminder.
+// Covers both directives addressed to the agent ("remind/ping/alert/notify/wake
+// me") and the "set / send / schedule / create / make a reminder" phrasings,
+// which weak models often produce instead of calling cron.
+var reminderTrigger = regexp.MustCompile(
+	`(?i)\b(?:` +
+		`(?:remind|ping|alert|notify|wake)\s+me` + // "remind me", "ping me", …
+		`|(?:set|send|schedule|create|make|add)\s+(?:a|an|another|me\s+a|me\s+an)\s+(?:reminder|alert|ping|alarm|notification)` +
+		`)\b`)
 
-// reminderDelay matches a relative delay like "in 5 minutes", "in 30 sec",
-// "in an hour". Only relative delays are handled deterministically; absolute
-// times ("at 5pm", "tomorrow") are left to the model.
-var reminderDelay = regexp.MustCompile(`(?i)\bin\s+(\d+|a|an|one)\s*(second|sec|minute|min|hour|hr)s?\b`)
+// reminderDelay matches a relative delay like "in 5 minutes", "after 30 sec",
+// "for 2 hours", "in an hour". Only relative delays are handled
+// deterministically; absolute times ("at 5pm", "tomorrow") are left to the model.
+var reminderDelay = regexp.MustCompile(
+	`(?i)\b(?:in|after|for)\s+(\d+|a|an|one)\s*(second|sec|minute|min|hour|hr)s?(?:\s+from\s+now)?\b`)
 
 // reminderSubject pulls the thing to be reminded about ("...to drink water").
 var reminderSubject = regexp.MustCompile(`(?i)\b(?:to|about|that)\s+(.+)$`)

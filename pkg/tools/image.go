@@ -96,14 +96,22 @@ func (t *ImageGenerateTool) Execute(ctx context.Context, args map[string]any) *T
 
 	// No image provider configured → guide the user through the self-service
 	// flow: pick a provider, paste its key (configure_image_provider saves it),
-	// then retry.
+	// then retry. The list of providers is derived from the capability map so
+	// adding a new image-capable provider doesn't require updating prompt text.
 	if len(configured) == 0 {
+		names := providers.ImageProviderNames()
+		labels := make([]string, len(names))
+		for i, n := range names {
+			labels[i] = providerLabel(n)
+		}
+		choices := strings.Join(labels, ", ")
+		choicesSlash := strings.Join(names, "/")
 		return BlockedResult(
 			"Your current AI provider can't generate images. Which image provider should I use — "+
-				"Gemini, OpenAI, or Replicate? Tell me which one and paste its API key, and I'll set it up and create your image.",
+				choices+"? Tell me which one and paste its API key, and I'll set it up and create your image.",
 			"No image-capable provider is available (the user's current chat provider has no image model, and none is "+
-				"configured). Tell the user their current provider can't make images and ask which image provider "+
-				"(gemini/openai/replicate) to use + its API key. When they give a key, call configure_image_provider, "+
+				"configured). Tell the user their current provider can't make images and ask which image provider ("+
+				choicesSlash+") to use + its API key. When they give a key, call configure_image_provider, "+
 				"then image_generate again. Do NOT claim you generated an image until image_generate succeeds.",
 		)
 	}

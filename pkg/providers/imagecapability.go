@@ -1,6 +1,9 @@
 package providers
 
-import "strings"
+import (
+	"sort"
+	"strings"
+)
 
 // imageModelsByProvider maps a provider prefix (the part before "/" in a model
 // ref like "gemini/gemini-2.5-flash") to the image-generation models it offers.
@@ -14,6 +17,35 @@ var imageModelsByProvider = map[string][]string{
 	// their adapters land (see pkg/image).
 	"seedance":  {"seedance-1.0"},
 	"replicate": {"black-forest-labs/flux-1.1-pro", "stability-ai/sdxl"},
+}
+
+// ImageProviderNames returns the canonical list of provider names that can
+// generate images, in a deterministic order. "google" is collapsed into
+// "gemini" so the UI doesn't show both. Used by the image tool when it needs to
+// tell the user which providers they can pick from.
+func ImageProviderNames() []string {
+	seen := map[string]bool{"google": true} // skip — duplicate of gemini
+	out := []string{}
+	for _, p := range []string{"gemini", "openai", "replicate", "seedance"} {
+		if _, ok := imageModelsByProvider[p]; ok && !seen[p] {
+			seen[p] = true
+			out = append(out, p)
+		}
+	}
+	// Append any others present in the map but not in the preferred order above
+	// (forward-compatibility for new image providers).
+	keys := make([]string, 0, len(imageModelsByProvider))
+	for k := range imageModelsByProvider {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		if !seen[k] {
+			seen[k] = true
+			out = append(out, k)
+		}
+	}
+	return out
 }
 
 // ProviderFromModelRef extracts the provider prefix from a model reference.

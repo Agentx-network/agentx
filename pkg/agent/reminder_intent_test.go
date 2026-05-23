@@ -21,6 +21,18 @@ func TestParseReminderIntent(t *testing.T) {
 		{"reminder but no time", "remind me to buy milk", false, 0, "", ""},
 		{"plain chat", "how are you?", false, 0, "", ""},
 		{"zero delay rejected", "remind me in 0 minutes", false, 0, "", ""},
+
+		// Phrasings users actually type, beyond "remind me in N":
+		{"send a reminder after N", "can you send a reminder after 1 min to drink water", true, 60, "drink water", ""},
+		{"set a reminder in N", "set a reminder in 5 minutes to call mom", true, 300, "call mom", ""},
+		{"schedule a reminder for N from now", "schedule a reminder for 10 minutes from now", true, 600, "", ""},
+		{"create an alert in N", "create an alert in 2 hours", true, 7200, "", ""},
+		{"send me a reminder", "send me a reminder in 30 seconds about lunch", true, 30, "lunch", ""},
+
+		// Negative: 'send a reminder email' has the noun but no time → reject.
+		{"reminder noun but no time", "send a reminder email later", false, 0, "", ""},
+		// Negative: 'after 5 minutes' alone (no reminder intent) → reject.
+		{"time without reminder", "after 5 minutes the food was ready", false, 0, "", ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
