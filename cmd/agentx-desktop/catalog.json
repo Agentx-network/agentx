@@ -9,6 +9,7 @@
   {"name":"OpenAI","id":"openai-o4-mini","modelName":"o4 Mini","model":"openai/o4-mini","apiBase":"https://api.openai.com/v1","keyURL":"https://platform.openai.com/api-keys","needsKey":true},
   {"name":"OpenAI","id":"openai-gpt-5.2","modelName":"GPT-5.2","model":"openai/gpt-5.2","apiBase":"https://api.openai.com/v1","keyURL":"https://platform.openai.com/api-keys","needsKey":true},
 
+  {"name":"Anthropic","id":"anthropic-claude-opus-4.7","modelName":"Claude Opus 4.7","model":"anthropic/claude-opus-4-7","apiBase":"https://api.anthropic.com/v1","keyURL":"https://console.anthropic.com/settings/keys","needsKey":true},
   {"name":"Anthropic","id":"anthropic-claude-opus-4.6","modelName":"Claude Opus 4.6","model":"anthropic/claude-opus-4-6","apiBase":"https://api.anthropic.com/v1","keyURL":"https://console.anthropic.com/settings/keys","needsKey":true},
   {"name":"Anthropic","id":"anthropic-claude-sonnet-4.6","modelName":"Claude Sonnet 4.6","model":"anthropic/claude-sonnet-4-6","apiBase":"https://api.anthropic.com/v1","keyURL":"https://console.anthropic.com/settings/keys","needsKey":true},
   {"name":"Anthropic","id":"anthropic-claude-haiku-4.5","modelName":"Claude Haiku 4.5","model":"anthropic/claude-haiku-4-5","apiBase":"https://api.anthropic.com/v1","keyURL":"https://console.anthropic.com/settings/keys","needsKey":true},
@@ -49,6 +50,28 @@
 
   {"name":"Cerebras","id":"cerebras-qwen-3-235b","modelName":"Qwen 3 235B","model":"cerebras/qwen-3-235b-a22b-instruct-2507","apiBase":"https://api.cerebras.ai/v1","keyURL":"https://inference.cerebras.ai/","needsKey":true},
   {"name":"Cerebras","id":"cerebras-llama-3.1-8b","modelName":"Llama 3.1 8B (weak)","model":"cerebras/llama-3.1-8b","apiBase":"https://api.cerebras.ai/v1","keyURL":"https://inference.cerebras.ai/","needsKey":true},
+
+  {"name":"xAI","id":"xai-grok-2","modelName":"Grok 2","model":"xai/grok-2-1212","apiBase":"https://api.x.ai/v1","keyURL":"https://console.x.ai/","needsKey":true},
+  {"name":"xAI","id":"xai-grok-2-vision","modelName":"Grok 2 Vision","model":"xai/grok-2-vision-1212","apiBase":"https://api.x.ai/v1","keyURL":"https://console.x.ai/","needsKey":true},
+  {"name":"xAI","id":"xai-grok-beta","modelName":"Grok Beta","model":"xai/grok-beta","apiBase":"https://api.x.ai/v1","keyURL":"https://console.x.ai/","needsKey":true},
+
+  {"name":"Moonshot (Kimi)","id":"moonshot-v1-8k","modelName":"Moonshot v1 8K","model":"moonshot/moonshot-v1-8k","apiBase":"https://api.moonshot.ai/v1","keyURL":"https://platform.moonshot.ai/","needsKey":true},
+  {"name":"Moonshot (Kimi)","id":"moonshot-v1-32k","modelName":"Moonshot v1 32K","model":"moonshot/moonshot-v1-32k","apiBase":"https://api.moonshot.ai/v1","keyURL":"https://platform.moonshot.ai/","needsKey":true},
+  {"name":"Moonshot (Kimi)","id":"moonshot-v1-128k","modelName":"Moonshot v1 128K","model":"moonshot/moonshot-v1-128k","apiBase":"https://api.moonshot.ai/v1","keyURL":"https://platform.moonshot.ai/","needsKey":true},
+
+  {"name":"Perplexity","id":"perplexity-sonar","modelName":"Sonar","model":"perplexity/sonar","apiBase":"https://api.perplexity.ai","keyURL":"https://www.perplexity.ai/settings/api","needsKey":true},
+  {"name":"Perplexity","id":"perplexity-sonar-pro","modelName":"Sonar Pro","model":"perplexity/sonar-pro","apiBase":"https://api.perplexity.ai","keyURL":"https://www.perplexity.ai/settings/api","needsKey":true},
+
+  {"name":"Together AI","id":"together-llama-3.3-70b","modelName":"Llama 3.3 70B Turbo","model":"together/meta-llama/Llama-3.3-70B-Instruct-Turbo","apiBase":"https://api.together.xyz/v1","keyURL":"https://api.together.xyz/settings/api-keys","needsKey":true},
+  {"name":"Together AI","id":"together-deepseek-v3","modelName":"DeepSeek V3","model":"together/deepseek-ai/DeepSeek-V3","apiBase":"https://api.together.xyz/v1","keyURL":"https://api.together.xyz/settings/api-keys","needsKey":true},
+  {"name":"Together AI","id":"together-qwen-2.5-72b","modelName":"Qwen 2.5 72B Turbo","model":"together/Qwen/Qwen2.5-72B-Instruct-Turbo","apiBase":"https://api.together.xyz/v1","keyURL":"https://api.together.xyz/settings/api-keys","needsKey":true},
+
+  {"name":"NVIDIA NIM","id":"nvidia-llama-3.3-70b","modelName":"Llama 3.3 70B (NIM)","model":"nvidia/meta/llama-3.3-70b-instruct","apiBase":"https://integrate.api.nvidia.com/v1","keyURL":"https://build.nvidia.com/","needsKey":true},
+  {"name":"NVIDIA NIM","id":"nvidia-nemotron-70b","modelName":"Nemotron 70B","model":"nvidia/nvidia/llama-3.1-nemotron-70b-instruct","apiBase":"https://integrate.api.nvidia.com/v1","keyURL":"https://build.nvidia.com/","needsKey":true},
+
+  {"name":"Zhipu (GLM)","id":"zhipu-glm-4-plus","modelName":"GLM 4 Plus","model":"zhipu/glm-4-plus","apiBase":"https://open.bigmodel.cn/api/paas/v4","keyURL":"https://open.bigmodel.cn/usercenter/apikeys","needsKey":true},
+  {"name":"Zhipu (GLM)","id":"zhipu-glm-4-air","modelName":"GLM 4 Air","model":"zhipu/glm-4-air","apiBase":"https://open.bigmodel.cn/api/paas/v4","keyURL":"https://open.bigmodel.cn/usercenter/apikeys","needsKey":true},
+  {"name":"Zhipu (GLM)","id":"zhipu-glm-4-flash","modelName":"GLM 4 Flash","model":"zhipu/glm-4-flash","apiBase":"https://open.bigmodel.cn/api/paas/v4","keyURL":"https://open.bigmodel.cn/usercenter/apikeys","needsKey":true},
 
   {"name":"Ollama","id":"ollama-llama3","modelName":"Llama 3","model":"ollama/llama3","apiBase":"http://localhost:11434/v1","needsKey":false},
   {"name":"Ollama","id":"ollama-llama3.1","modelName":"Llama 3.1","model":"ollama/llama3.1","apiBase":"http://localhost:11434/v1","needsKey":false},

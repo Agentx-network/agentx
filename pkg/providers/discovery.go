@@ -95,7 +95,7 @@ func ValidateKey(ctx context.Context, provider, apiBase, apiKey string) error {
 	// modern long tail. The OpenAI provider itself is the canonical case.
 	case "openai", "deepseek", "groq", "mistral", "cerebras", "moonshot", "kimi",
 		"qwen", "perplexity", "together", "nvidia", "zhipu", "shengsuanyun",
-		"volcengine", "doubao":
+		"volcengine", "doubao", "xai", "vllm":
 		return validateOpenAICompatible(ctx, apiBase, apiKey)
 
 	default:
