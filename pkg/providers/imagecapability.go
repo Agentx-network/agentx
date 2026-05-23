@@ -7,8 +7,8 @@ import "strings"
 // First entry per provider is the default. Providers absent from this map have
 // no image-output capability (Anthropic, Groq, Cerebras, DeepSeek, Mistral).
 var imageModelsByProvider = map[string][]string{
-	"gemini": {"gemini-2.5-flash-image", "gemini-3-pro-image-preview"},
-	"google": {"gemini-2.5-flash-image", "gemini-3-pro-image-preview"},
+	"gemini": {"gemini-3-pro-image-preview", "gemini-3.1-flash-image-preview", "gemini-2.5-flash-image"},
+	"google": {"gemini-3-pro-image-preview", "gemini-3.1-flash-image-preview", "gemini-2.5-flash-image"},
 	"openai": {"gpt-image-1", "dall-e-3"},
 	// Seedance via Volcengine; Replicate/Stability via their APIs. Added as
 	// their adapters land (see pkg/image).
