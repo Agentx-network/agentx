@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"math/rand"
 	"regexp"
 	"strconv"
 	"strings"
@@ -85,17 +86,16 @@ func parseReminderIntent(message string) (delaySeconds int, subject, channel str
 }
 
 // reminderConfirmationText produces the user-facing one-line confirmation for a
-// scheduled reminder. Used by both the deterministic fallback and the override
-// path that fires when the model itself called cron successfully — that way the
-// reply is short, human, and identical regardless of which path scheduled it,
-// instead of the model elaborating with job IDs and follow-up questions.
+// scheduled reminder. Picks randomly from a small set of equally short,
+// natural phrasings so two reminders in a row don't read like the same boiler-
+// plate. Used by both the model-called-cron override and the deterministic
+// fallback so the reply feels human regardless of which path scheduled it.
 func reminderConfirmationText(subject string, delaySec int, reqChannel string) string {
 	delay := humanizeDelay(delaySec)
 	sub := strings.TrimSpace(subject)
 
 	suffix := ""
 	if reqChannel != "" {
-		// Title-case the channel for display: "telegram" → "Telegram".
 		c := strings.TrimSpace(reqChannel)
 		if c != "" {
 			c = strings.ToUpper(c[:1]) + strings.ToLower(c[1:])
@@ -103,10 +103,25 @@ func reminderConfirmationText(subject string, delaySec int, reqChannel string) s
 		suffix = " (on " + c + ")"
 	}
 
+	var options []string
 	if sub == "" {
-		return "Done — reminder set for " + delay + " from now" + suffix + "."
+		options = []string{
+			"Done — reminder set for " + delay + " from now" + suffix + ".",
+			"Got it — I'll ping you in " + delay + suffix + ".",
+			"Sure — I'll nudge you in " + delay + suffix + ".",
+			"Alright — reminder set for " + delay + suffix + ".",
+			"On it — pinging you in " + delay + suffix + ". ⏰",
+		}
+	} else {
+		options = []string{
+			"Done — I'll remind you to " + sub + " in " + delay + suffix + ".",
+			"Got it — I'll ping you in " + delay + " to " + sub + suffix + ".",
+			"Sure — I'll nudge you in " + delay + " to " + sub + suffix + ".",
+			"Alright — reminding you to " + sub + " in " + delay + suffix + ".",
+			"On it — " + sub + " reminder in " + delay + suffix + ". ⏰",
+		}
 	}
-	return "Done — I'll remind you to " + sub + " in " + delay + suffix + "."
+	return options[rand.Intn(len(options))]
 }
 
 // humanizeDelay renders a second count as a short human phrase.

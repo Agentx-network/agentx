@@ -1,6 +1,9 @@
 package agent
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestParseReminderIntent(t *testing.T) {
 	tests := []struct {
@@ -56,23 +59,64 @@ func TestParseReminderIntent(t *testing.T) {
 	}
 }
 
+// The confirmation varies randomly across a small set of phrasings — assert
+// structural properties (delay, subject, channel must appear) and that we
+// actually see more than one distinct output across many calls (proves the
+// randomization is working and the reply doesn't feel robotic).
 func TestReminderConfirmationText(t *testing.T) {
 	cases := []struct {
-		name    string
-		subject string
-		delay   int
-		ch      string
-		want    string
+		name     string
+		subject  string
+		delay    int
+		ch       string
+		mustHave []string
+		mustMiss []string
 	}{
-		{"with subject, no channel", "drink water", 60, "", "Done — I'll remind you to drink water in 1 minute."},
-		{"no subject, no channel", "", 60, "", "Done — reminder set for 1 minute from now."},
-		{"with subject + channel", "stretch", 7200, "telegram", "Done — I'll remind you to stretch in 2 hours (on Telegram)."},
-		{"seconds", "lunch", 30, "", "Done — I'll remind you to lunch in 30 seconds."},
+		{
+			name: "with subject, no channel",
+			subject: "drink water", delay: 60, ch: "",
+			mustHave: []string{"drink water", "1 minute"},
+			mustMiss: []string{"(on "},
+		},
+		{
+			name: "no subject, no channel",
+			subject: "", delay: 60, ch: "",
+			mustHave: []string{"1 minute"},
+			mustMiss: []string{"(on "},
+		},
+		{
+			name: "with subject + channel",
+			subject: "stretch", delay: 7200, ch: "telegram",
+			mustHave: []string{"stretch", "2 hours", "(on Telegram)"},
+		},
+		{
+			name: "seconds",
+			subject: "lunch", delay: 30, ch: "",
+			mustHave: []string{"lunch", "30 seconds"},
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if got := reminderConfirmationText(c.subject, c.delay, c.ch); got != c.want {
-				t.Errorf("got %q\nwant %q", got, c.want)
+			seen := map[string]bool{}
+			for i := 0; i < 40; i++ {
+				got := reminderConfirmationText(c.subject, c.delay, c.ch)
+				for _, must := range c.mustHave {
+					if !strings.Contains(got, must) {
+						t.Errorf("missing %q in %q", must, got)
+					}
+				}
+				for _, miss := range c.mustMiss {
+					if strings.Contains(got, miss) {
+						t.Errorf("unexpected %q in %q", miss, got)
+					}
+				}
+				if len(got) > 110 {
+					t.Errorf("response too long (%d chars): %q", len(got), got)
+				}
+				seen[got] = true
+			}
+			if len(seen) < 2 {
+				t.Errorf("expected variation across 40 calls, only saw: %v", seen)
 			}
 		})
 	}
