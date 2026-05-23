@@ -56,6 +56,28 @@ func TestParseReminderIntent(t *testing.T) {
 	}
 }
 
+func TestReminderConfirmationText(t *testing.T) {
+	cases := []struct {
+		name    string
+		subject string
+		delay   int
+		ch      string
+		want    string
+	}{
+		{"with subject, no channel", "drink water", 60, "", "Done — I'll remind you to drink water in 1 minute."},
+		{"no subject, no channel", "", 60, "", "Done — reminder set for 1 minute from now."},
+		{"with subject + channel", "stretch", 7200, "telegram", "Done — I'll remind you to stretch in 2 hours (on Telegram)."},
+		{"seconds", "lunch", 30, "", "Done — I'll remind you to lunch in 30 seconds."},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := reminderConfirmationText(c.subject, c.delay, c.ch); got != c.want {
+				t.Errorf("got %q\nwant %q", got, c.want)
+			}
+		})
+	}
+}
+
 func TestHumanizeDelay(t *testing.T) {
 	cases := map[int]string{1: "1 second", 30: "30 seconds", 60: "1 minute", 120: "2 minutes", 3600: "1 hour", 7200: "2 hours", 90: "90 seconds"}
 	for s, want := range cases {

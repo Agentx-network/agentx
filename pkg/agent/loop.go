@@ -659,15 +659,7 @@ func (al *AgentLoop) scheduleReminderFallback(ctx context.Context, ct *tools.Cro
 	logger.InfoCF("agent", "Scheduled reminder via deterministic fallback", map[string]any{
 		"delay_seconds": delaySec, "channel": reqChannel, "subject": subject,
 	})
-	where := "here in this chat"
-	if reqChannel != "" {
-		where = "on " + reqChannel
-	}
-	subjPart := ""
-	if subject != "" {
-		subjPart = " to " + subject
-	}
-	return fmt.Sprintf("Got it — I'll remind you%s in %s (%s). ⏰", subjPart, humanizeDelay(delaySec), where)
+	return reminderConfirmationText(subject, delaySec, reqChannel)
 }
 
 func (al *AgentLoop) runAgentLoop(ctx context.Context, agent *AgentInstance, opts processOptions) (string, error) {
@@ -717,17 +709,28 @@ func (al *AgentLoop) runAgentLoop(ctx context.Context, agent *AgentInstance, opt
 		return "", err
 	}
 
-	// 4b. Deterministic reminder fallback. Weak models sometimes refuse a clear
-	// "remind/ping me in <time>" request instead of calling the cron tool. If the
-	// user clearly asked for a timed reminder and no cron job was scheduled this
-	// round, parse it and schedule it in code — so reminders work regardless of
-	// the model's tool-use reliability.
+	// 4b. Reminder confirmation override. When the user clearly asked for a timed
+	// reminder ("remind/ping/set/send/schedule … in/after/for <time>"), we want
+	// a short, human confirmation no matter which path scheduled it:
+	//   - if the model called cron itself, replace its verbose reply (job IDs,
+	//     "Want me to add another?" follow-ups) with the same clean line;
+	//   - if the model refused or didn't call cron, schedule it in code as a
+	//     fallback (so reminders work even on weak models that hallucinate
+	//     "I don't have cron").
 	if !constants.IsInternalChannel(opts.Channel) {
 		if delaySec, subject, reqChannel, ok := parseReminderIntent(opts.UserMessage); ok {
 			if cronTool, found := agent.Tools.Get("cron"); found {
-				if ct, isCron := cronTool.(*tools.CronTool); isCron && !ct.HasScheduledInRound() {
-					if msg := al.scheduleReminderFallback(ctx, ct, opts, delaySec, subject, reqChannel); msg != "" {
-						finalContent = msg
+				if ct, isCron := cronTool.(*tools.CronTool); isCron {
+					if ct.HasScheduledInRound() {
+						// Model scheduled — override its verbose reply with the
+						// clean one-liner.
+						finalContent = reminderConfirmationText(subject, delaySec, reqChannel)
+					} else {
+						// Model didn't schedule — do it in code; the helper
+						// already returns the same clean confirmation on success.
+						if msg := al.scheduleReminderFallback(ctx, ct, opts, delaySec, subject, reqChannel); msg != "" {
+							finalContent = msg
+						}
 					}
 				}
 			}

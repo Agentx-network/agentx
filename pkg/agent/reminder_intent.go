@@ -84,6 +84,31 @@ func parseReminderIntent(message string) (delaySeconds int, subject, channel str
 	return delaySeconds, subject, channel, true
 }
 
+// reminderConfirmationText produces the user-facing one-line confirmation for a
+// scheduled reminder. Used by both the deterministic fallback and the override
+// path that fires when the model itself called cron successfully — that way the
+// reply is short, human, and identical regardless of which path scheduled it,
+// instead of the model elaborating with job IDs and follow-up questions.
+func reminderConfirmationText(subject string, delaySec int, reqChannel string) string {
+	delay := humanizeDelay(delaySec)
+	sub := strings.TrimSpace(subject)
+
+	suffix := ""
+	if reqChannel != "" {
+		// Title-case the channel for display: "telegram" → "Telegram".
+		c := strings.TrimSpace(reqChannel)
+		if c != "" {
+			c = strings.ToUpper(c[:1]) + strings.ToLower(c[1:])
+		}
+		suffix = " (on " + c + ")"
+	}
+
+	if sub == "" {
+		return "Done — reminder set for " + delay + " from now" + suffix + "."
+	}
+	return "Done — I'll remind you to " + sub + " in " + delay + suffix + "."
+}
+
 // humanizeDelay renders a second count as a short human phrase.
 func humanizeDelay(seconds int) string {
 	switch {

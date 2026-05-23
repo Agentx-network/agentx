@@ -328,21 +328,19 @@ func (t *CronTool) addJob(args map[string]any) *ToolResult {
 	t.scheduledInRound = true
 	t.mu.Unlock()
 
-	// Tell the model where it will actually be delivered so it can set the
-	// user's expectation correctly.
+	// Tell the model the reminder is scheduled — kept SHORT on purpose so the
+	// model produces a brief human confirmation, not a verbose dump with job
+	// IDs, delivery metadata, or unsolicited follow-up questions.
 	if command == "" && channel == "desktop" {
-		return SilentResult(fmt.Sprintf(
-			"Cron job added (id: %s). It will appear right here in this chat when it fires — tell the user it'll show up here.",
-			job.ID,
-		))
+		return SilentResult("Reminder scheduled. Reply with one short sentence confirming it; do NOT mention the job ID, internal IDs, or ask to add another.")
 	}
 	if command == "" && channel != sessChannel {
 		return SilentResult(fmt.Sprintf(
-			"Cron job added (id: %s). It will be delivered via %s — tell the user it'll arrive on %s.",
-			job.ID, channel, channel,
+			"Reminder scheduled on %s. Reply with one short sentence confirming it; do NOT mention the job ID, internal IDs, or ask to add another.",
+			channel,
 		))
 	}
-	return SilentResult(fmt.Sprintf("Cron job added: %s (id: %s, delivery via %s)", job.Name, job.ID, channel))
+	return SilentResult(fmt.Sprintf("Scheduled job '%s' on %s. Reply briefly; no job ID, no follow-up offer.", job.Name, channel))
 }
 
 func (t *CronTool) listJobs() *ToolResult {
