@@ -62,25 +62,60 @@ func ValidateKey(ctx context.Context, provider, apiBase, apiKey string) error {
 		// /models requires the key — a reject here means the key is bad.
 		_, err := ListModels(ctx, provider, apiBase, apiKey)
 		return err
-	case "openai":
-		_, err := ListModels(ctx, provider, apiBase, apiKey)
-		return err
+
 	case "openrouter":
-		// OpenRouter's /models is public, so we can't validate via that.
+		// OpenRouter's /models is public, so /models can't catch a bad key.
 		// /auth/key returns key info and requires Bearer auth — perfect probe.
 		if apiBase == "" {
 			apiBase = "https://openrouter.ai/api/v1"
 		}
 		var out map[string]any
-		if err := httpGetJSON(ctx, apiBase+"/auth/key",
-			map[string]string{"Authorization": "Bearer " + apiKey}, &out); err != nil {
-			return err
+		return httpGetJSON(ctx, apiBase+"/auth/key",
+			map[string]string{"Authorization": "Bearer " + apiKey}, &out)
+
+	case "anthropic":
+		// Anthropic uses its own header scheme (x-api-key) and an
+		// anthropic-version header on every request. /v1/models 401s on bad key.
+		if apiBase == "" {
+			apiBase = "https://api.anthropic.com/v1"
 		}
+		var out map[string]any
+		return httpGetJSON(ctx, apiBase+"/models", map[string]string{
+			"x-api-key":         apiKey,
+			"anthropic-version": "2023-06-01",
+		}, &out)
+
+	case "ollama":
+		// Local — no key to validate.
 		return nil
+
+	// OpenAI-compatible providers: GET /v1/models with Bearer auth → 401 on bad
+	// key. This covers Mistral, Kimi/Moonshot, DeepSeek, Cerebras, Groq, Qwen,
+	// Perplexity, Together, NVIDIA, Zhipu/GLM, Doubao, etc. — basically the
+	// modern long tail. The OpenAI provider itself is the canonical case.
+	case "openai", "deepseek", "groq", "mistral", "cerebras", "moonshot", "kimi",
+		"qwen", "perplexity", "together", "nvidia", "zhipu", "shengsuanyun",
+		"volcengine", "doubao":
+		return validateOpenAICompatible(ctx, apiBase, apiKey)
+
 	default:
-		// No universal validation endpoint — skip (don't false-positive).
+		// Unknown provider: skip rather than false-positive. The chat path's
+		// HumanizeError still surfaces 401s cleanly if the key is bad.
 		return nil
 	}
+}
+
+// validateOpenAICompatible probes a /v1/models endpoint with Bearer auth — the
+// shape virtually every OpenAI-compatible provider exposes (Mistral, DeepSeek,
+// Cerebras, Groq, Moonshot/Kimi, Qwen, etc.). A 401 here is the canonical "your
+// key is wrong" signal.
+func validateOpenAICompatible(ctx context.Context, apiBase, apiKey string) error {
+	if apiBase == "" {
+		return fmt.Errorf("a provider URL is required to validate the key")
+	}
+	var out map[string]any
+	return httpGetJSON(ctx, apiBase+"/models",
+		map[string]string{"Authorization": "Bearer " + apiKey}, &out)
 }
 
 // httpGetJSON performs a GET with a short timeout and decodes the JSON body.
