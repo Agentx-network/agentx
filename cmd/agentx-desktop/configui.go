@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Agentx-network/agentx/pkg/agent"
 	"github.com/Agentx-network/agentx/pkg/config"
 	"github.com/Agentx-network/agentx/pkg/logger"
 	"github.com/Agentx-network/agentx/pkg/providers"
@@ -273,6 +274,18 @@ func (c *ConfigService) ListProviderModels(provider, apiBase, apiKey string) ([]
 	return providers.ListModels(context.Background(), provider, apiBase, apiKey)
 }
 
+// ValidateProviderKey probes the provider with the entered key so a bad key is
+// caught at onboarding instead of at first chat. Returns an empty string when
+// the key checks out, or a short user-facing reason when it doesn't. Providers
+// without a stable validation endpoint return "" (skipped, not failed).
+func (c *ConfigService) ValidateProviderKey(provider, apiBase, apiKey string) string {
+	if err := providers.ValidateKey(context.Background(), provider, apiBase, apiKey); err != nil {
+		// Reuse the agent humanizer's 401/auth detection for a clean message.
+		return agent.HumanizeError(err)
+	}
+	return ""
+}
+
 func (c *ConfigService) GetAvailableProviders() []ProviderOption {
 	var providers []ProviderOption
 	if err := json.Unmarshal(catalogJSON, &providers); err != nil {
@@ -300,7 +313,9 @@ func (c *ConfigService) QuickSetupProvider(providerID string, apiKey string) err
 		return err
 	}
 
-	key := apiKey
+	// Trim the pasted key — leading/trailing whitespace from copy-paste is the
+	// single most common cause of "provider rejected the API key" 401s.
+	key := strings.TrimSpace(apiKey)
 	if key == "" && !provider.NeedsKey {
 		key = "ollama"
 	}
@@ -347,8 +362,8 @@ func (c *ConfigService) SetupModel(displayName, modelRef, apiBase, apiKey string
 	newModel := config.ModelConfig{
 		ModelName: name,
 		Model:     modelRef,
-		APIBase:   apiBase,
-		APIKey:    apiKey,
+		APIBase:   strings.TrimSpace(apiBase),
+		APIKey:    strings.TrimSpace(apiKey),
 	}
 	for i, m := range cfg.ModelList {
 		if m.ModelName == name || m.Model == modelRef {

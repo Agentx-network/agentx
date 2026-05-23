@@ -85,6 +85,46 @@ func TestListModels_UnsupportedProvider(t *testing.T) {
 	}
 }
 
+func TestValidateKey_OpenRouter(t *testing.T) {
+	// Valid: /auth/key returns 200 when the bearer matches.
+	good := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/auth/key" {
+			t.Errorf("expected /auth/key, got %s", r.URL.Path)
+		}
+		if r.Header.Get("Authorization") != "Bearer sk-or-good" {
+			w.WriteHeader(401)
+			return
+		}
+		w.Write([]byte(`{"data":{"label":"test"}}`))
+	}))
+	defer good.Close()
+	if err := ValidateKey(context.Background(), "openrouter", good.URL, "sk-or-good"); err != nil {
+		t.Errorf("valid key should pass, got: %v", err)
+	}
+
+	// Invalid: server returns 401.
+	bad := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(401)
+		_, _ = w.Write([]byte(`{"error":{"message":"No auth credentials found","code":401}}`))
+	}))
+	defer bad.Close()
+	if err := ValidateKey(context.Background(), "openrouter", bad.URL, "sk-or-bogus"); err == nil {
+		t.Error("invalid key should fail validation")
+	}
+
+	// Empty key always fails fast (no network call).
+	if err := ValidateKey(context.Background(), "openrouter", "", "  "); err == nil {
+		t.Error("empty/whitespace key should fail")
+	}
+}
+
+func TestValidateKey_UnsupportedProvider(t *testing.T) {
+	// No endpoint defined → skip validation (return nil, not a false positive).
+	if err := ValidateKey(context.Background(), "cerebras", "", "anything"); err != nil {
+		t.Errorf("unsupported provider should skip cleanly, got: %v", err)
+	}
+}
+
 func hasID(models []DiscoveredModel, id string) bool {
 	for _, m := range models {
 		if m.ID == id {

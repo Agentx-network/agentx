@@ -44,6 +44,45 @@ func ListModels(ctx context.Context, provider, apiBase, apiKey string) ([]Discov
 	}
 }
 
+// ValidateKey verifies a provider API key against the provider's own auth/info
+// endpoint. Returns nil if the key is valid (or validation isn't supported for
+// the provider), or an error describing the rejection. Used at onboarding to
+// catch bad keys (typos, whitespace, wrong account, etc.) before the user runs
+// into "provider rejected the API key" at first chat.
+func ValidateKey(ctx context.Context, provider, apiBase, apiKey string) error {
+	provider = strings.ToLower(strings.TrimSpace(provider))
+	apiKey = strings.TrimSpace(apiKey)
+	if apiKey == "" {
+		return fmt.Errorf("the API key is empty")
+	}
+	apiBase = strings.TrimRight(strings.TrimSpace(apiBase), "/")
+
+	switch provider {
+	case "gemini", "google":
+		// /models requires the key — a reject here means the key is bad.
+		_, err := ListModels(ctx, provider, apiBase, apiKey)
+		return err
+	case "openai":
+		_, err := ListModels(ctx, provider, apiBase, apiKey)
+		return err
+	case "openrouter":
+		// OpenRouter's /models is public, so we can't validate via that.
+		// /auth/key returns key info and requires Bearer auth — perfect probe.
+		if apiBase == "" {
+			apiBase = "https://openrouter.ai/api/v1"
+		}
+		var out map[string]any
+		if err := httpGetJSON(ctx, apiBase+"/auth/key",
+			map[string]string{"Authorization": "Bearer " + apiKey}, &out); err != nil {
+			return err
+		}
+		return nil
+	default:
+		// No universal validation endpoint — skip (don't false-positive).
+		return nil
+	}
+}
+
 // httpGetJSON performs a GET with a short timeout and decodes the JSON body.
 func httpGetJSON(ctx context.Context, url string, headers map[string]string, out any) error {
 	reqCtx, cancel := context.WithTimeout(ctx, 12*time.Second)

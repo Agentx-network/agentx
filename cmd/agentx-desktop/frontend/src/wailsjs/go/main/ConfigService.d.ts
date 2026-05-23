@@ -39,3 +39,5 @@ export function SetupModel(arg1:string,arg2:string,arg3:string,arg4:string):Prom
 export function UpdateAgentDefaults(arg1:config.AgentDefaults):Promise<void>;
 
 export function UpdateModel(arg1:number,arg2:config.ModelConfig):Promise<void>;
+
+export function ValidateProviderKey(arg1:string,arg2:string,arg3:string):Promise<string>;

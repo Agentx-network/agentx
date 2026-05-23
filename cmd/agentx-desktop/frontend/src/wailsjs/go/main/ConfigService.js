@@ -73,3 +73,7 @@ export function UpdateAgentDefaults(arg1) {
 export function UpdateModel(arg1, arg2) {
   return window['go']['main']['ConfigService']['UpdateModel'](arg1, arg2);
 }
+
+export function ValidateProviderKey(arg1, arg2, arg3) {
+  return window['go']['main']['ConfigService']['ValidateProviderKey'](arg1, arg2, arg3);
+}

@@ -75,6 +75,20 @@ export default function OnboardPage({ showToast, onComplete }: Props) {
     if (!selectedProvider) return;
     setSaving(true);
     try {
+      // Validate the key against the provider BEFORE saving, so a bad key
+      // (typo, whitespace, wrong account) is caught here instead of at first
+      // chat. Providers without a stable validation endpoint return "" (skip).
+      if (selectedProvider.needsKey && apiKey.trim() !== "") {
+        const reason = await window.go.main.ConfigService.ValidateProviderKey(
+          providerPrefix, selectedProvider.apiBase, apiKey,
+        );
+        if (reason) {
+          showToast(reason, "error");
+          setSaving(false);
+          return;
+        }
+      }
+
       const custom = customModel.trim();
       const isCustomOrDynamic = custom !== "" || (chosenModel && chosenModel !== selectedProvider.model);
       if (selectedProvider.needsKey && isCustomOrDynamic) {
