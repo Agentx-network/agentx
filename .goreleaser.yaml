@@ -1,0 +1,116 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./cmd/agentx/...
+
+builds:
+  - id: agentx
+    env:
+      - CGO_ENABLED=0
+    tags:
+      - stdjson
+    ldflags:
+      - -s -w
+      - -X github.com/Agentx-network/agentx/cmd/agentx/internal.version={{ .Version }}
+      - -X github.com/Agentx-network/agentx/cmd/agentx/internal.gitCommit={{ .ShortCommit }}
+      - -X github.com/Agentx-network/agentx/cmd/agentx/internal.buildTime={{ .Date }}
+      - -X github.com/Agentx-network/agentx/cmd/agentx/internal.goVersion={{ .Env.GOVERSION }}
+    goos:
+      - linux
+      - windows
+      - darwin
+      - android
+    goarch:
+      - amd64
+      - arm64
+    main: ./cmd/agentx
+    ignore:
+      - goos: windows
+        goarch: arm64
+      - goos: android
+        goarch: amd64
+
+  # Desktop builds require CGO (WebView) — built on native OS runners
+  # in the release workflow (desktop-build job), NOT by goreleaser.
+  # See .github/workflows/release.yml for the matrix build.
+
+dockers_v2:
+  - id: agentx
+    dockerfile: docker/Dockerfile.goreleaser
+    extra_files:
+      - docker/entrypoint.sh
+    ids:
+      - agentx
+    images:
+      - "ghcr.io/{{ tolower .Env.GITHUB_REPOSITORY_OWNER }}/agentx"
+      - "docker.io/{{ .Env.DOCKERHUB_IMAGE_NAME }}"
+    tags:
+      - "{{ .Tag }}"
+      - "latest"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+
+archives:
+  - id: agentx
+    builds: [agentx]
+    formats: [binary]
+    name_template: >-
+      {{ .ProjectName }}-
+      {{- .Os }}-
+      {{- if eq .Arch "amd64" }}amd64
+      {{- else if eq .Arch "arm64" }}arm64
+      {{- else }}{{ .Arch }}{{ end }}
+
+nfpms:
+  - id: agentx
+    builds: [agentx]
+    package_name: agentx
+    file_name_template: >-
+      {{ .PackageName }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "arm64" }}aarch64
+      {{- else }}{{ .Arch }}{{ end }}
+    vendor: agentx
+    homepage: https://github.com/{{ .Env.GITHUB_REPOSITORY_OWNER }}/agentx
+    maintainer: agentx contributors
+    description: agentx - a tool for managing and running tasks
+    license: MIT
+    formats:
+      - deb
+    bindir: /usr/bin
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+# upx:
+#    - enabled: true
+#      compress: best
+#      lzma: true
+
+release:
+  footer: >-
+
+    ---
+
+    Released by [GoReleaser](https://github.com/goreleaser/goreleaser).
+
+brews:
+  - repository:
+      owner: Agentx-network
+      name: homebrew-tap
+    skip_upload: true
+    homepage: https://agentx.network
+    description: "Autonomous AI agent framework"
+    install: |
+      bin.install "agentx"
+    test: |
+      system "#{bin}/agentx", "version"

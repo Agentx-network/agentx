@@ -1,0 +1,1146 @@
+// AgentX - Ultra-lightweight personal AI agent
+// Inspired by and based on nanobot: https://github.com/HKUDS/nanobot
+// License: MIT
+//
+// Copyright (c) 2026 AgentX contributors
+
+package agent
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"path/filepath"
+	"sort"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"github.com/Agentx-network/agentx/pkg/bus"
+	"github.com/Agentx-network/agentx/pkg/channels"
+	"github.com/Agentx-network/agentx/pkg/config"
+	"github.com/Agentx-network/agentx/pkg/constants"
+	"github.com/Agentx-network/agentx/pkg/logger"
+	"github.com/Agentx-network/agentx/pkg/providers"
+	"github.com/Agentx-network/agentx/pkg/routing"
+	"github.com/Agentx-network/agentx/pkg/skills"
+	"github.com/Agentx-network/agentx/pkg/state"
+	"github.com/Agentx-network/agentx/pkg/tools"
+	"github.com/Agentx-network/agentx/pkg/utils"
+)
+
+type AgentLoop struct {
+	bus            *bus.MessageBus
+	cfg            *config.Config
+	registry       *AgentRegistry
+	state          *state.Manager
+	running        atomic.Bool
+	summarizing    sync.Map
+	fallback       *providers.FallbackChain
+	channelManager *channels.Manager
+}
+
+// processOptions configures how a message is processed
+type processOptions struct {
+	SessionKey         string // Session identifier for history/context
+	Channel            string // Target channel for tool execution
+	ChatID             string // Target chat ID for tool execution
+	UserMessage        string // User message content (may include prefix)
+	DefaultResponse    string // Response when LLM returns empty
+	EnableSummary      bool   // Whether to trigger summarization
+	SendResponse       bool   // Whether to send response via bus
+	NoHistory          bool   // If true, don't load session history (for heartbeat)
+	CompressionRetried bool   // Internal: true after one compression-retry to bound recursion
+	RateLimitRetried   bool   // Internal: true after one rate-limit auto-retry to bound recursion
+	WebSearchRetried   bool   // Internal: true after one auto-web-search fallback to bound recursion
+	ToolResultRetried  bool   // Internal: true after one recovered-tool-result re-prompt to bound recursion
+}
+
+const defaultResponse = "I've completed processing but have no response to give. Increase `max_tool_iterations` in config.json."
+
+func NewAgentLoop(cfg *config.Config, msgBus *bus.MessageBus, provider providers.LLMProvider) *AgentLoop {
+	registry := NewAgentRegistry(cfg, provider)
+
+	// Register shared tools to all agents
+	registerSharedTools(cfg, msgBus, registry, provider)
+
+	// Set up shared fallback chain
+	cooldown := providers.NewCooldownTracker()
+	fallbackChain := providers.NewFallbackChain(cooldown)
+
+	// Create state manager using default agent's workspace for channel recording
+	defaultAgent := registry.GetDefaultAgent()
+	var stateManager *state.Manager
+	if defaultAgent != nil {
+		stateManager = state.NewManager(defaultAgent.Workspace)
+	}
+
+	return &AgentLoop{
+		bus:         msgBus,
+		cfg:         cfg,
+		registry:    registry,
+		state:       stateManager,
+		summarizing: sync.Map{},
+		fallback:    fallbackChain,
+	}
+}
+
+// Reload rebuilds the agent registry from a fresh config snapshot.
+//
+// Why this exists: when the user changes provider/model in the desktop Config
+// page, the running gateway used to keep serving requests with the stale model
+// (captured into AgentInstance.Model + FantasyModel at startup). Users had to
+// restart the gateway manually, and any code path that touched cached state
+// (chat replies, dashboard model badge, etc.) showed inconsistent values.
+//
+// The fix is intentionally minimal: rebuild the registry (which rebuilds every
+// AgentInstance and its FantasyModel) and re-register shared tools so the new
+// agents get web search / message / spawn tools. In-flight conversations that
+// already hold an *AgentInstance pointer continue with the old model — that's
+// preferable to killing live streams mid-reply.
+func (al *AgentLoop) Reload(cfg *config.Config) {
+	al.cfg = cfg
+	al.registry.Reload(cfg, nil)
+	registerSharedTools(cfg, al.bus, al.registry, nil)
+	logger.InfoCF("agent", "Agent loop reloaded with new config", nil)
+}
+
+// imageProvidersFromConfig collects image-capable providers the user has keys
+// for. Two sources are merged:
+//   - the dedicated tools.image.providers map (image-only providers like
+//     Seedance, configured in Config → Image), which takes precedence;
+//   - model_list entries whose provider also supports image output (per
+//     providers.ImageModelsFor), reusing the chat key.
+//
+// When a provider appears in both, the dedicated image config wins. The image
+// model id falls back to the capability map's default when not overridden.
+func imageProvidersFromConfig(cfg *config.Config) []tools.ImageProvider {
+	seen := map[string]bool{}
+	var out []tools.ImageProvider
+
+	// Dedicated image providers first (highest precedence). Iterate in sorted
+	// key order — Go map iteration is randomized, which would otherwise make the
+	// default provider (out[0], used by image_generate when none is requested)
+	// vary run-to-run for the same config. Deterministic order means the same
+	// config always picks the same provider.
+	dedicatedNames := make([]string, 0, len(cfg.Tools.Image.Providers))
+	for name := range cfg.Tools.Image.Providers {
+		dedicatedNames = append(dedicatedNames, name)
+	}
+	sort.Strings(dedicatedNames)
+	for _, name := range dedicatedNames {
+		ip := cfg.Tools.Image.Providers[name]
+		provider := providers.ProviderFromModelRef(name)
+		if ip.APIKey == "" || seen[provider] {
+			continue
+		}
+		model := ip.Model
+		if model == "" {
+			model = providers.DefaultImageModel(provider)
+		}
+		seen[provider] = true
+		out = append(out, tools.ImageProvider{
+			Provider: provider,
+			Model:    model,
+			APIKey:   ip.APIKey,
+			APIBase:  ip.APIBase,
+		})
+	}
+
+	// Then chat providers that happen to support image output.
+	for i := range cfg.ModelList {
+		m := &cfg.ModelList[i]
+		if m.APIKey == "" || m.APIKey == "ollama" {
+			continue
+		}
+		provider := providers.ProviderFromModelRef(m.Model)
+		if seen[provider] || !providers.ProviderSupportsImages(provider) {
+			continue
+		}
+		seen[provider] = true
+		out = append(out, tools.ImageProvider{
+			Provider: provider,
+			Model:    providers.DefaultImageModel(provider),
+			APIKey:   m.APIKey,
+			APIBase:  m.APIBase,
+		})
+	}
+	return out
+}
+
+// persistImageProvider saves an image provider into the dedicated
+// tools.image.providers config (so it shows on the Config → Images page) if it
+// isn't already there. Best-effort: errors are ignored — failing to persist
+// must never block image generation.
+func persistImageProvider(cfgPath string, p tools.ImageProvider) {
+	if p.Provider == "" || p.APIKey == "" {
+		return
+	}
+	cfg, err := config.LoadConfig(cfgPath)
+	if err != nil {
+		return
+	}
+	if cfg.Tools.Image.Providers == nil {
+		cfg.Tools.Image.Providers = map[string]config.ImageProviderConfig{}
+	}
+	if existing, ok := cfg.Tools.Image.Providers[p.Provider]; ok && existing.APIKey != "" {
+		return // already configured — don't overwrite the user's entry
+	}
+	cfg.Tools.Image.Providers[p.Provider] = config.ImageProviderConfig{
+		APIKey:  p.APIKey,
+		Model:   p.Model,
+		APIBase: p.APIBase,
+	}
+	_ = config.SaveConfig(cfgPath, cfg)
+}
+
+// registerSharedTools registers tools that are shared across all agents (web, message, spawn).
+func registerSharedTools(
+	cfg *config.Config,
+	msgBus *bus.MessageBus,
+	registry *AgentRegistry,
+	provider providers.LLMProvider,
+) {
+	for _, agentID := range registry.ListAgentIDs() {
+		agent, ok := registry.GetAgent(agentID)
+		if !ok {
+			continue
+		}
+
+		// Web tools
+		if searchTool := tools.NewWebSearchTool(tools.WebSearchToolOptions{
+			BraveAPIKey:          cfg.Tools.Web.Brave.APIKey,
+			BraveMaxResults:      cfg.Tools.Web.Brave.MaxResults,
+			BraveEnabled:         cfg.Tools.Web.Brave.Enabled,
+			TavilyAPIKey:         cfg.Tools.Web.Tavily.APIKey,
+			TavilyBaseURL:        cfg.Tools.Web.Tavily.BaseURL,
+			TavilyMaxResults:     cfg.Tools.Web.Tavily.MaxResults,
+			TavilyEnabled:        cfg.Tools.Web.Tavily.Enabled,
+			DuckDuckGoMaxResults: cfg.Tools.Web.DuckDuckGo.MaxResults,
+			DuckDuckGoEnabled:    cfg.Tools.Web.DuckDuckGo.Enabled,
+			PerplexityAPIKey:     cfg.Tools.Web.Perplexity.APIKey,
+			PerplexityMaxResults: cfg.Tools.Web.Perplexity.MaxResults,
+			PerplexityEnabled:    cfg.Tools.Web.Perplexity.Enabled,
+			Proxy:                cfg.Tools.Web.Proxy,
+		}); searchTool != nil {
+			agent.Tools.Register(searchTool)
+		}
+		agent.Tools.Register(tools.NewWebFetchToolWithProxy(50000, cfg.Tools.Web.Proxy))
+
+		// Image generation. Both tools are always registered so the agent can
+		// set up a provider from chat even when none is configured yet:
+		//   - configure_image_provider saves a key the user pastes;
+		//   - image_generate resolves providers live from config each call, so a
+		//     just-saved key is used immediately (no gateway restart).
+		imageDir := filepath.Join(agent.Workspace, "images")
+		cfgPath := config.DefaultConfigPath()
+		agent.Tools.Register(tools.NewImageGenerateTool(
+			func() []tools.ImageProvider {
+				liveCfg, err := config.LoadConfig(cfgPath)
+				if err != nil {
+					return imageProvidersFromConfig(cfg) // fall back to startup config
+				}
+				return imageProvidersFromConfig(liveCfg)
+			},
+			// persist: copy an auto-detected (chat-config) provider into the
+			// dedicated Images config so it appears on the Config page. Only
+			// writes when the provider isn't already saved there.
+			func(p tools.ImageProvider) {
+				persistImageProvider(cfgPath, p)
+			},
+			imageDir,
+		))
+		agent.Tools.Register(tools.NewConfigureImageProviderTool(cfgPath))
+
+		// Hardware tools (I2C, SPI) — only registered when the host actually has
+		// the bus device files. Their schemas are the two largest in the toolset
+		// and are sent on every request, so skipping them on machines with no
+		// such hardware (desktops, servers) saves prompt tokens for small models
+		// without removing any real capability (the tools would only ever error).
+		if tools.I2CToolAvailable() {
+			agent.Tools.Register(tools.NewI2CTool())
+		}
+		if tools.SPIToolAvailable() {
+			agent.Tools.Register(tools.NewSPITool())
+		}
+
+		// Message tool
+		messageTool := tools.NewMessageTool()
+		messageTool.SetSendCallback(func(channel, chatID, content string) error {
+			// CLI channel has no outbound listener: print directly so the
+			// reply reaches the user's terminal instead of being sinkholed.
+			if channel == constants.ChannelCLI {
+				fmt.Printf("\n🤖 %s\n", content)
+				return nil
+			}
+			// Read live config so a chat ID claimed mid-session is visible.
+			liveCfg := cfg
+			if c, err := config.LoadConfig(config.DefaultConfigPath()); err == nil {
+				liveCfg = c
+			}
+			// Honest delivery (Tier 0): the outbound bus is fire-and-forget and
+			// the channel manager silently drops messages for channels it can't
+			// route (e.g. "desktop", or a channel that isn't connected). Reject
+			// up front so the tool reports a real failure instead of a fake "sent".
+			if !liveCfg.IsPushChannel(channel) {
+				return fmt.Errorf("%q can't receive proactive messages (not a connected channel)", channel)
+			}
+			if !liveCfg.ChannelEnabled(channel) {
+				return fmt.Errorf("the %s channel isn't connected — set it up in Config → Channels", channel)
+			}
+			// The agent often passes the desktop's chatID ("chat"/"direct") or
+			// nothing; for a push channel that's an invalid target. Use the
+			// channel owner's real chat ID instead.
+			if chatID == "" || chatID == "chat" || chatID == "direct" {
+				owner := liveCfg.OwnerChatID(channel)
+				if owner == "" {
+					return fmt.Errorf("I don't know your %s chat ID yet — message the bot on %s once so it learns your ID, then I can reach you there", channel, channel)
+				}
+				chatID = owner
+			}
+			msgBus.PublishOutbound(bus.OutboundMessage{
+				Channel: channel,
+				ChatID:  chatID,
+				Content: content,
+			})
+			return nil
+		})
+		// Redirect target resolver: when the model calls `message` without a
+		// usable channel (the common "ping me on Telegram from desktop" case),
+		// route to the first connected push channel + owner chat ID instead of
+		// bouncing as REDUNDANT.
+		messageTool.SetPushTargetResolver(func() (string, string, bool) {
+			liveCfg := cfg
+			if c, err := config.LoadConfig(config.DefaultConfigPath()); err == nil {
+				liveCfg = c
+			}
+			ch, ownerID := liveCfg.FirstConnectedPushChannel()
+			if ch == "" {
+				return "", "", false
+			}
+			return ch, ownerID, true
+		})
+		agent.Tools.Register(messageTool)
+
+		// Skill discovery and installation tools
+		registryMgr := skills.NewRegistryManagerFromConfig(skills.RegistryConfig{
+			MaxConcurrentSearches: cfg.Tools.Skills.MaxConcurrentSearches,
+			ClawHub:               skills.ClawHubConfig(cfg.Tools.Skills.Registries.ClawHub),
+		})
+		searchCache := skills.NewSearchCache(
+			cfg.Tools.Skills.SearchCache.MaxSize,
+			time.Duration(cfg.Tools.Skills.SearchCache.TTLSeconds)*time.Second,
+		)
+		agent.Tools.Register(tools.NewFindSkillsTool(registryMgr, searchCache))
+		agent.Tools.Register(tools.NewInstallSkillTool(registryMgr, agent.Workspace))
+
+		// Spawn tool with allowlist checker
+		subagentManager := tools.NewSubagentManager(provider, agent.Model, agent.Workspace, msgBus)
+		subagentManager.SetLLMOptions(agent.MaxTokens, agent.Temperature)
+		if agent.FantasyModel != nil {
+			subagentManager.SetFantasyModel(agent.FantasyModel)
+		}
+		// Give the subagent the SAME tool registry as its parent. Without this
+		// the subagent has zero tools and either hallucinates results or
+		// reports "Unable to access files". The subagent's system prompt
+		// already promises tool access — wire it up so the promise holds.
+		subagentManager.SetTools(agent.Tools)
+		spawnTool := tools.NewSpawnTool(subagentManager)
+		currentAgentID := agentID
+		spawnTool.SetAllowlistChecker(func(targetAgentID string) bool {
+			return registry.CanSpawnSubagent(currentAgentID, targetAgentID)
+		})
+		agent.Tools.Register(spawnTool)
+	}
+}
+
+func (al *AgentLoop) Run(ctx context.Context) error {
+	al.running.Store(true)
+
+	for al.running.Load() {
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+			msg, ok := al.bus.ConsumeInbound(ctx)
+			if !ok {
+				continue
+			}
+
+			response, err := al.processMessage(ctx, msg)
+			if err != nil {
+				// Log the full error; show the user a brief, clean one-liner
+				// (no raw provider URLs/quota dumps or link previews).
+				logger.ErrorCF("agent", "Message processing failed", map[string]any{
+					"channel": msg.Channel, "error": err.Error(),
+				})
+				response = HumanizeError(err)
+			}
+
+			if response != "" {
+				// Check if the message tool already sent a response during this round.
+				// If so, skip publishing to avoid duplicate messages to the user.
+				// Use default agent's tools to check (message tool is shared).
+				alreadySent := false
+				defaultAgent := al.registry.GetDefaultAgent()
+				if defaultAgent != nil {
+					if tool, ok := defaultAgent.Tools.Get("message"); ok {
+						if mt, ok := tool.(*tools.MessageTool); ok {
+							alreadySent = mt.HasSentInRound()
+						}
+					}
+				}
+
+				if !alreadySent {
+					al.bus.PublishOutbound(bus.OutboundMessage{
+						Channel: msg.Channel,
+						ChatID:  msg.ChatID,
+						Content: response,
+					})
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (al *AgentLoop) Stop() {
+	al.running.Store(false)
+}
+
+func (al *AgentLoop) RegisterTool(tool tools.Tool) {
+	for _, agentID := range al.registry.ListAgentIDs() {
+		if agent, ok := al.registry.GetAgent(agentID); ok {
+			agent.Tools.Register(tool)
+		}
+	}
+}
+
+func (al *AgentLoop) SetChannelManager(cm *channels.Manager) {
+	al.channelManager = cm
+}
+
+// RecordLastChannel records the last active channel for this workspace.
+// This uses the atomic state save mechanism to prevent data loss on crash.
+func (al *AgentLoop) RecordLastChannel(channel string) error {
+	if al.state == nil {
+		return nil
+	}
+	return al.state.SetLastChannel(channel)
+}
+
+// RecordLastChatID records the last active chat ID for this workspace.
+// This uses the atomic state save mechanism to prevent data loss on crash.
+func (al *AgentLoop) RecordLastChatID(chatID string) error {
+	if al.state == nil {
+		return nil
+	}
+	return al.state.SetLastChatID(chatID)
+}
+
+func (al *AgentLoop) ProcessDirect(ctx context.Context, content, sessionKey string) (string, error) {
+	return al.ProcessDirectWithChannel(ctx, content, sessionKey, "cli", "direct")
+}
+
+func (al *AgentLoop) ProcessDirectWithChannel(
+	ctx context.Context,
+	content, sessionKey, channel, chatID string,
+) (string, error) {
+	msg := bus.InboundMessage{
+		Channel:    channel,
+		SenderID:   "cron",
+		ChatID:     chatID,
+		Content:    content,
+		SessionKey: sessionKey,
+	}
+
+	return al.processMessage(ctx, msg)
+}
+
+// ProcessHeartbeat processes a heartbeat request without session history.
+// Each heartbeat is independent and doesn't accumulate context.
+func (al *AgentLoop) ProcessHeartbeat(ctx context.Context, content, channel, chatID string) (string, error) {
+	agent := al.registry.GetDefaultAgent()
+	return al.runAgentLoop(ctx, agent, processOptions{
+		SessionKey:      "heartbeat",
+		Channel:         channel,
+		ChatID:          chatID,
+		UserMessage:     content,
+		DefaultResponse: defaultResponse,
+		EnableSummary:   false,
+		SendResponse:    false,
+		NoHistory:       true, // Don't load session history for heartbeat
+	})
+}
+
+// docReadableExts are file types read_file can return as usable text (PDFs are
+// extracted to text; the rest are already text). Images/audio are excluded —
+// they're handled elsewhere and would only return binary garbage.
+var docReadableExts = map[string]bool{
+	".pdf": true, ".txt": true, ".md": true, ".markdown": true, ".csv": true,
+	".json": true, ".log": true, ".yaml": true, ".yml": true, ".xml": true,
+	".html": true, ".htm": true, ".tsv": true, ".ini": true, ".toml": true,
+}
+
+// attachedDocsNote builds a short instruction listing readable document
+// attachments so the model knows their on-disk paths and to call read_file.
+// Returns "" when there are no readable documents among the media.
+func attachedDocsNote(media []string) string {
+	var docs []string
+	for _, p := range media {
+		if docReadableExts[strings.ToLower(filepath.Ext(p))] {
+			docs = append(docs, p)
+		}
+	}
+	if len(docs) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("\n\n[The user attached %d document(s). Their contents are NOT shown above — "+
+		"call read_file on each path below to read them, then answer based on what you read:\n%s]",
+		len(docs), strings.Join(docs, "\n"))
+}
+
+func (al *AgentLoop) processMessage(ctx context.Context, msg bus.InboundMessage) (string, error) {
+	// Add message preview to log (show full content for error messages)
+	var logContent string
+	if strings.Contains(msg.Content, "Error:") || strings.Contains(msg.Content, "error") {
+		logContent = msg.Content // Full content for errors
+	} else {
+		logContent = utils.Truncate(msg.Content, 80)
+	}
+	logger.InfoCF("agent", fmt.Sprintf("Processing message from %s:%s: %s", msg.Channel, msg.SenderID, logContent),
+		map[string]any{
+			"channel":     msg.Channel,
+			"chat_id":     msg.ChatID,
+			"sender_id":   msg.SenderID,
+			"session_key": msg.SessionKey,
+		})
+
+	// Route system messages to processSystemMessage
+	if msg.Channel == "system" {
+		return al.processSystemMessage(ctx, msg)
+	}
+
+	// Check for commands
+	if response, handled := al.handleCommand(ctx, msg); handled {
+		return response, nil
+	}
+
+	// Route to determine agent and session key
+	route := al.registry.ResolveRoute(routing.RouteInput{
+		Channel:    msg.Channel,
+		AccountID:  msg.Metadata["account_id"],
+		Peer:       extractPeer(msg),
+		ParentPeer: extractParentPeer(msg),
+		GuildID:    msg.Metadata["guild_id"],
+		TeamID:     msg.Metadata["team_id"],
+	})
+
+	agent, ok := al.registry.GetAgent(route.AgentID)
+	if !ok {
+		agent = al.registry.GetDefaultAgent()
+	}
+
+	// Use routed session key, but honor pre-set agent-scoped keys (for ProcessDirect/cron)
+	sessionKey := route.SessionKey
+	if msg.SessionKey != "" && strings.HasPrefix(msg.SessionKey, "agent:") {
+		sessionKey = msg.SessionKey
+	}
+
+	logger.InfoCF("agent", "Routed message",
+		map[string]any{
+			"agent_id":    agent.ID,
+			"session_key": sessionKey,
+			"matched_by":  route.MatchedBy,
+		})
+
+	// Surface attached document paths so the agent knows it can read them.
+	// Without this the file is downloaded to disk but the model never learns the
+	// path, so it can't call read_file on (e.g.) a PDF the user sent.
+	userMessage := msg.Content
+	if note := attachedDocsNote(msg.Media); note != "" {
+		userMessage += note
+	}
+
+	return al.runAgentLoop(ctx, agent, processOptions{
+		SessionKey:      sessionKey,
+		Channel:         msg.Channel,
+		ChatID:          msg.ChatID,
+		UserMessage:     userMessage,
+		DefaultResponse: defaultResponse,
+		EnableSummary:   true,
+		SendResponse:    false,
+	})
+}
+
+func (al *AgentLoop) processSystemMessage(ctx context.Context, msg bus.InboundMessage) (string, error) {
+	if msg.Channel != "system" {
+		return "", fmt.Errorf("processSystemMessage called with non-system message channel: %s", msg.Channel)
+	}
+
+	logger.InfoCF("agent", "Processing system message",
+		map[string]any{
+			"sender_id": msg.SenderID,
+			"chat_id":   msg.ChatID,
+		})
+
+	// Parse origin channel from chat_id (format: "channel:chat_id")
+	var originChannel, originChatID string
+	if idx := strings.Index(msg.ChatID, ":"); idx > 0 {
+		originChannel = msg.ChatID[:idx]
+		originChatID = msg.ChatID[idx+1:]
+	} else {
+		originChannel = "cli"
+		originChatID = msg.ChatID
+	}
+
+	// Extract subagent result from message content
+	// Format: "Task 'label' completed.\n\nResult:\n<actual content>"
+	content := msg.Content
+	if idx := strings.Index(content, "Result:\n"); idx >= 0 {
+		content = content[idx+8:] // Extract just the result part
+	}
+
+	// Skip internal channels - only log, don't send to user
+	if constants.IsInternalChannel(originChannel) {
+		logger.InfoCF("agent", "Subagent completed (internal channel)",
+			map[string]any{
+				"sender_id":   msg.SenderID,
+				"content_len": len(content),
+				"channel":     originChannel,
+			})
+		return "", nil
+	}
+
+	// Use default agent for system messages
+	agent := al.registry.GetDefaultAgent()
+
+	// Use the origin session for context
+	sessionKey := routing.BuildAgentMainSessionKey(agent.ID)
+
+	return al.runAgentLoop(ctx, agent, processOptions{
+		SessionKey:      sessionKey,
+		Channel:         originChannel,
+		ChatID:          originChatID,
+		UserMessage:     fmt.Sprintf("[System: %s] %s", msg.SenderID, msg.Content),
+		DefaultResponse: "Background task completed.",
+		EnableSummary:   false,
+		SendResponse:    true,
+	})
+}
+
+// runAgentLoop is the core message processing logic.
+// scheduleReminderFallback creates a cron reminder directly (used when the
+// model failed to). Returns a user-facing confirmation, or the tool's error
+// message if delivery can't be targeted (e.g. an unconnected channel). Empty
+// string means nothing was scheduled.
+func (al *AgentLoop) scheduleReminderFallback(ctx context.Context, ct *tools.CronTool, opts processOptions, delaySec int, subject, reqChannel string) string {
+	text := "⏰ Reminder!"
+	if subject != "" {
+		text = "⏰ Reminder: " + subject
+	}
+	ct.SetContext(opts.Channel, opts.ChatID)
+	args := map[string]any{
+		"action":     "add",
+		"at_seconds": float64(delaySec),
+		"message":    text,
+		"deliver":    true,
+	}
+	if reqChannel != "" {
+		args["channel"] = reqChannel
+	}
+	res := ct.Execute(ctx, args)
+	if res.IsError {
+		logger.WarnCF("agent", "Reminder fallback could not schedule", map[string]any{"detail": res.ForLLM})
+		return res.ForUser // e.g. "the telegram channel isn't connected…"
+	}
+	logger.InfoCF("agent", "Scheduled reminder via deterministic fallback", map[string]any{
+		"delay_seconds": delaySec, "channel": reqChannel, "subject": subject,
+	})
+	return reminderConfirmationText(subject, delaySec, reqChannel)
+}
+
+func (al *AgentLoop) runAgentLoop(ctx context.Context, agent *AgentInstance, opts processOptions) (string, error) {
+	// 0. Record last channel for heartbeat notifications (skip internal channels)
+	if opts.Channel != "" && opts.ChatID != "" {
+		// Don't record internal channels (cli, system, subagent)
+		if !constants.IsInternalChannel(opts.Channel) {
+			channelKey := fmt.Sprintf("%s:%s", opts.Channel, opts.ChatID)
+			if err := al.RecordLastChannel(channelKey); err != nil {
+				logger.WarnCF("agent", "Failed to record last channel", map[string]any{"error": err.Error()})
+			}
+		}
+	}
+
+	// 1. Update tool contexts
+	al.updateToolContexts(agent, opts.Channel, opts.ChatID)
+
+	// 2. Build messages (skip history for heartbeat)
+	var history []providers.Message
+	var summary string
+	if !opts.NoHistory {
+		history = agent.Sessions.GetHistory(opts.SessionKey)
+		summary = agent.Sessions.GetSummary(opts.SessionKey)
+	}
+	messages := agent.ContextBuilder.BuildMessages(
+		history,
+		summary,
+		opts.UserMessage,
+		nil,
+		opts.Channel,
+		opts.ChatID,
+	)
+
+	// 3. Save user message to session
+	agent.Sessions.AddMessage(opts.SessionKey, "user", opts.UserMessage)
+
+	// 4. Run LLM iteration loop
+	var finalContent string
+	var iteration int
+	var err error
+	if agent.FantasyModel != nil {
+		finalContent, iteration, err = al.runFantasyIteration(ctx, agent, messages, opts)
+	} else {
+		finalContent, iteration, err = al.runLLMIteration(ctx, agent, messages, opts)
+	}
+	if err != nil {
+		return "", err
+	}
+
+	// 4b. Reminder confirmation override. When the user clearly asked for a timed
+	// reminder ("remind/ping/set/send/schedule … in/after/for <time>"), we want
+	// a short, human confirmation no matter which path scheduled it:
+	//   - if the model called cron itself, replace its verbose reply (job IDs,
+	//     "Want me to add another?" follow-ups) with the same clean line;
+	//   - if the model refused or didn't call cron, schedule it in code as a
+	//     fallback (so reminders work even on weak models that hallucinate
+	//     "I don't have cron").
+	if !constants.IsInternalChannel(opts.Channel) {
+		if delaySec, subject, reqChannel, ok := parseReminderIntent(opts.UserMessage); ok {
+			if cronTool, found := agent.Tools.Get("cron"); found {
+				if ct, isCron := cronTool.(*tools.CronTool); isCron {
+					if ct.HasScheduledInRound() {
+						// Model scheduled — override its verbose reply with the
+						// clean one-liner.
+						finalContent = reminderConfirmationText(subject, delaySec, reqChannel)
+					} else {
+						// Model didn't schedule — do it in code; the helper
+						// already returns the same clean confirmation on success.
+						if msg := al.scheduleReminderFallback(ctx, ct, opts, delaySec, subject, reqChannel); msg != "" {
+							finalContent = msg
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// If last tool had ForUser content and we already sent it, we might not need to send final response
+	// This is controlled by the tool's Silent flag and ForUser content
+
+	// 5. Handle empty response
+	if finalContent == "" {
+		finalContent = opts.DefaultResponse
+	}
+
+	// 6. Save final assistant message to session, skipping if streaming
+	// (OnStepFinish) already persisted the same text. History record is
+	// truncated (1500 chars) so verbose tool replies don't blow small-context
+	// windows; the full text is still returned to the user.
+	{
+		history := agent.Sessions.GetHistory(opts.SessionKey)
+		alreadyPersisted := false
+		if n := len(history); n > 0 {
+			last := history[n-1]
+			if last.Role == "assistant" && last.Content == finalContent && finalContent != "" {
+				alreadyPersisted = true
+			}
+		}
+		if !alreadyPersisted {
+			historyContent := finalContent
+			const maxHistoryAssistantLen = 1500
+			if len(historyContent) > maxHistoryAssistantLen {
+				historyContent = historyContent[:maxHistoryAssistantLen] +
+					fmt.Sprintf("\n…[truncated %d more bytes; full text shown to the user]",
+						len(finalContent)-maxHistoryAssistantLen)
+			}
+			agent.Sessions.AddMessage(opts.SessionKey, "assistant", historyContent)
+		}
+	}
+	if err := agent.Sessions.Save(opts.SessionKey); err != nil {
+		logger.ErrorCF("agent", "Failed to save session", map[string]any{
+			"error":       err.Error(),
+			"session_key": opts.SessionKey,
+		})
+	}
+
+	// 7. Optional: summarization
+	if opts.EnableSummary {
+		al.maybeSummarize(agent, opts.SessionKey, opts.Channel, opts.ChatID)
+	}
+
+	// 8. Optional: send response via bus
+	if opts.SendResponse {
+		al.bus.PublishOutbound(bus.OutboundMessage{
+			Channel: opts.Channel,
+			ChatID:  opts.ChatID,
+			Content: finalContent,
+		})
+	}
+
+	// 9. Log response
+	responsePreview := utils.Truncate(finalContent, 120)
+	logger.InfoCF("agent", fmt.Sprintf("Response: %s", responsePreview),
+		map[string]any{
+			"agent_id":     agent.ID,
+			"session_key":  opts.SessionKey,
+			"iterations":   iteration,
+			"final_length": len(finalContent),
+		})
+
+	return finalContent, nil
+}
+
+// runLLMIteration executes the LLM call loop with tool handling.
+func (al *AgentLoop) runLLMIteration(
+	ctx context.Context,
+	agent *AgentInstance,
+	messages []providers.Message,
+	opts processOptions,
+) (string, int, error) {
+	iteration := 0
+	var finalContent string
+
+	for iteration < agent.MaxIterations {
+		iteration++
+
+		logger.DebugCF("agent", "LLM iteration",
+			map[string]any{
+				"agent_id":  agent.ID,
+				"iteration": iteration,
+				"max":       agent.MaxIterations,
+			})
+
+		// Build tool definitions
+		providerToolDefs := agent.Tools.ToProviderDefs()
+
+		// Log LLM request details
+		logger.DebugCF("agent", "LLM request",
+			map[string]any{
+				"agent_id":          agent.ID,
+				"iteration":         iteration,
+				"model":             agent.Model,
+				"messages_count":    len(messages),
+				"tools_count":       len(providerToolDefs),
+				"max_tokens":        agent.MaxTokens,
+				"temperature":       agent.Temperature,
+				"system_prompt_len": len(messages[0].Content),
+			})
+
+		// Log full messages (detailed)
+		logger.DebugCF("agent", "Full LLM request",
+			map[string]any{
+				"iteration":     iteration,
+				"messages_json": formatMessagesForLog(messages),
+				"tools_json":    formatToolsForLog(providerToolDefs),
+			})
+
+		// Call LLM with fallback chain if candidates are configured.
+		var response *providers.LLMResponse
+		var err error
+
+		callLLM := func() (*providers.LLMResponse, error) {
+			if len(agent.Candidates) > 1 && al.fallback != nil {
+				fbResult, fbErr := al.fallback.Execute(
+					ctx, agent.Candidates,
+					func(ctx context.Context, provider, model string) (*providers.LLMResponse, error) {
+						return agent.Provider.Chat(ctx, messages, providerToolDefs, model, map[string]any{
+							"max_tokens":       agent.MaxTokens,
+							"temperature":      agent.Temperature,
+							"prompt_cache_key": agent.ID,
+						})
+					},
+				)
+				if fbErr != nil {
+					return nil, fbErr
+				}
+				if fbResult.Provider != "" && len(fbResult.Attempts) > 0 {
+					logger.InfoCF("agent", fmt.Sprintf("Fallback: succeeded with %s/%s after %d attempts",
+						fbResult.Provider, fbResult.Model, len(fbResult.Attempts)+1),
+						map[string]any{"agent_id": agent.ID, "iteration": iteration})
+				}
+				return fbResult.Response, nil
+			}
+			return agent.Provider.Chat(ctx, messages, providerToolDefs, agent.Model, map[string]any{
+				"max_tokens":       agent.MaxTokens,
+				"temperature":      agent.Temperature,
+				"prompt_cache_key": agent.ID,
+			})
+		}
+
+		// Retry loop for context/token errors
+		maxRetries := 2
+		for retry := 0; retry <= maxRetries; retry++ {
+			response, err = callLLM()
+			if err == nil {
+				break
+			}
+
+			errMsg := strings.ToLower(err.Error())
+			isContextError := strings.Contains(errMsg, "token") ||
+				strings.Contains(errMsg, "context") ||
+				strings.Contains(errMsg, "invalidparameter") ||
+				strings.Contains(errMsg, "length")
+
+			// Rate-limit auto-retry: a single transient 429/quota blip would
+			// otherwise surface to the user as "Error: Rate limited" even though
+			// waiting a few seconds usually clears it (this is the regular-model
+			// equivalent of the fantasy runner's rate-limit retry). Wait the
+			// provider's suggested delay (bounded 2–30s) and retry. A hard daily
+			// cap (e.g. Gemini free tier) will still fail after the bounded
+			// attempts, but a brief per-minute window self-heals.
+			if !isContextError && retry < maxRetries {
+				if classified := providers.ClassifyError(err, agent.ID, agent.Model); classified != nil &&
+					classified.Reason == providers.FailoverRateLimit {
+					wait := parseRetryAfter(err.Error())
+					logger.WarnCF("agent", "Rate-limited, auto-retrying after wait", map[string]any{
+						"agent_id": agent.ID,
+						"retry":    retry,
+						"wait":     wait.String(),
+					})
+					select {
+					case <-time.After(wait):
+					case <-ctx.Done():
+						return "", iteration, ctx.Err()
+					}
+					continue
+				}
+			}
+
+			if isContextError && retry < maxRetries {
+				logger.WarnCF("agent", "Context window error detected, attempting compression", map[string]any{
+					"error": err.Error(),
+					"retry": retry,
+				})
+
+				if retry == 0 && !constants.IsInternalChannel(opts.Channel) {
+					al.bus.PublishOutbound(bus.OutboundMessage{
+						Channel: opts.Channel,
+						ChatID:  opts.ChatID,
+						Content: "Context window exceeded. Compressing history and retrying...",
+					})
+				}
+
+				al.forceCompression(agent, opts.SessionKey)
+				newHistory := agent.Sessions.GetHistory(opts.SessionKey)
+				newSummary := agent.Sessions.GetSummary(opts.SessionKey)
+				messages = agent.ContextBuilder.BuildMessages(
+					newHistory, newSummary, "",
+					nil, opts.Channel, opts.ChatID,
+				)
+				continue
+			}
+			break
+		}
+
+		if err != nil {
+			logger.ErrorCF("agent", "LLM call failed",
+				map[string]any{
+					"agent_id":  agent.ID,
+					"iteration": iteration,
+					"error":     err.Error(),
+				})
+			return "", iteration, fmt.Errorf("LLM call failed after retries: %w", err)
+		}
+
+		// Check if no tool calls - we're done
+		if len(response.ToolCalls) == 0 {
+			finalContent = response.Content
+			logger.InfoCF("agent", "LLM response without tool calls (direct answer)",
+				map[string]any{
+					"agent_id":      agent.ID,
+					"iteration":     iteration,
+					"content_chars": len(finalContent),
+				})
+			break
+		}
+
+		normalizedToolCalls := make([]providers.ToolCall, 0, len(response.ToolCalls))
+		for _, tc := range response.ToolCalls {
+			normalizedToolCalls = append(normalizedToolCalls, providers.NormalizeToolCall(tc))
+		}
+
+		// Log tool calls
+		toolNames := make([]string, 0, len(normalizedToolCalls))
+		for _, tc := range normalizedToolCalls {
+			toolNames = append(toolNames, tc.Name)
+		}
+		logger.InfoCF("agent", "LLM requested tool calls",
+			map[string]any{
+				"agent_id":  agent.ID,
+				"tools":     toolNames,
+				"count":     len(normalizedToolCalls),
+				"iteration": iteration,
+			})
+
+		// Build assistant message with tool calls
+		assistantMsg := providers.Message{
+			Role:             "assistant",
+			Content:          response.Content,
+			ReasoningContent: response.ReasoningContent,
+		}
+		for _, tc := range normalizedToolCalls {
+			argumentsJSON, _ := json.Marshal(tc.Arguments)
+			// Copy ExtraContent to ensure thought_signature is persisted for Gemini 3
+			extraContent := tc.ExtraContent
+			thoughtSignature := ""
+			if tc.Function != nil {
+				thoughtSignature = tc.Function.ThoughtSignature
+			}
+
+			assistantMsg.ToolCalls = append(assistantMsg.ToolCalls, providers.ToolCall{
+				ID:   tc.ID,
+				Type: "function",
+				Name: tc.Name,
+				Function: &providers.FunctionCall{
+					Name:             tc.Name,
+					Arguments:        string(argumentsJSON),
+					ThoughtSignature: thoughtSignature,
+				},
+				ExtraContent:     extraContent,
+				ThoughtSignature: thoughtSignature,
+			})
+		}
+		messages = append(messages, assistantMsg)
+
+		// Save assistant message with tool calls to session
+		agent.Sessions.AddFullMessage(opts.SessionKey, assistantMsg)
+
+		// Execute tool calls
+		for _, tc := range normalizedToolCalls {
+			argsJSON, _ := json.Marshal(tc.Arguments)
+			argsPreview := utils.Truncate(string(argsJSON), 200)
+			logger.InfoCF("agent", fmt.Sprintf("Tool call: %s(%s)", tc.Name, argsPreview),
+				map[string]any{
+					"agent_id":  agent.ID,
+					"tool":      tc.Name,
+					"iteration": iteration,
+				})
+
+			// Create async callback for tools that implement AsyncTool
+			// NOTE: Following openclaw's design, async tools do NOT send results directly to users.
+			// Instead, they notify the agent via PublishInbound, and the agent decides
+			// whether to forward the result to the user (in processSystemMessage).
+			asyncCallback := func(callbackCtx context.Context, result *tools.ToolResult) {
+				// Log the async completion but don't send directly to user
+				// The agent will handle user notification via processSystemMessage
+				if !result.Silent && result.ForUser != "" {
+					logger.InfoCF("agent", "Async tool completed, agent will handle notification",
+						map[string]any{
+							"tool":        tc.Name,
+							"content_len": len(result.ForUser),
+						})
+				}
+			}
+
+			toolResult := agent.Tools.ExecuteWithContext(
+				ctx,
+				tc.Name,
+				tc.Arguments,
+				opts.Channel,
+				opts.ChatID,
+				asyncCallback,
+			)
+
+			// Send ForUser content to user immediately if not Silent
+			if !toolResult.Silent && toolResult.ForUser != "" && opts.SendResponse {
+				al.bus.PublishOutbound(bus.OutboundMessage{
+					Channel: opts.Channel,
+					ChatID:  opts.ChatID,
+					Content: toolResult.ForUser,
+				})
+				logger.DebugCF("agent", "Sent tool result to user",
+					map[string]any{
+						"tool":        tc.Name,
+						"content_len": len(toolResult.ForUser),
+					})
+			}
+
+			// Determine content for LLM based on tool result
+			contentForLLM := toolResult.ForLLM
+			if contentForLLM == "" && toolResult.Err != nil {
+				contentForLLM = toolResult.Err.Error()
+			}
+
+			toolResultMsg := providers.Message{
+				Role:       "tool",
+				Content:    contentForLLM,
+				ToolCallID: tc.ID,
+			}
+			messages = append(messages, toolResultMsg)
+
+			// Save tool result message to session
+			agent.Sessions.AddFullMessage(opts.SessionKey, toolResultMsg)
+		}
+	}
+
+	return finalContent, iteration, nil
+}
+
+// updateToolContexts updates the context for tools that need channel/chatID info.
+func (al *AgentLoop) updateToolContexts(agent *AgentInstance, channel, chatID string) {
+	// Use ContextualTool interface instead of type assertions
+	if tool, ok := agent.Tools.Get("message"); ok {
+		if mt, ok := tool.(tools.ContextualTool); ok {
+			mt.SetContext(channel, chatID)
+		}
+	}
+	if tool, ok := agent.Tools.Get("spawn"); ok {
+		if st, ok := tool.(tools.ContextualTool); ok {
+			st.SetContext(channel, chatID)
+		}
+	}
+	if tool, ok := agent.Tools.Get("subagent"); ok {
+		if st, ok := tool.(tools.ContextualTool); ok {
+			st.SetContext(channel, chatID)
+		}
+	}
+}
+
+// maybeSummarize triggers summarization if the session history exceeds thresholds.
+// maybeSummarize, forceCompression moved to summarize.go (M2).
+
+// GetStartupInfo returns information about loaded tools and skills for logging.
+func (al *AgentLoop) GetStartupInfo() map[string]any {
+	info := make(map[string]any)
+
+	agent := al.registry.GetDefaultAgent()
+	if agent == nil {
+		return info
+	}
+
+	// Tools info
+	toolsList := agent.Tools.List()
+	info["tools"] = map[string]any{
+		"count": len(toolsList),
+		"names": toolsList,
+	}
+
+	// Skills info
+	info["skills"] = agent.ContextBuilder.GetSkillsInfo()
+
+	// Agents info
+	info["agents"] = map[string]any{
+		"count": len(al.registry.ListAgentIDs()),
+		"ids":   al.registry.ListAgentIDs(),
+	}
+
+	return info
+}
+
+// formatMessagesForLog, formatToolsForLog moved to debug_log.go (M2).
+// summarizeSession, summarizeBatch, estimateTokens moved to summarize.go (M2).
+
+// handleCommand, extractPeer, extractParentPeer moved to commands.go (M2).

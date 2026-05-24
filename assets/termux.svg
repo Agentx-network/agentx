@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 340" font-family="'Courier New', monospace">
+  <defs>
+    <linearGradient id="tbg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1e1e2e"/>
+      <stop offset="100%" stop-color="#181825"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Window -->
+  <rect width="620" height="340" fill="url(#tbg)" rx="12"/>
+
+  <!-- Title bar -->
+  <rect width="620" height="36" fill="#313244" rx="12"/>
+  <rect y="24" width="620" height="12" fill="#313244"/>
+  <circle cx="20" cy="18" r="6" fill="#f38ba8"/>
+  <circle cx="40" cy="18" r="6" fill="#a6e3a1"/>
+  <circle cx="60" cy="18" r="6" fill="#f9e2af"/>
+  <text x="310" y="22" text-anchor="middle" fill="#6c7086" font-size="13">Termux — agentx on Android</text>
+
+  <!-- Terminal content -->
+  <text x="16" y="64" fill="#a6adc8" font-size="13">~ $</text>
+  <text x="48" y="64" fill="#89b4fa" font-size="13">wget</text>
+  <text x="82" y="64" fill="#cdd6f4" font-size="13">github.com/.../agentx-linux-arm64</text>
+
+  <text x="16" y="88" fill="#a6adc8" font-size="13">~ $</text>
+  <text x="48" y="88" fill="#89b4fa" font-size="13">chmod +x</text>
+  <text x="130" y="88" fill="#cdd6f4" font-size="13">agentx-linux-arm64</text>
+
+  <text x="16" y="112" fill="#a6adc8" font-size="13">~ $</text>
+  <text x="48" y="112" fill="#89b4fa" font-size="13">termux-chroot</text>
+  <text x="178" y="112" fill="#cdd6f4" font-size="13">./agentx-linux-arm64 onboard</text>
+
+  <text x="16" y="144" fill="#a6e3a1" font-size="13">Created AGENTS.md</text>
+  <text x="16" y="164" fill="#a6e3a1" font-size="13">Created SOUL.md</text>
+  <text x="16" y="184" fill="#a6e3a1" font-size="13">Created USER.md</text>
+  <text x="16" y="204" fill="#a6e3a1" font-size="13">Created TOOLS.md</text>
+  <text x="16" y="224" fill="#a6e3a1" font-size="13">Created IDENTITY.md</text>
+  <text x="16" y="244" fill="#a6e3a1" font-size="13">Created memory/MEMORY.md</text>
+
+  <text x="16" y="274" fill="#00f5c8" font-size="14" font-weight="bold">🤖 agentx is ready!</text>
+
+  <text x="16" y="300" fill="#cdd6f4" font-size="13">Next steps:</text>
+  <text x="16" y="320" fill="#a6adc8" font-size="13">  1. Add your API key to ~/.agentx/config.json</text>
+
+  <!-- Cursor blink -->
+  <rect x="16" y="328" width="8" height="2" fill="#00f5c8">
+    <animate attributeName="opacity" values="1;0;1" dur="1.2s" repeatCount="indefinite"/>
+  </rect>
+</svg>

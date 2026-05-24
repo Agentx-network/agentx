@@ -1,0 +1,54 @@
+# Binaries
+# Go build artifacts
+bin/
+build/
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+/agentx
+/agentx-bin
+/agentx-test
+/agentx-desktop
+cmd/**/workspace
+node_modules/
+cmd/agentx-desktop/frontend/dist/
+
+# Keep Wails Windows build assets (NSIS installer config, icons, info)
+!cmd/agentx-desktop/build/windows/
+!cmd/agentx-desktop/build/appicon.png
+
+# AgentX specific
+
+# AgentX
+.agentx/
+config.json
+sessions/
+build/
+
+# Coverage
+
+# Secrets & Config (keep templates, ignore actual secrets)
+.env
+config/config.json
+
+# Test
+coverage.txt
+coverage.html
+
+# OS
+.DS_Store
+
+# Ralph workspace
+ralph/
+.ralph/
+tasks/
+
+# Editors
+.vscode/
+.idea/
+
+# Added by goreleaser init:
+dist/

@@ -1,0 +1,34 @@
+services:
+  # ─────────────────────────────────────────────
+  # AgentX Agent (one-shot query)
+  #   docker compose -f docker/docker-compose.yml run --rm agentx-agent -m "Hello"
+  # ─────────────────────────────────────────────
+  agentx-agent:
+    image: docker.io/agentx-network/agentx:latest
+    container_name: agentx-agent
+    profiles:
+      - agent
+    # Uncomment to access host network; leave commented unless needed.
+    #extra_hosts:
+    #  - "host.docker.internal:host-gateway"
+    volumes:
+      - ./data:/root/.agentx
+    entrypoint: ["agentx", "agent"]
+    stdin_open: true
+    tty: true
+
+  # ─────────────────────────────────────────────
+  # AgentX Gateway (Long-running Bot)
+  #   docker compose -f docker/docker-compose.yml up agentx-gateway
+  # ─────────────────────────────────────────────
+  agentx-gateway:
+    image: docker.io/agentx-network/agentx:latest
+    container_name: agentx-gateway
+    restart: on-failure
+    profiles:
+      - gateway
+    # Uncomment to access host network; leave commented unless needed.
+    #extra_hosts:
+    #  - "host.docker.internal:host-gateway"
+    volumes:
+      - ./data:/root/.agentx

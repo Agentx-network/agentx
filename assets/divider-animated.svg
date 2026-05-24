@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 8">
+  <defs>
+    <linearGradient id="neon-line" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#0a001500"/>
+      <stop offset="20%" stop-color="#FF0092"/>
+      <stop offset="50%" stop-color="#AE00FF"/>
+      <stop offset="80%" stop-color="#FF0092"/>
+      <stop offset="100%" stop-color="#0a001500"/>
+    </linearGradient>
+    <!-- Sweeping highlight -->
+    <linearGradient id="sweep" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="transparent"/>
+      <stop offset="40%" stop-color="transparent"/>
+      <stop offset="50%" stop-color="#ffffff80"/>
+      <stop offset="60%" stop-color="transparent"/>
+      <stop offset="100%" stop-color="transparent"/>
+      <animateTransform attributeName="gradientTransform" type="translate" from="-1.5 0" to="1.5 0" dur="3s" repeatCount="indefinite"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="1.5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <!-- Base neon line -->
+  <rect y="3" width="900" height="2" rx="1" fill="url(#neon-line)" filter="url(#glow)"/>
+  <!-- Sweeping glow overlay -->
+  <rect y="2" width="900" height="4" rx="1" fill="url(#sweep)"/>
+</svg>

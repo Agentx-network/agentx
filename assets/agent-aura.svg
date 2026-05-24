@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" font-family="'Segoe UI', Arial, sans-serif">
+  <defs>
+    <radialGradient id="ring1" cx="50%" cy="50%" r="50%">
+      <stop offset="70%" stop-color="transparent"/>
+      <stop offset="85%" stop-color="#FF009220"/>
+      <stop offset="100%" stop-color="transparent"/>
+    </radialGradient>
+    <radialGradient id="ring2" cx="50%" cy="50%" r="50%">
+      <stop offset="70%" stop-color="transparent"/>
+      <stop offset="85%" stop-color="#AE00FF18"/>
+      <stop offset="100%" stop-color="transparent"/>
+    </radialGradient>
+    <radialGradient id="ring3" cx="50%" cy="50%" r="50%">
+      <stop offset="70%" stop-color="transparent"/>
+      <stop offset="85%" stop-color="#00CCFF15"/>
+      <stop offset="100%" stop-color="transparent"/>
+    </radialGradient>
+    <radialGradient id="core-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FF009215"/>
+      <stop offset="40%" stop-color="#AE00FF10"/>
+      <stop offset="100%" stop-color="transparent"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Core glow pulse -->
+  <circle cx="200" cy="200" r="100" fill="url(#core-glow)">
+    <animate attributeName="r" values="80;110;80" dur="3s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.6;1;0.6" dur="3s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Ring 1 — Pink, expanding outward -->
+  <circle cx="200" cy="200" r="120" fill="none" stroke="#FF0092" stroke-width="1.5" opacity="0">
+    <animate attributeName="r" values="80;180" dur="3s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.6;0" dur="3s" repeatCount="indefinite"/>
+    <animate attributeName="stroke-width" values="2;0.5" dur="3s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Ring 2 — Purple, offset timing -->
+  <circle cx="200" cy="200" r="120" fill="none" stroke="#AE00FF" stroke-width="1.5" opacity="0">
+    <animate attributeName="r" values="80;180" dur="3s" begin="1s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.5;0" dur="3s" begin="1s" repeatCount="indefinite"/>
+    <animate attributeName="stroke-width" values="2;0.5" dur="3s" begin="1s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Ring 3 — Cyan, offset timing -->
+  <circle cx="200" cy="200" r="120" fill="none" stroke="#00CCFF" stroke-width="1.5" opacity="0">
+    <animate attributeName="r" values="80;180" dur="3s" begin="2s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.4;0" dur="3s" begin="2s" repeatCount="indefinite"/>
+    <animate attributeName="stroke-width" values="2;0.5" dur="3s" begin="2s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Orbiting particles -->
+  <!-- Particle 1 — Pink -->
+  <circle cx="200" cy="80" r="3" fill="#FF0092" opacity="0.8">
+    <animateTransform attributeName="transform" type="rotate" from="0 200 200" to="360 200 200" dur="6s" repeatCount="indefinite"/>
+    <animate attributeName="r" values="2;4;2" dur="2s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.4;0.9;0.4" dur="2s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Particle 2 — Purple -->
+  <circle cx="320" cy="200" r="2.5" fill="#AE00FF" opacity="0.7">
+    <animateTransform attributeName="transform" type="rotate" from="120 200 200" to="480 200 200" dur="8s" repeatCount="indefinite"/>
+    <animate attributeName="r" values="1.5;3.5;1.5" dur="2.5s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2.5s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Particle 3 — Cyan -->
+  <circle cx="200" cy="320" r="2" fill="#00CCFF" opacity="0.6">
+    <animateTransform attributeName="transform" type="rotate" from="240 200 200" to="600 200 200" dur="7s" repeatCount="indefinite"/>
+    <animate attributeName="r" values="1;3;1" dur="1.8s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.3;0.7;0.3" dur="1.8s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Particle 4 — Gold -->
+  <circle cx="80" cy="200" r="2" fill="#FFaa00" opacity="0.5">
+    <animateTransform attributeName="transform" type="rotate" from="60 200 200" to="420 200 200" dur="9s" repeatCount="indefinite"/>
+    <animate attributeName="r" values="1;2.5;1" dur="3s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.2;0.6;0.2" dur="3s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Slow rotating outer dashed ring -->
+  <circle cx="200" cy="200" r="170" fill="none" stroke="#AE00FF" stroke-width="0.5" stroke-dasharray="8 12" opacity="0.2">
+    <animateTransform attributeName="transform" type="rotate" from="0 200 200" to="360 200 200" dur="20s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Slow rotating inner dashed ring (opposite direction) -->
+  <circle cx="200" cy="200" r="140" fill="none" stroke="#FF0092" stroke-width="0.5" stroke-dasharray="5 15" opacity="0.15">
+    <animateTransform attributeName="transform" type="rotate" from="360 200 200" to="0 200 200" dur="15s" repeatCount="indefinite"/>
+  </circle>
+</svg>

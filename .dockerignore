@@ -1,0 +1,10 @@
+.git
+.gitignore
+build/
+.agentx/
+config/
+.env
+.env.example
+*.md
+LICENSE
+assets/

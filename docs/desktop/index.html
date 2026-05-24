@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgentX Desktop App — Ubuntu · macOS · Windows</title>
+<meta name="description" content="Download AgentX Desktop — full graphical dashboard to install, configure, and manage your AI agents.">
+<meta property="og:title" content="AgentX Desktop App — Download">
+<meta property="og:description" content="Full graphical dashboard to install, configure, and manage your AgentX agents.">
+<meta property="og:image" content="https://agentx.network/assets/images/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&family=Azeret+Mono:wght@400;700&family=IBM+Plex+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --pink: #f235a1;
+    --magenta: #d43ac2;
+    --magenta-dark: #6e1e64;
+    --purple: #eb58ff;
+    --blue: #5c74ff;
+    --green: #17fb57;
+    --bg: #000;
+    --surface: rgba(255,255,255,0.03);
+    --border: #706e6e;
+    --border-dim: rgba(112,110,110,0.35);
+    --text: #fff;
+    --text-80: hsla(0,0%,100%,0.8);
+    --text-55: hsla(0,0%,100%,0.55);
+    --text-35: hsla(0,0%,100%,0.35);
+    --glow-pink: rgba(242,53,161,0.9);
+    --glow-pink-soft: rgba(242,53,161,0.25);
+    --glow-green: rgba(23,251,87,0.5);
+    --cut: 5px 0 5px 0;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---- Header ---- */
+  .header {
+    position: fixed;
+    top: 0; left: 0; width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.2rem 1.5rem;
+    z-index: 1000;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(8px);
+    transition: 0.4s;
+  }
+  .header-logo img {
+    height: 38px;
+    width: auto;
+  }
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .header-nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0.5rem 1rem;
+    font-family: 'Azeret Mono', monospace;
+    font-size: 0.8rem;
+    font-weight: 400;
+    color: var(--text);
+    text-decoration: none;
+    border: 1px solid var(--border-dim);
+    border-radius: var(--cut);
+    background: rgba(0,0,0,0.5);
+    transition: 0.3s;
+    letter-spacing: -0.03em;
+  }
+  .header-nav-btn:hover {
+    border-color: var(--purple);
+    background: rgba(235,88,255,0.08);
+  }
+  .header-nav-btn.active {
+    border-color: var(--pink);
+    box-shadow: inset 0 2px 12px rgba(242,53,161,0.15);
+  }
+
+  /* ---- Animated CTA Button (matching agentx.network GET STARTED) ---- */
+  .cta-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.7rem 1.8rem;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(10deg, var(--magenta) 27%, var(--magenta-dark) 100%);
+    border: none;
+    border-radius: var(--cut);
+    cursor: pointer;
+    text-decoration: none;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    transition: filter 0.2s;
+    z-index: 1;
+  }
+  .cta-btn:active { filter: brightness(1.2); }
+  .cta-btn-border {
+    position: absolute;
+    left: -4px; top: -4px;
+    width: calc(100% + 8px);
+    height: calc(100% + 8px);
+    pointer-events: none;
+    overflow: visible;
+  }
+  .cta-btn-border rect {
+    fill: none;
+    stroke: var(--purple);
+    stroke-width: 0;
+    vector-effect: non-scaling-stroke;
+    rx: 5; ry: 5;
+    transition: stroke-width 0.3s;
+  }
+  .cta-btn:hover .cta-btn-border rect {
+    stroke-width: 2px;
+    stroke-dasharray: 400;
+    animation: borderAnim 2s linear infinite;
+  }
+  @keyframes borderAnim {
+    0% { stroke-dashoffset: 400; }
+    100% { stroke-dashoffset: 0; }
+  }
+
+  /* ---- Download button (larger CTA variant) ---- */
+  .download-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.8rem;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(10deg, var(--magenta) 27%, var(--magenta-dark) 100%);
+    border: none;
+    border-radius: var(--cut);
+    cursor: pointer;
+    text-decoration: none;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    transition: filter 0.2s, box-shadow 0.3s;
+    box-shadow: 0 1px 14px var(--glow-pink-soft);
+  }
+  .download-btn:hover {
+    box-shadow: 0 4px 24px var(--glow-pink-soft), inset 0 2px 12px rgba(242,53,161,0.2);
+  }
+  .download-btn:active { filter: brightness(1.2); }
+  .download-btn svg { width: 16px; height: 16px; fill: #fff; }
+
+  /* ---- Hero ---- */
+  .hero {
+    text-align: center;
+    padding: 7rem 1.5rem 4rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(ellipse at 50% 20%, rgba(212,58,194,0.1) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .hero-badge {
+    display: inline-block;
+    padding: 0.35rem 1rem;
+    border: 1px solid var(--border-dim);
+    border-radius: var(--cut);
+    font-size: 0.72rem;
+    font-family: 'Azeret Mono', monospace;
+    color: var(--green);
+    background: rgba(23,251,87,0.05);
+    margin-bottom: 1.5rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .hero h1 {
+    font-size: 3rem;
+    font-weight: 900;
+    color: var(--text);
+    margin-bottom: 0.8rem;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    text-transform: uppercase;
+  }
+  .hero h1 em {
+    font-style: normal;
+    background: linear-gradient(180deg, var(--purple), var(--blue));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .hero .subtitle {
+    font-size: 0.9rem;
+    color: var(--text-55);
+    max-width: 480px;
+    margin: 0 auto 2rem;
+    line-height: 1.6;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  /* ---- Features bar ---- */
+  .features-bar {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 3rem;
+  }
+  .feature-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.78rem;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--text-55);
+    padding: 0.4rem 0.8rem;
+    border: 1px solid var(--border-dim);
+    border-radius: var(--cut);
+    background: rgba(0,0,0,0.4);
+  }
+  .feature-item .feat-icon { font-size: 0.9rem; }
+  .feature-item strong { color: var(--text-80); font-weight: 600; }
+
+  /* ---- Platform cards ---- */
+  .platforms {
+    max-width: 940px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+  .plat-card {
+    background: var(--surface);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--cut);
+    padding: 2rem 1.5rem;
+    text-align: center;
+    transition: 0.4s;
+    position: relative;
+  }
+  .plat-card:hover {
+    filter: brightness(1.2);
+    border-color: var(--border);
+  }
+  .plat-card .plat-icon { font-size: 2.8rem; margin-bottom: 0.8rem; }
+  .plat-card .plat-name {
+    font-size: 1.2rem;
+    font-weight: 800;
+    margin-bottom: 0.3rem;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+  }
+  .plat-card .plat-detail {
+    font-size: 0.75rem;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--text-55);
+    margin-bottom: 1.2rem;
+    line-height: 1.5;
+  }
+  .plat-card .file-hint {
+    font-size: 0.68rem;
+    font-family: 'Azeret Mono', monospace;
+    color: var(--text-35);
+    margin-top: 0.5rem;
+  }
+  .plat-card .arch-select {
+    background: rgba(0,0,0,0.6);
+    color: var(--text-80);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--cut);
+    padding: 0.35rem 0.6rem;
+    font-size: 0.75rem;
+    font-family: 'Azeret Mono', monospace;
+    cursor: pointer;
+    outline: none;
+    margin-bottom: 1rem;
+    transition: border-color 0.3s;
+  }
+  .plat-card .arch-select:focus { border-color: var(--purple); }
+
+  /* ---- Detected platform card ---- */
+  .plat-card.detected {
+    border-color: var(--pink);
+  }
+  .plat-card.detected::after {
+    content: '';
+    position: absolute;
+    left: 4px; top: 4px;
+    width: calc(100% - 8px);
+    height: calc(100% - 8px);
+    box-shadow: inset 0 3.62px 18.48px 0 rgba(242,53,161,0.25);
+    border-radius: var(--cut);
+    pointer-events: none;
+  }
+  .plat-card.detected .detected-badge {
+    display: inline-block;
+    padding: 0.2rem 0.7rem;
+    border: 1px solid var(--pink);
+    border-radius: var(--cut);
+    font-size: 0.65rem;
+    font-family: 'Azeret Mono', monospace;
+    color: var(--pink);
+    background: rgba(242,53,161,0.06);
+    margin-bottom: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  /* ---- Section styling ---- */
+  .section-header {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+  .section-header h2 {
+    font-size: 1.6rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.4rem;
+  }
+  .section-header p {
+    font-size: 0.78rem;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--text-55);
+  }
+
+  /* ---- Divider ---- */
+  .divider {
+    max-width: 940px;
+    margin: 3.5rem auto;
+    padding: 0 1.5rem;
+  }
+  .divider-line {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border-dim), transparent);
+  }
+
+  /* ---- What's included grid ---- */
+  .included-section {
+    max-width: 940px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+  }
+  .included-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.8rem;
+  }
+  .inc-card {
+    background: var(--surface);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--cut);
+    padding: 1.3rem;
+    text-align: left;
+    transition: 0.4s;
+  }
+  .inc-card:hover {
+    filter: brightness(1.3);
+    border-color: var(--border);
+  }
+  .inc-card .inc-icon { font-size: 1.6rem; margin-bottom: 0.6rem; }
+  .inc-card h4 {
+    font-size: 0.85rem;
+    font-weight: 700;
+    margin-bottom: 0.3rem;
+    text-transform: uppercase;
+    letter-spacing: 0.01em;
+  }
+  .inc-card p {
+    font-size: 0.75rem;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--text-55);
+    line-height: 1.5;
+  }
+
+  /* ---- Install steps ---- */
+  .steps-section {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+  }
+  .steps-tabs {
+    display: flex;
+    justify-content: center;
+    gap: 0.4rem;
+    margin-bottom: 1.5rem;
+  }
+  .step-tab {
+    padding: 0.5rem 1.1rem;
+    border: 1px solid var(--border-dim);
+    border-radius: var(--cut);
+    background: transparent;
+    color: var(--text-55);
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-weight: 600;
+    font-family: 'Azeret Mono', monospace;
+    transition: 0.3s;
+  }
+  .step-tab:hover { border-color: var(--border); color: var(--text-80); }
+  .step-tab.active {
+    border-color: var(--pink);
+    color: var(--pink);
+    box-shadow: inset 0 2px 12px rgba(242,53,161,0.12);
+  }
+  .step-content { display: none; }
+  .step-content.active { display: block; }
+  .step-content .step-list {
+    list-style: none;
+    counter-reset: steps;
+  }
+  .step-content .step-list li {
+    counter-increment: steps;
+    position: relative;
+    padding: 0.9rem 1rem 0.9rem 3.2rem;
+    background: var(--surface);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--cut);
+    margin-bottom: 0.5rem;
+    line-height: 1.5;
+    font-size: 0.85rem;
+    color: var(--text-80);
+  }
+  .step-content .step-list li::before {
+    content: counter(steps);
+    position: absolute;
+    left: 0.9rem;
+    top: 0.9rem;
+    width: 22px;
+    height: 22px;
+    line-height: 22px;
+    text-align: center;
+    border-radius: 50%;
+    background: linear-gradient(10deg, var(--magenta) 27%, var(--magenta-dark) 100%);
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: #fff;
+  }
+  .step-content code {
+    background: rgba(235,88,255,0.06);
+    border: 1px solid rgba(235,88,255,0.12);
+    border-radius: 3px;
+    padding: 0.1rem 0.4rem;
+    font-family: 'Azeret Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--purple);
+  }
+
+  /* ---- Prerequisites ---- */
+  .prereq-section {
+    max-width: 940px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+  }
+  .prereq-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.8rem;
+  }
+  .prereq-card {
+    background: var(--surface);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--cut);
+    padding: 1.2rem;
+  }
+  .prereq-card h4 {
+    font-size: 0.85rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+  .prereq-card p {
+    font-size: 0.75rem;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--text-55);
+    line-height: 1.6;
+  }
+  .prereq-card code {
+    background: rgba(235,88,255,0.06);
+    border: 1px solid rgba(235,88,255,0.12);
+    border-radius: 3px;
+    padding: 0.08rem 0.35rem;
+    font-family: 'Azeret Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--purple);
+  }
+  .prereq-card a {
+    color: var(--purple);
+    text-decoration: none;
+    border-bottom: 1px solid rgba(235,88,255,0.3);
+  }
+  .prereq-card a:hover { border-bottom-color: var(--purple); }
+
+  /* ---- CLI alternative ---- */
+  .cli-alt {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+    text-align: center;
+  }
+  .cli-alt p {
+    font-size: 0.82rem;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--text-55);
+    margin-bottom: 0.8rem;
+  }
+  .cli-alt a {
+    color: var(--purple);
+    text-decoration: none;
+    font-weight: 600;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.82rem;
+  }
+  .cli-alt a:hover { text-decoration: underline; }
+
+  /* ---- Footer ---- */
+  .footer {
+    text-align: center;
+    padding: 3rem 1.5rem 2rem;
+    color: var(--text-35);
+    font-size: 0.75rem;
+    font-family: 'IBM Plex Mono', monospace;
+    border-top: 1px solid var(--border-dim);
+    margin-top: 4rem;
+  }
+  .footer-logo { margin-bottom: 1.2rem; }
+  .footer-logo img { height: 28px; opacity: 0.4; }
+  .footer-links {
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: center;
+    gap: 1.2rem;
+    flex-wrap: wrap;
+  }
+  .footer-links a {
+    color: var(--text-55);
+    text-decoration: none;
+    font-size: 0.75rem;
+    transition: color 0.3s;
+  }
+  .footer-links a:hover { color: var(--text); }
+  .footer-social {
+    display: flex;
+    justify-content: center;
+    gap: 1.2rem;
+    margin-bottom: 1rem;
+  }
+  .footer-social a {
+    color: var(--text-35);
+    text-decoration: none;
+    font-size: 0.78rem;
+    transition: color 0.3s;
+  }
+  .footer-social a:hover { color: var(--purple); }
+
+  /* ---- Responsive ---- */
+  @media (max-width: 768px) {
+    .header-right { gap: 0.3rem; }
+    .header-nav-btn span.hide-mobile { display: none; }
+    .hero h1 { font-size: 2rem; }
+    .hero { padding: 6rem 1.2rem 3rem; }
+    .platforms { grid-template-columns: 1fr; max-width: 380px; }
+    .included-grid { grid-template-columns: 1fr; }
+    .prereq-grid { grid-template-columns: 1fr; }
+    .features-bar { gap: 0.6rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ====== HEADER ====== -->
+<header class="header">
+  <a href="https://agentx.network" class="header-logo">
+    <img src="https://agentx.network/assets/images/logo.png" alt="AgentX">
+  </a>
+  <div class="header-right">
+    <a href="https://install.agentx.network" class="header-nav-btn">
+      <span>CLI</span>
+    </a>
+    <a href="https://install.agentx.network/desktop/" class="header-nav-btn active">
+      <span>Desktop</span>
+    </a>
+    <a href="https://github.com/Agentx-network/agentx" target="_blank" class="header-nav-btn">
+      <span>GitHub</span>
+    </a>
+    <a href="https://agentx.network" class="cta-btn">
+      Get Started
+      <svg class="cta-btn-border" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <rect x="1" y="1" width="98" height="98" rx="5" ry="5"/>
+      </svg>
+    </a>
+  </div>
+</header>
+
+<!-- ====== HERO ====== -->
+<section class="hero">
+  <div class="hero-badge" id="hero-badge">Desktop App</div>
+  <h1><em>AgentX</em> Desktop</h1>
+  <p class="subtitle">Full graphical dashboard to install, configure, and manage your AgentX agents. One download, no terminal required.</p>
+
+  <div class="features-bar">
+    <div class="feature-item">
+      <span class="feat-icon">&#x1F680;</span>
+      <strong>One-click install</strong>
+    </div>
+    <div class="feature-item">
+      <span class="feat-icon">&#x2699;&#xFE0F;</span>
+      <strong>Visual config</strong>
+    </div>
+    <div class="feature-item">
+      <span class="feat-icon">&#x1F4AC;</span>
+      <strong>Built-in chat</strong>
+    </div>
+    <div class="feature-item">
+      <span class="feat-icon">&#x1F4CA;</span>
+      <strong>Live dashboard</strong>
+    </div>
+  </div>
+</section>
+
+<!-- ====== PLATFORM CARDS ====== -->
+<section class="platforms" id="platforms">
+  <!-- Rendered by JS -->
+</section>
+
+<!-- ====== DIVIDER ====== -->
+<div class="divider"><div class="divider-line"></div></div>
+
+<!-- ====== WHAT'S INCLUDED ====== -->
+<section class="included-section">
+  <div class="section-header">
+    <h2>What's Included</h2>
+    <p>Everything you need to run your AI agents</p>
+  </div>
+  <div class="included-grid">
+    <div class="inc-card">
+      <div class="inc-icon">&#x1F4E5;</div>
+      <h4>Binary Installer</h4>
+      <p>Downloads and installs the AgentX CLI binary automatically. No terminal needed.</p>
+    </div>
+    <div class="inc-card">
+      <div class="inc-icon">&#x2699;&#xFE0F;</div>
+      <h4>Config Editor</h4>
+      <p>Visual editor for models, channels, agent defaults, and all settings.</p>
+    </div>
+    <div class="inc-card">
+      <div class="inc-icon">&#x1F916;</div>
+      <h4>Agent Setup</h4>
+      <p>Edit IDENTITY, SOUL, AGENTS, and other bootstrap files through the UI.</p>
+    </div>
+    <div class="inc-card">
+      <div class="inc-icon">&#x1F4CA;</div>
+      <h4>Live Dashboard</h4>
+      <p>Monitor gateway health, view logs, and start/stop/restart services.</p>
+    </div>
+    <div class="inc-card">
+      <div class="inc-icon">&#x1F4AC;</div>
+      <h4>Built-in Chat</h4>
+      <p>Chat directly with your agent from the desktop app.</p>
+    </div>
+    <div class="inc-card">
+      <div class="inc-icon">&#x1F310;</div>
+      <h4>Channel Manager</h4>
+      <p>Enable and configure Telegram, Discord, Slack, and more with toggle switches.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====== DIVIDER ====== -->
+<div class="divider"><div class="divider-line"></div></div>
+
+<!-- ====== INSTALL STEPS ====== -->
+<section class="steps-section">
+  <div class="section-header">
+    <h2>Installation Steps</h2>
+    <p>Get up and running in minutes</p>
+  </div>
+  <div class="steps-tabs">
+    <div class="step-tab active" onclick="showSteps('ubuntu')">Ubuntu / Linux</div>
+    <div class="step-tab" onclick="showSteps('macos')">macOS</div>
+    <div class="step-tab" onclick="showSteps('windows')">Windows</div>
+  </div>
+
+  <div class="step-content active" id="steps-ubuntu">
+    <ol class="step-list">
+      <li>Download the <strong>.deb</strong> package from above</li>
+      <li>Install: <code>sudo dpkg -i AgentX-Desktop-amd64.deb</code> &mdash; or double-click the .deb file</li>
+      <li>If prompted for dependencies: <code>sudo apt install -f</code></li>
+      <li>Launch <strong>AgentX Desktop</strong> from your application menu, or run: <code>agentx-desktop</code></li>
+    </ol>
+  </div>
+
+  <div class="step-content" id="steps-macos">
+    <ol class="step-list">
+      <li>Download the <strong>.dmg</strong> for your chip (Apple Silicon or Intel)</li>
+      <li>Open the .dmg and drag <strong>AgentX Desktop</strong> into your Applications folder</li>
+      <li>If macOS blocks it: System Settings &rarr; Privacy &amp; Security &rarr; click <strong>Open Anyway</strong></li>
+      <li>Launch from Applications &mdash; the GUI walks you through setup</li>
+    </ol>
+  </div>
+
+  <div class="step-content" id="steps-windows">
+    <ol class="step-list">
+      <li>Download <strong>AgentX-Desktop-Setup.exe</strong> from above</li>
+      <li>Run the installer &mdash; follow the setup wizard</li>
+      <li>If Windows SmartScreen warns you, click <strong>More info</strong> &rarr; <strong>Run anyway</strong></li>
+      <li>Launch <strong>AgentX Desktop</strong> from the Start menu or desktop shortcut</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ====== DIVIDER ====== -->
+<div class="divider"><div class="divider-line"></div></div>
+
+<!-- ====== PREREQUISITES ====== -->
+<section class="prereq-section">
+  <div class="section-header">
+    <h2>Prerequisites</h2>
+    <p>System requirements by platform</p>
+  </div>
+  <div class="prereq-grid">
+    <div class="prereq-card">
+      <h4>&#x1F427; Ubuntu / Linux</h4>
+      <p>WebKit2GTK is required for the GUI. On Ubuntu/Debian:<br>
+        <code>sudo apt install libwebkit2gtk-4.1-0</code><br><br>
+        On Fedora/RHEL:<br>
+        <code>sudo dnf install webkit2gtk4.1</code>
+      </p>
+    </div>
+    <div class="prereq-card">
+      <h4>&#x1F34E; macOS</h4>
+      <p>No extra dependencies. WebView is built into macOS. Works on macOS 11 (Big Sur) and later.</p>
+    </div>
+    <div class="prereq-card">
+      <h4>&#x1FA9F; Windows</h4>
+      <p>Requires WebView2 runtime (included in Windows 10 21H2+ and Windows 11). Older systems: <a href="https://developer.microsoft.com/en-us/microsoft-edge/webview2/">download WebView2</a>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====== DIVIDER ====== -->
+<div class="divider"><div class="divider-line"></div></div>
+
+<!-- ====== CLI ALTERNATIVE ====== -->
+<section class="cli-alt">
+  <p>Prefer the command line? The CLI binary is faster and lighter.</p>
+  <a href="https://install.agentx.network">Download CLI instead &rarr;</a>
+</section>
+
+<!-- ====== FOOTER ====== -->
+<footer class="footer">
+  <div class="footer-logo">
+    <img src="https://agentx.network/assets/images/logo.png" alt="AgentX">
+  </div>
+  <div class="footer-social">
+    <a href="https://x.com/AgentxNetwork" target="_blank">X</a>
+    <a href="https://t.me/agentxofficial" target="_blank">Telegram</a>
+    <a href="https://www.youtube.com/@AgentXNetwork" target="_blank">YouTube</a>
+    <a href="https://www.linkedin.com/company/agentxnetwork/" target="_blank">LinkedIn</a>
+  </div>
+  <div class="footer-links">
+    <a href="https://github.com/Agentx-network/agentx">GitHub</a>
+    <a href="https://agentx.network">Website</a>
+    <a href="https://discord.gg/V4sAZ9XWpN">Discord</a>
+    <a href="https://agentx.network/terms">Terms</a>
+    <a href="https://agentx.network/privacy">Privacy</a>
+  </div>
+  &copy; 2024&ndash;2026 AgentX Network. All rights reserved.
+</footer>
+
+<script>
+var REPO = "https://github.com/Agentx-network/agentx/releases/latest/download/";
+
+var DESKTOP_PLATFORMS = {
+  ubuntu: {
+    label: "Ubuntu / Linux",
+    icon: "\uD83D\uDC27",
+    archs: [
+      { label: "x86_64 (64-bit) .deb", file: "AgentX-Desktop-amd64.deb", size: "~25 MB" }
+    ],
+    detail: "Ubuntu 22.04+, Debian 12+. Double-click the .deb to install, or run: sudo dpkg -i AgentX-Desktop-amd64.deb"
+  },
+  macos: {
+    label: "macOS",
+    icon: "\uD83C\uDF4E",
+    archs: [
+      { label: "Apple Silicon (M1\u2013M4)", file: "AgentX-Desktop-arm64.dmg", size: "~25 MB" },
+      { label: "Intel x86_64", file: "AgentX-Desktop-x86_64.dmg", size: "~25 MB" }
+    ],
+    detail: "macOS 11 Big Sur or later. Open the .dmg and drag to Applications."
+  },
+  windows: {
+    label: "Windows",
+    icon: "\uD83E\uDE9F",
+    archs: [
+      { label: "x86_64 (64-bit)", file: "AgentX-Desktop-Setup.exe", size: "~20 MB" }
+    ],
+    detail: "Windows 10 21H2+ or Windows 11. Run the Setup installer and follow the wizard."
+  }
+};
+
+function detectPlatform() {
+  var ua = navigator.userAgent || "";
+  var plat = navigator.platform || "";
+  if (/Win/i.test(plat)) return "windows";
+  if (/Mac/i.test(plat)) return "macos";
+  return "ubuntu";
+}
+
+var detected = detectPlatform();
+
+(function() {
+  var container = document.getElementById("platforms");
+  var order = ["ubuntu", "macos", "windows"];
+
+  order.forEach(function(key) {
+    var p = DESKTOP_PLATFORMS[key];
+    var isDetected = (key === detected);
+
+    var card = document.createElement("div");
+    card.className = "plat-card" + (isDetected ? " detected" : "");
+
+    var html = "";
+    if (isDetected) {
+      html += '<div class="detected-badge">&#x2714; Your platform</div><br>';
+    }
+    html += '<div class="plat-icon">' + p.icon + '</div>';
+    html += '<div class="plat-name">' + p.label + '</div>';
+    html += '<div class="plat-detail">' + p.detail + '</div>';
+
+    if (p.archs.length > 1) {
+      html += '<select class="arch-select" data-platform="' + key + '">';
+      p.archs.forEach(function(a, i) {
+        html += '<option value="' + i + '">' + a.label + '</option>';
+      });
+      html += '</select><br>';
+    }
+
+    var arch = p.archs[0];
+    html += '<a class="download-btn" id="btn-' + key + '" href="' + REPO + arch.file + '">';
+    html += '<svg viewBox="0 0 24 24"><path d="M12 16l-6-6h4V4h4v6h4l-6 6zm-8 4h16v-2H4v2z"/></svg>';
+    html += '<span>Download</span></a>';
+    html += '<div class="file-hint" id="hint-' + key + '">' + arch.file + ' &middot; ' + arch.size + '</div>';
+
+    card.innerHTML = html;
+    container.appendChild(card);
+  });
+
+  document.querySelectorAll(".arch-select").forEach(function(sel) {
+    sel.addEventListener("change", function() {
+      var key = this.dataset.platform;
+      var idx = parseInt(this.value, 10);
+      var arch = DESKTOP_PLATFORMS[key].archs[idx];
+      document.getElementById("btn-" + key).href = REPO + arch.file;
+      document.getElementById("hint-" + key).innerHTML = arch.file + " &middot; " + arch.size;
+    });
+  });
+})();
+
+fetch("https://api.github.com/repos/Agentx-network/agentx/releases/latest")
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.tag_name) {
+      document.getElementById("hero-badge").textContent = "Desktop App \u2014 " + d.tag_name;
+    }
+  })
+  .catch(function() {});
+
+function showSteps(platform) {
+  document.querySelectorAll(".step-tab").forEach(function(t) { t.classList.remove("active"); });
+  document.querySelectorAll(".step-content").forEach(function(c) { c.classList.remove("active"); });
+  event.target.classList.add("active");
+  document.getElementById("steps-" + platform).classList.add("active");
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "agentx-desktop",
+  "outputfilename": "agentx-desktop",
+  "frontend:install": "npm install",
+  "frontend:build": "npm run build",
+  "frontend:dev:watcher": "npm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "wailsjsdir": "./frontend/src",
+  "tags": "webkit2_41",
+  "author": {
+    "name": "AgentX Network",
+    "email": "dev@agentx.network"
+  },
+  "info": {
+    "companyName": "AgentX Network",
+    "productName": "AgentX Desktop",
+    "productVersion": "0.8.45",
+    "copyright": "Copyright 2024-2026 AgentX Network. All rights reserved.",
+    "comments": "AgentX Desktop App"
+  }
+}
