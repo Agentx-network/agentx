@@ -56,7 +56,7 @@ func createFantasyProvider(protocol string, cfg *config.ModelConfig) (fantasy.Pr
 
 	case "openrouter", "groq", "deepseek", "ollama", "mistral", "cerebras",
 		"qwen", "vllm", "nvidia", "moonshot", "zhipu", "volcengine",
-		"shengsuanyun":
+		"shengsuanyun", "xai", "perplexity", "together", "doubao":
 		return createOpenAICompatProvider(protocol, cfg)
 
 	default:

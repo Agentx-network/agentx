@@ -1,18 +1,27 @@
 package agent
 
 import (
+	"math/rand"
 	"regexp"
 	"strconv"
 	"strings"
 )
 
-// reminderTrigger matches an explicit request to be reminded/pinged.
-var reminderTrigger = regexp.MustCompile(`(?i)\b(remind|ping|alert|notify|wake)\s+me\b`)
+// reminderTrigger matches an explicit request to schedule a timed reminder.
+// Covers both directives addressed to the agent ("remind/ping/alert/notify/wake
+// me") and the "set / send / schedule / create / make a reminder" phrasings,
+// which weak models often produce instead of calling cron.
+var reminderTrigger = regexp.MustCompile(
+	`(?i)\b(?:` +
+		`(?:remind|ping|alert|notify|wake)\s+me` + // "remind me", "ping me", …
+		`|(?:set|send|schedule|create|make|add)\s+(?:a|an|another|me\s+a|me\s+an)\s+(?:reminder|alert|ping|alarm|notification)` +
+		`)\b`)
 
-// reminderDelay matches a relative delay like "in 5 minutes", "in 30 sec",
-// "in an hour". Only relative delays are handled deterministically; absolute
-// times ("at 5pm", "tomorrow") are left to the model.
-var reminderDelay = regexp.MustCompile(`(?i)\bin\s+(\d+|a|an|one)\s*(second|sec|minute|min|hour|hr)s?\b`)
+// reminderDelay matches a relative delay like "in 5 minutes", "after 30 sec",
+// "for 2 hours", "in an hour". Only relative delays are handled
+// deterministically; absolute times ("at 5pm", "tomorrow") are left to the model.
+var reminderDelay = regexp.MustCompile(
+	`(?i)\b(?:in|after|for)\s+(\d+|a|an|one)\s*(second|sec|minute|min|hour|hr)s?(?:\s+from\s+now)?\b`)
 
 // reminderSubject pulls the thing to be reminded about ("...to drink water").
 var reminderSubject = regexp.MustCompile(`(?i)\b(?:to|about|that)\s+(.+)$`)
@@ -74,6 +83,45 @@ func parseReminderIntent(message string) (delaySeconds int, subject, channel str
 		subject = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(subject), "on"))
 	}
 	return delaySeconds, subject, channel, true
+}
+
+// reminderConfirmationText produces the user-facing one-line confirmation for a
+// scheduled reminder. Picks randomly from a small set of equally short,
+// natural phrasings so two reminders in a row don't read like the same boiler-
+// plate. Used by both the model-called-cron override and the deterministic
+// fallback so the reply feels human regardless of which path scheduled it.
+func reminderConfirmationText(subject string, delaySec int, reqChannel string) string {
+	delay := humanizeDelay(delaySec)
+	sub := strings.TrimSpace(subject)
+
+	suffix := ""
+	if reqChannel != "" {
+		c := strings.TrimSpace(reqChannel)
+		if c != "" {
+			c = strings.ToUpper(c[:1]) + strings.ToLower(c[1:])
+		}
+		suffix = " (on " + c + ")"
+	}
+
+	var options []string
+	if sub == "" {
+		options = []string{
+			"Done — reminder set for " + delay + " from now" + suffix + ".",
+			"Got it — I'll ping you in " + delay + suffix + ".",
+			"Sure — I'll nudge you in " + delay + suffix + ".",
+			"Alright — reminder set for " + delay + suffix + ".",
+			"On it — pinging you in " + delay + suffix + ". ⏰",
+		}
+	} else {
+		options = []string{
+			"Done — I'll remind you to " + sub + " in " + delay + suffix + ".",
+			"Got it — I'll ping you in " + delay + " to " + sub + suffix + ".",
+			"Sure — I'll nudge you in " + delay + " to " + sub + suffix + ".",
+			"Alright — reminding you to " + sub + " in " + delay + suffix + ".",
+			"On it — " + sub + " reminder in " + delay + suffix + ". ⏰",
+		}
+	}
+	return options[rand.Intn(len(options))]
 }
 
 // humanizeDelay renders a second count as a short human phrase.

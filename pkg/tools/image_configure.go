@@ -74,9 +74,14 @@ func (t *ConfigureImageProviderTool) Execute(_ context.Context, args map[string]
 		)
 	}
 	if !providers.ProviderSupportsImages(provider) {
+		names := providers.ImageProviderNames()
+		labels := make([]string, len(names))
+		for i, n := range names {
+			labels[i] = providerLabel(n)
+		}
 		return BlockedResult(
-			fmt.Sprintf("%s can't generate images. Supported image providers are Gemini, OpenAI, Replicate, and Seedance.", providerLabel(provider)),
-			fmt.Sprintf("Provider %q has no image capability. Ask the user to pick gemini, openai, replicate, or seedance.", provider),
+			fmt.Sprintf("%s can't generate images. Supported image providers are %s.", providerLabel(provider), strings.Join(labels, ", ")),
+			fmt.Sprintf("Provider %q has no image capability. Ask the user to pick one of: %s.", provider, strings.Join(names, ", ")),
 		)
 	}
 

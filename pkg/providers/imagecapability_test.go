@@ -34,8 +34,8 @@ func TestProviderSupportsImages(t *testing.T) {
 }
 
 func TestDefaultImageModel(t *testing.T) {
-	if got := DefaultImageModel("gemini"); got != "gemini-2.5-flash-image" {
-		t.Errorf("DefaultImageModel(gemini) = %q, want gemini-2.5-flash-image", got)
+	if got := DefaultImageModel("gemini"); got != "gemini-3-pro-image-preview" {
+		t.Errorf("DefaultImageModel(gemini) = %q, want gemini-3-pro-image-preview", got)
 	}
 	if got := DefaultImageModel("openai"); got != "gpt-image-1" {
 		t.Errorf("DefaultImageModel(openai) = %q, want gpt-image-1", got)

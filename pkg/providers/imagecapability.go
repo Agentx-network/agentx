@@ -1,19 +1,51 @@
 package providers
 
-import "strings"
+import (
+	"sort"
+	"strings"
+)
 
 // imageModelsByProvider maps a provider prefix (the part before "/" in a model
 // ref like "gemini/gemini-2.5-flash") to the image-generation models it offers.
 // First entry per provider is the default. Providers absent from this map have
 // no image-output capability (Anthropic, Groq, Cerebras, DeepSeek, Mistral).
 var imageModelsByProvider = map[string][]string{
-	"gemini": {"gemini-2.5-flash-image", "gemini-3-pro-image-preview"},
-	"google": {"gemini-2.5-flash-image", "gemini-3-pro-image-preview"},
+	"gemini": {"gemini-3-pro-image-preview", "gemini-3.1-flash-image-preview", "gemini-2.5-flash-image"},
+	"google": {"gemini-3-pro-image-preview", "gemini-3.1-flash-image-preview", "gemini-2.5-flash-image"},
 	"openai": {"gpt-image-1", "dall-e-3"},
 	// Seedance via Volcengine; Replicate/Stability via their APIs. Added as
 	// their adapters land (see pkg/image).
 	"seedance":  {"seedance-1.0"},
 	"replicate": {"black-forest-labs/flux-1.1-pro", "stability-ai/sdxl"},
+}
+
+// ImageProviderNames returns the canonical list of provider names that can
+// generate images, in a deterministic order. "google" is collapsed into
+// "gemini" so the UI doesn't show both. Used by the image tool when it needs to
+// tell the user which providers they can pick from.
+func ImageProviderNames() []string {
+	seen := map[string]bool{"google": true} // skip — duplicate of gemini
+	out := []string{}
+	for _, p := range []string{"gemini", "openai", "replicate", "seedance"} {
+		if _, ok := imageModelsByProvider[p]; ok && !seen[p] {
+			seen[p] = true
+			out = append(out, p)
+		}
+	}
+	// Append any others present in the map but not in the preferred order above
+	// (forward-compatibility for new image providers).
+	keys := make([]string, 0, len(imageModelsByProvider))
+	for k := range imageModelsByProvider {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		if !seen[k] {
+			seen[k] = true
+			out = append(out, k)
+		}
+	}
+	return out
 }
 
 // ProviderFromModelRef extracts the provider prefix from a model reference.

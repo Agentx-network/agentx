@@ -1,6 +1,9 @@
 package agent
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestParseReminderIntent(t *testing.T) {
 	tests := []struct {
@@ -21,6 +24,18 @@ func TestParseReminderIntent(t *testing.T) {
 		{"reminder but no time", "remind me to buy milk", false, 0, "", ""},
 		{"plain chat", "how are you?", false, 0, "", ""},
 		{"zero delay rejected", "remind me in 0 minutes", false, 0, "", ""},
+
+		// Phrasings users actually type, beyond "remind me in N":
+		{"send a reminder after N", "can you send a reminder after 1 min to drink water", true, 60, "drink water", ""},
+		{"set a reminder in N", "set a reminder in 5 minutes to call mom", true, 300, "call mom", ""},
+		{"schedule a reminder for N from now", "schedule a reminder for 10 minutes from now", true, 600, "", ""},
+		{"create an alert in N", "create an alert in 2 hours", true, 7200, "", ""},
+		{"send me a reminder", "send me a reminder in 30 seconds about lunch", true, 30, "lunch", ""},
+
+		// Negative: 'send a reminder email' has the noun but no time → reject.
+		{"reminder noun but no time", "send a reminder email later", false, 0, "", ""},
+		// Negative: 'after 5 minutes' alone (no reminder intent) → reject.
+		{"time without reminder", "after 5 minutes the food was ready", false, 0, "", ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -39,6 +54,69 @@ func TestParseReminderIntent(t *testing.T) {
 			}
 			if ch != tt.wantChannel {
 				t.Errorf("channel=%q want %q", ch, tt.wantChannel)
+			}
+		})
+	}
+}
+
+// The confirmation varies randomly across a small set of phrasings — assert
+// structural properties (delay, subject, channel must appear) and that we
+// actually see more than one distinct output across many calls (proves the
+// randomization is working and the reply doesn't feel robotic).
+func TestReminderConfirmationText(t *testing.T) {
+	cases := []struct {
+		name     string
+		subject  string
+		delay    int
+		ch       string
+		mustHave []string
+		mustMiss []string
+	}{
+		{
+			name: "with subject, no channel",
+			subject: "drink water", delay: 60, ch: "",
+			mustHave: []string{"drink water", "1 minute"},
+			mustMiss: []string{"(on "},
+		},
+		{
+			name: "no subject, no channel",
+			subject: "", delay: 60, ch: "",
+			mustHave: []string{"1 minute"},
+			mustMiss: []string{"(on "},
+		},
+		{
+			name: "with subject + channel",
+			subject: "stretch", delay: 7200, ch: "telegram",
+			mustHave: []string{"stretch", "2 hours", "(on Telegram)"},
+		},
+		{
+			name: "seconds",
+			subject: "lunch", delay: 30, ch: "",
+			mustHave: []string{"lunch", "30 seconds"},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			seen := map[string]bool{}
+			for i := 0; i < 40; i++ {
+				got := reminderConfirmationText(c.subject, c.delay, c.ch)
+				for _, must := range c.mustHave {
+					if !strings.Contains(got, must) {
+						t.Errorf("missing %q in %q", must, got)
+					}
+				}
+				for _, miss := range c.mustMiss {
+					if strings.Contains(got, miss) {
+						t.Errorf("unexpected %q in %q", miss, got)
+					}
+				}
+				if len(got) > 110 {
+					t.Errorf("response too long (%d chars): %q", len(got), got)
+				}
+				seen[got] = true
+			}
+			if len(seen) < 2 {
+				t.Errorf("expected variation across 40 calls, only saw: %v", seen)
 			}
 		})
 	}
