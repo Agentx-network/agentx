@@ -89,27 +89,52 @@ jobs:
             codesign -vvv "$BIN_PATH"
           fi
 
+      - name: Install create-dmg
+        run: brew install create-dmg
+
       - name: Create DMG
         run: |
           APP_PATH="cmd/agentx-desktop/build/bin/agentx-desktop.app"
+          # Stage the signed .app on its own; create-dmg adds the /Applications
+          # symlink automatically via --app-drop-link. ditto preserves the
+          # code-signing metadata and extended attributes that cp -R can strip.
+          rm -rf dmg_staging
+          mkdir -p dmg_staging
+          if [ -d "$APP_PATH" ]; then
+            ditto "$APP_PATH" "dmg_staging/$(basename "$APP_PATH")"
+          else
+            cp cmd/agentx-desktop/build/bin/agentx-desktop dmg_staging/
+          fi
+
+          # Optional drag-arrow background. Drop a 660x400 PNG at the path
+          # below and create-dmg will use it; otherwise we ship a clean
+          # white-background layout with positioned icons.
+          BG_ARGS=()
+          BG_PATH="cmd/agentx-desktop/build/darwin/dmg-background.png"
+          if [ -f "$BG_PATH" ]; then
+            BG_ARGS=(--background "$BG_PATH")
+          fi
+
+          # create-dmg gives us the polished install experience: fixed window
+          # size, hidden toolbar/sidebar, icons positioned side-by-side, and
+          # an explicit "drag this to that" layout — same pattern Slack,
+          # VS Code, Discord etc. all use.
           create_dmg() {
-            # Always stage with an /Applications symlink so users get the
-            # classic drag-to-install layout. Packaging the .app directly as
-            # -srcfolder lets users run it from the mounted volume without
-            # ever copying it to /Applications, so it never shows up in
-            # Launchpad or Finder's Applications folder.
-            rm -rf dmg_staging
-            mkdir -p dmg_staging
-            if [ -d "$APP_PATH" ]; then
-              # ditto preserves code-signing metadata and extended attributes
-              # that cp -R can strip from .app bundles.
-              ditto "$APP_PATH" "dmg_staging/$(basename "$APP_PATH")"
-            else
-              cp cmd/agentx-desktop/build/bin/agentx-desktop dmg_staging/
-            fi
-            ln -s /Applications dmg_staging/Applications
-            hdiutil create -volname "AgentX Desktop" -srcfolder dmg_staging \
-              -ov -format UDZO "${{ matrix.asset }}"
+            # Clear any stale output from a prior failed attempt — create-dmg
+            # uses an `rw.<asset>` intermediate file that can block retries.
+            rm -f "${{ matrix.asset }}" "rw.${{ matrix.asset }}"
+            create-dmg \
+              --volname "AgentX Desktop" \
+              --window-pos 200 120 \
+              --window-size 660 400 \
+              --icon-size 128 \
+              --icon "$(basename "$APP_PATH")" 165 200 \
+              --hide-extension "$(basename "$APP_PATH")" \
+              --app-drop-link 495 200 \
+              --no-internet-enable \
+              "${BG_ARGS[@]}" \
+              "${{ matrix.asset }}" \
+              "dmg_staging/"
           }
           for i in 1 2 3; do
             if create_dmg; then
