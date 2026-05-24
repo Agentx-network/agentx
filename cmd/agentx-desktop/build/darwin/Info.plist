@@ -5,6 +5,8 @@
         <string>APPL</string>
         <key>CFBundleName</key>
         <string>AgentX Desktop</string>
+        <key>CFBundleDisplayName</key>
+        <string>AgentX Desktop</string>
         <key>CFBundleExecutable</key>
         <string>{{.OutputFilename}}</string>
         <key>CFBundleIdentifier</key>

@@ -16,9 +16,13 @@ cmd/**/workspace
 node_modules/
 cmd/agentx-desktop/frontend/dist/
 
-# Keep Wails Windows build assets (NSIS installer config, icons, info)
-!cmd/agentx-desktop/build/windows/
-!cmd/agentx-desktop/build/appicon.png
+# Re-include Wails build configuration assets (these are inputs, not outputs).
+# We have to un-ignore the parent directory first because git can't re-include
+# children of an excluded directory — then exclude the actual compiled output
+# (build/bin/) inside it.
+!cmd/agentx-desktop/build/
+!cmd/agentx-desktop/build/**
+cmd/agentx-desktop/build/bin/
 
 # AgentX specific
 
@@ -26,7 +30,6 @@ cmd/agentx-desktop/frontend/dist/
 .agentx/
 config.json
 sessions/
-build/
 
 # Coverage
 
