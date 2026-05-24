@@ -11,5 +11,12 @@
   "author": {
     "name": "AgentX Network",
     "email": "dev@agentx.network"
+  },
+  "info": {
+    "companyName": "AgentX Network",
+    "productName": "AgentX Desktop",
+    "productVersion": "0.8.45",
+    "copyright": "Copyright 2024-2026 AgentX Network. All rights reserved.",
+    "comments": "AgentX Desktop App"
   }
 }
