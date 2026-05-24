@@ -190,7 +190,14 @@ func removeDesktopApp() error {
 		filepath.Join("/usr", "bin", binaryName),
 	}
 	if runtime.GOOS == "darwin" {
-		candidates = append(candidates, filepath.Join("/Applications", "AgentX Desktop.app"))
+		// Bundle filename on disk is "agentx-desktop.app" (from wails.json's
+		// outputfilename); Finder shows "AgentX Desktop" via CFBundleDisplayName
+		// but the path stays lowercase. Older installs may have used the
+		// display-name path, so check both.
+		candidates = append(candidates,
+			filepath.Join("/Applications", "agentx-desktop.app"),
+			filepath.Join("/Applications", "AgentX Desktop.app"),
+		)
 	}
 	if runtime.GOOS == "linux" {
 		// .deb install leaves a .desktop file and icon
