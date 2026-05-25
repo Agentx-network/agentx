@@ -102,7 +102,7 @@ export default function SchedulersPage({ showToast }: Props) {
     setBusy(true);
     try {
       const n = await window.go.main.SchedulersService.RemoveAllSchedulers();
-      showToast(n === 0 ? "Nothing to cancel." : `Cancelled ${n} scheduler${n === 1 ? "" : "s"}. ✅`, "success");
+      showToast(n === 0 ? "Nothing to cancel." : `Cancelled ${n} scheduler${n === 1 ? "" : "s"}.`, "success");
       setItems([]);
       setConfirmAll(false);
     } catch (e: any) {
@@ -123,7 +123,7 @@ export default function SchedulersPage({ showToast }: Props) {
         </div>
         <div className="flex items-center gap-2">
           <NeonButton variant="ghost" size="sm" onClick={load} disabled={loading || busy}>
-            {loading ? "Refreshing…" : "↻ Refresh"}
+            {loading ? "Refreshing" : "Refresh"}
           </NeonButton>
           {items.length > 0 && !confirmAll && (
             <NeonButton variant="danger" size="sm" onClick={() => setConfirmAll(true)} disabled={busy}>
@@ -150,10 +150,12 @@ export default function SchedulersPage({ showToast }: Props) {
       ) : items.length === 0 ? (
         <NeonCard>
           <div className="text-center py-12">
-            <div className="text-5xl mb-4 opacity-30">⏰</div>
-            <p className="text-white/60 text-sm">No active schedulers.</p>
-            <p className="text-white/30 text-xs mt-1">
-              Ask the agent in chat to "remind me in 5 minutes to …" and it'll appear here.
+            <p className="text-xs uppercase tracking-[0.3em] text-white/30 mb-3">No Active Schedulers</p>
+            <p className="text-white/55 text-sm">
+              Nothing scheduled right now.
+            </p>
+            <p className="text-white/30 text-xs mt-2">
+              Ask the agent in chat — "remind me in 5 minutes to …" — and it'll appear here.
             </p>
           </div>
         </NeonCard>
@@ -161,41 +163,41 @@ export default function SchedulersPage({ showToast }: Props) {
         <div className="space-y-3">
           {items.map((s) => {
             const warn = runawayHint(s);
+            const typeLabel = s.command ? "Command" : "Reminder";
+            const typeClasses = s.command
+              ? "bg-neon-purple/15 text-neon-purple border-neon-purple/30"
+              : "bg-neon-cyan/10 text-neon-cyan border-neon-cyan/30";
             return (
               <NeonCard key={s.id} variant={warn ? "purple" : undefined}>
                 <div className="flex items-start gap-4">
-                  <div className="text-2xl flex-shrink-0 mt-0.5">{s.command ? "⚙️" : "⏰"}</div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`text-[10px] uppercase tracking-[0.2em] font-bold px-2 py-0.5 rounded border ${typeClasses}`}>
+                        {typeLabel}
+                      </span>
                       <h3 className="text-sm font-bold text-white/90 truncate">{s.name || s.message || s.id}</h3>
-                      {s.command && (
-                        <span className="text-[10px] uppercase tracking-widest font-bold bg-neon-purple/15 text-neon-purple px-2 py-0.5 rounded border border-neon-purple/30">
-                          Command
-                        </span>
-                      )}
                       {!s.enabled && (
                         <span className="text-[10px] uppercase tracking-widest font-bold bg-white/10 text-white/40 px-2 py-0.5 rounded">
                           Disabled
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-white/55 mt-1 truncate">
+                    <p className="text-xs text-white/55 mt-1.5 truncate">
                       <span className="text-neon-cyan">{fireDescription(s)}</span>
                       <span className="text-white/30 mx-2">·</span>
                       <span>to {destinationLabel(s)}</span>
                     </p>
                     {s.command && (
                       <p className="text-[11px] text-white/40 mt-1 font-mono truncate">
-                        $ {s.command}
+                        {s.command}
                       </p>
                     )}
                     {!s.command && s.message && (
                       <p className="text-xs text-white/50 mt-1 truncate">"{s.message}"</p>
                     )}
                     {warn && (
-                      <p className="text-xs text-red-400 mt-2 flex items-center gap-1.5">
-                        <span>⚠</span>
-                        <span>{warn}</span>
+                      <p className="text-[11px] text-red-400 mt-2 uppercase tracking-widest font-bold">
+                        Runaway pattern: {warn}
                       </p>
                     )}
                   </div>

@@ -90,9 +90,9 @@ func (al *AgentLoop) handleCommand(ctx context.Context, msg bus.InboundMessage) 
 			return "No active reminders to cancel.", true
 		}
 		if n == 1 {
-			return "Cancelled 1 reminder. ✅", true
+			return "Cancelled 1 reminder.", true
 		}
-		return fmt.Sprintf("Cancelled %d reminders. ✅", n), true
+		return fmt.Sprintf("Cancelled %d reminders.", n), true
 
 	case "/switch":
 		if len(args) < 3 || args[1] != "to" {
