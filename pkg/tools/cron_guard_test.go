@@ -72,6 +72,72 @@ func TestCronAddJob_OneTimeCommandNotFloorBlocked(t *testing.T) {
 	}
 }
 
+// A shell-command cron must require explicit confirmation. Without
+// confirmed=true the tool refuses and asks the model to confirm with the user.
+// With confirmed=true it goes through (subject to the other guards).
+func TestCronAddJob_CommandRequiresConfirmation(t *testing.T) {
+	tool := newCronToolForGuardTests(t)
+
+	// One-shot command WITHOUT confirmation → refused.
+	res := tool.Execute(context.Background(), map[string]any{
+		"action":     "add",
+		"message":    "disk check",
+		"command":    "df -h",
+		"at_seconds": float64(300),
+	})
+	if !res.IsError {
+		t.Fatal("unconfirmed command cron must be refused")
+	}
+	if !strings.Contains(res.ForUser, "confirm") {
+		t.Errorf("user-facing reply should ask for confirmation; got: %q", res.ForUser)
+	}
+	if !strings.Contains(res.ForLLM, "confirmed=true") {
+		t.Errorf("model instruction should mention confirmed=true; got: %q", res.ForLLM)
+	}
+
+	// Recurring command WITHOUT confirmation → also refused (and floor doesn't
+	// matter — confirmation is required regardless of interval).
+	res = tool.Execute(context.Background(), map[string]any{
+		"action":        "add",
+		"message":       "hourly check",
+		"command":       "df -h",
+		"every_seconds": float64(3600),
+	})
+	if !res.IsError || !strings.Contains(res.ForUser, "confirm") {
+		t.Errorf("unconfirmed recurring command must be refused; got: %q", res.ForUser)
+	}
+
+	// Same call WITH confirmed=true → passes the gate. (Reminder target is
+	// desktop via SetContext so the rest of the flow doesn't reject it.)
+	tool.SetContext("desktop", "chat")
+	res = tool.Execute(context.Background(), map[string]any{
+		"action":     "add",
+		"message":    "disk check",
+		"command":    "df -h",
+		"at_seconds": float64(300),
+		"confirmed":  true,
+	})
+	if res.IsError {
+		t.Errorf("confirmed command cron should be accepted; got: %q", res.ForLLM)
+	}
+}
+
+// Reminders without a command must NOT require the confirmed flag — the gate
+// only exists for shell-command crons. Ordinary 'remind me' flows stay simple.
+func TestCronAddJob_ReminderNoConfirmationNeeded(t *testing.T) {
+	tool := newCronToolForGuardTests(t)
+	tool.SetContext("desktop", "chat")
+	res := tool.Execute(context.Background(), map[string]any{
+		"action":     "add",
+		"message":    "drink water",
+		"at_seconds": float64(60),
+		// no command, no confirmed flag
+	})
+	if res.IsError {
+		t.Errorf("reminder must not require confirmation; got: %q", res.ForLLM)
+	}
+}
+
 // Recurring REMINDERS (no command) should be allowed at small intervals —
 // the floor only restricts shell commands. (e.g. "ping me every 30 seconds"
 // is unusual but valid.)
