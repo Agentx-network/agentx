@@ -160,7 +160,11 @@ func (t *CronTool) Parameters() map[string]any {
 			},
 			"command": map[string]any{
 				"type":        "string",
-				"description": "RARE — a shell command to run on schedule (e.g. 'df -h' once a day to monitor disk). DO NOT use this for 'connect / set up / configure' tasks like 'connect Telegram', 'set up a channel', etc. — those are Config-page flows, never scripts to poll on a timer. Only use this when the user explicitly said 'run <command> on schedule' or 'execute <script> every <time>'. Recurring commands must be at least 60 seconds apart. If unsure, omit this field — leave it to the user to set up via Config.",
+				"description": "RARE — a shell command to run on schedule (e.g. 'df -h' once a day to monitor disk). DO NOT use this for 'connect / set up / configure' tasks like 'connect Telegram', 'set up a channel', etc. — those are Config-page flows, never scripts to poll on a timer. Only use this when the user explicitly said 'run <command> on schedule' or 'execute <script> every <time>'. Recurring commands must be at least 60 seconds apart. Before scheduling, you MUST ask the user to confirm the exact command + schedule and only call this tool with confirmed=true after they explicitly say yes/go ahead/do it. If unsure, omit this field.",
+			},
+			"confirmed": map[string]any{
+				"type":        "boolean",
+				"description": "Set to true ONLY for 'command' jobs and ONLY after the user has explicitly approved the exact command + schedule in their previous message. Required for any shell-command cron — without it, the tool will refuse and ask you to confirm with the user first. Not needed (ignored) for normal reminders without a command.",
 			},
 			"at_seconds": map[string]any{
 				"type":        "integer",
@@ -208,6 +212,24 @@ func (t *CronTool) HasScheduledInRound() bool {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	return t.scheduledInRound
+}
+
+// CancelAllJobs removes every scheduled job from the cron service and returns
+// the count removed. Used as the implementation of the user-typed "/stop"
+// escape hatch — an instant way to clear runaway reminders/commands without
+// going to the CLI.
+func (t *CronTool) CancelAllJobs() int {
+	if t.cronService == nil {
+		return 0
+	}
+	jobs := t.cronService.ListJobs(true)
+	removed := 0
+	for _, j := range jobs {
+		if t.cronService.RemoveJob(j.ID) {
+			removed++
+		}
+	}
+	return removed
 }
 
 // Execute runs the tool with the given arguments
@@ -278,6 +300,33 @@ func (t *CronTool) addJob(args map[string]any) *ToolResult {
 			fmt.Sprintf("Refused recurring command cron with every_seconds=%v (< %d). Recurring shell commands must be >= %d seconds. "+
 				"If the user asked to 'connect' or 'set up' something, do NOT use a shell-command cron — direct them to the relevant Config page instead.",
 				everySeconds, minCommandInterval, minCommandInterval),
+		)
+	}
+
+	// Confirmation gate for shell-command jobs. The model must show the user the
+	// exact command + schedule and get an explicit yes BEFORE this tool is
+	// allowed to persist the job. Without that round-trip, weak models invent
+	// shell commands for setup-style requests ("connect Telegram") and the user
+	// only finds out when their chat fills up. The gate is purely deterministic;
+	// it doesn't rely on the model obeying — without confirmed=true, no job is
+	// created. Confirmation is required for ANY command schedule (recurring or
+	// one-shot) because even a single risky command shouldn't run unreviewed.
+	confirmed, _ := args["confirmed"].(bool)
+	if command != "" && !confirmed {
+		scheduleDesc := "(no schedule)"
+		switch {
+		case hasEvery:
+			scheduleDesc = fmt.Sprintf("every %v seconds", everySeconds)
+		case hasAt:
+			scheduleDesc = fmt.Sprintf("in %v seconds", atSeconds)
+		case hasCron:
+			scheduleDesc = fmt.Sprintf("on cron '%s'", cronExpr)
+		}
+		return BlockedResult(
+			fmt.Sprintf("Before I schedule the shell command `%s` %s, please confirm — should I go ahead?", command, scheduleDesc),
+			fmt.Sprintf("STOP — do NOT schedule yet. Ask the user EXACTLY: 'I want to run \"%s\" %s on a schedule. Should I go ahead?' "+
+				"Only call cron again with the SAME command/schedule AND confirmed=true after the user explicitly says yes / do it / go ahead. "+
+				"If they say no, decline and do nothing.", command, scheduleDesc),
 		)
 	}
 
