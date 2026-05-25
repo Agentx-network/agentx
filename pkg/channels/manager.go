@@ -19,6 +19,12 @@ import (
 	"github.com/Agentx-network/agentx/pkg/logger"
 )
 
+// MaxOutboundPerChatPerMinute caps how many outbound messages a single chat
+// can receive per minute. Normal use stays well below this; the cap exists to
+// keep a runaway tool (stuck cron, looping subagent, etc.) from drowning the
+// user's chat. Exposed as a var so tests can lower it without changing prod.
+var MaxOutboundPerChatPerMinute = 20
+
 type Manager struct {
 	channels     map[string]Channel
 	bus          *bus.MessageBus
@@ -26,6 +32,7 @@ type Manager struct {
 	dispatchTask *asyncTask
 	streamTask   *asyncTask
 	localDeliver func(bus.OutboundMessage) bool // optional sink for unregistered channels (e.g. "desktop")
+	rateLimit    *chatRateLimiter
 	mu           sync.RWMutex
 }
 
@@ -44,9 +51,10 @@ type asyncTask struct {
 
 func NewManager(cfg *config.Config, messageBus *bus.MessageBus) (*Manager, error) {
 	m := &Manager{
-		channels: make(map[string]Channel),
-		bus:      messageBus,
-		config:   cfg,
+		channels:  make(map[string]Channel),
+		bus:       messageBus,
+		config:    cfg,
+		rateLimit: newChatRateLimiter(MaxOutboundPerChatPerMinute),
 	}
 
 	if err := m.initChannels(); err != nil {
@@ -415,6 +423,19 @@ func (m *Manager) dispatchOutbound(ctx context.Context) {
 
 			// Silently skip internal channels
 			if constants.IsInternalChannel(msg.Channel) {
+				continue
+			}
+
+			// Per-chat rate limit: drop messages that exceed the per-minute cap
+			// to prevent a runaway tool (e.g. a recurring cron) from flooding the
+			// chat. Logged but not surfaced — the user shouldn't see "you've been
+			// rate-limited" spam; they should just see the chat stay sane.
+			if m.rateLimit != nil && !m.rateLimit.allow(msg.Channel, msg.ChatID) {
+				logger.WarnCF("channels", "Outbound rate limit hit — dropping message", map[string]any{
+					"channel":     msg.Channel,
+					"chat_id":     msg.ChatID,
+					"max_per_min": MaxOutboundPerChatPerMinute,
+				})
 				continue
 			}
 
