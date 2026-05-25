@@ -1445,6 +1445,40 @@ export namespace main {
 	        this.timestamp = source["timestamp"];
 	    }
 	}
+	export class SchedulerInfo {
+	    id: string;
+	    name: string;
+	    enabled: boolean;
+	    message: string;
+	    command?: string;
+	    channel: string;
+	    chatId: string;
+	    kind: string;
+	    atMs?: number;
+	    everyMs?: number;
+	    cronExpr?: string;
+	    createdAtMs: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new SchedulerInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.enabled = source["enabled"];
+	        this.message = source["message"];
+	        this.command = source["command"];
+	        this.channel = source["channel"];
+	        this.chatId = source["chatId"];
+	        this.kind = source["kind"];
+	        this.atMs = source["atMs"];
+	        this.everyMs = source["everyMs"];
+	        this.cronExpr = source["cronExpr"];
+	        this.createdAtMs = source["createdAtMs"];
+	    }
+	}
 	export class SetupState {
 	    binaryInstalled: boolean;
 	    configExists: boolean;

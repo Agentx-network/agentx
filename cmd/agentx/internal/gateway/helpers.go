@@ -304,6 +304,80 @@ func gatewayCmd(debug bool) error {
 		_ = json.NewEncoder(w).Encode(map[string]any{"messages": messages})
 	})
 
+	// Schedulers API: lets the desktop dashboard list and cancel scheduled
+	// cron jobs. This is the out-of-band escape hatch for runaway crons (the
+	// client report where a stuck 10-second command flooded the chat) — the
+	// user can clear everything from the dashboard without having to interact
+	// with a chat that's being spammed.
+	//
+	//   GET    /api/schedulers           → { schedulers: [...] }
+	//   DELETE /api/schedulers?id=<id>   → { removed: 0 or 1 }
+	//   DELETE /api/schedulers/all       → { removed: <n> }
+	healthServer.HandleFunc("/api/schedulers", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		switch r.Method {
+		case http.MethodGet:
+			jobs := cronService.ListJobs(true) // include disabled
+			out := make([]map[string]any, 0, len(jobs))
+			for i := range jobs {
+				j := &jobs[i]
+				entry := map[string]any{
+					"id":          j.ID,
+					"name":        j.Name,
+					"enabled":     j.Enabled,
+					"message":     j.Payload.Message,
+					"command":     j.Payload.Command,
+					"channel":     j.Payload.Channel,
+					"chatId":      j.Payload.To,
+					"kind":        j.Schedule.Kind,
+					"createdAtMs": j.CreatedAtMS,
+				}
+				if j.Schedule.AtMS != nil {
+					entry["atMs"] = *j.Schedule.AtMS
+				}
+				if j.Schedule.EveryMS != nil {
+					entry["everyMs"] = *j.Schedule.EveryMS
+				}
+				if j.Schedule.Expr != "" {
+					entry["cronExpr"] = j.Schedule.Expr
+				}
+				out = append(out, entry)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"schedulers": out})
+		case http.MethodDelete:
+			id := r.URL.Query().Get("id")
+			if id == "" {
+				http.Error(w, `{"error":"id is required (or use /api/schedulers/all)"}`, http.StatusBadRequest)
+				return
+			}
+			removed := 0
+			if cronService.RemoveJob(id) {
+				removed = 1
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"removed": removed})
+		default:
+			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+
+	healthServer.HandleFunc("/api/schedulers/all", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		if r.Method != http.MethodDelete {
+			http.Error(w, `{"error":"method not allowed; use DELETE"}`, http.StatusMethodNotAllowed)
+			return
+		}
+		jobs := cronService.ListJobs(true)
+		removed := 0
+		for _, j := range jobs {
+			if cronService.RemoveJob(j.ID) {
+				removed++
+			}
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"removed": removed})
+	})
+
 	// Register reload endpoint: desktop GUI POSTs here after the user saves
 	// changes on the Config page so the running gateway picks up new model /
 	// provider / API key settings without requiring a manual gateway restart.

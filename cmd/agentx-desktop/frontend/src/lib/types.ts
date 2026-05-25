@@ -111,4 +111,19 @@ export interface ChatMessage {
   timestamp: number;
 }
 
-export type Page = "installer" | "onboard" | "channels" | "agent" | "dashboard" | "config" | "chat" | "wallet";
+export type Page = "installer" | "onboard" | "channels" | "agent" | "dashboard" | "config" | "chat" | "schedulers" | "wallet";
+
+export interface SchedulerInfo {
+  id: string;
+  name: string;
+  enabled: boolean;
+  message: string;
+  command?: string;
+  channel: string;
+  chatId: string;
+  kind: "at" | "every" | "cron";
+  atMs?: number;
+  everyMs?: number;
+  cronExpr?: string;
+  createdAtMs: number;
+}

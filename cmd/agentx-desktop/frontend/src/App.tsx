@@ -7,6 +7,7 @@ import AgentSetupPage from "./pages/AgentSetupPage";
 import DashboardPage from "./pages/DashboardPage";
 import ConfigPage from "./pages/ConfigPage";
 import ChatPage from "./pages/ChatPage";
+import SchedulersPage from "./pages/SchedulersPage";
 import WalletPage from "./pages/WalletPage";
 import { Toast } from "./components/ui/Toast";
 import type { Page, SetupState, ChatMessage } from "./lib/types";
@@ -97,6 +98,11 @@ declare global {
           GetRegistration(): Promise<{ registered: boolean; agentName: string; agentId: string; address: string; chain: string; metadata: string; txHash: string; timestamp: string }>;
           RegisterAgent(agentName: string, metadata: string): Promise<{ registered: boolean; agentName: string; agentId: string; address: string; chain: string; metadata: string; txHash: string; timestamp: string }>;
           UnregisterAgent(): Promise<void>;
+        };
+        SchedulersService: {
+          ListSchedulers(): Promise<import("./lib/types").SchedulerInfo[]>;
+          RemoveScheduler(id: string): Promise<number>;
+          RemoveAllSchedulers(): Promise<number>;
         };
       };
     };
@@ -299,6 +305,7 @@ export default function App() {
       <main className={`relative flex-1 p-6 ${page === "chat" ? "overflow-hidden flex flex-col" : "overflow-y-auto"}`}>
         {page === "dashboard" && <DashboardPage showToast={showToast} />}
         {page === "chat" && <ChatPage showToast={showToast} messages={chatMessages} setMessages={setChatMessages} />}
+        {page === "schedulers" && <SchedulersPage showToast={showToast} />}
         {page === "config" && <ConfigPage showToast={showToast} />}
         {page === "wallet" && <WalletPage showToast={showToast} />}
         {page === "installer" && (

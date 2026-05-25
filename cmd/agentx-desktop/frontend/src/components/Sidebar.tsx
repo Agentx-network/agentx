@@ -33,6 +33,16 @@ const navItems: { id: Page; label: string; icon: (active: boolean) => JSX.Elemen
     ),
   },
   {
+    id: "schedulers",
+    label: "Schedulers",
+    icon: (a) => (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className={a ? "text-neon-pink" : "text-current"}>
+        <circle cx="8" cy="8" r="6.25" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M8 4.5V8l2.25 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  {
     id: "config",
     label: "Config",
     icon: (a) => (
