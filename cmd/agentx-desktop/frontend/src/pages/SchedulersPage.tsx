@@ -114,28 +114,28 @@ export default function SchedulersPage({ showToast }: Props) {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-end justify-between">
-        <div>
+      <div className="flex items-end justify-between gap-6">
+        <div className="min-w-0 max-w-2xl">
           <h1 className="text-3xl font-bold uppercase tracking-[0.2em] text-glow-pink">Schedulers</h1>
           <p className="text-white/40 text-sm mt-2">
             Every reminder and scheduled task currently active. Remove anything that's misbehaving — the change applies immediately.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <NeonButton variant="ghost" size="sm" onClick={load} disabled={loading || busy}>
+        <div className="flex items-center gap-2 shrink-0">
+          <NeonButton variant="ghost" size="sm" onClick={load} disabled={loading || busy} className="whitespace-nowrap">
             {loading ? "Refreshing" : "Refresh"}
           </NeonButton>
           {items.length > 0 && !confirmAll && (
-            <NeonButton variant="danger" size="sm" onClick={() => setConfirmAll(true)} disabled={busy}>
+            <NeonButton variant="danger" size="sm" onClick={() => setConfirmAll(true)} disabled={busy} className="whitespace-nowrap">
               Remove all
             </NeonButton>
           )}
           {confirmAll && (
             <>
-              <NeonButton variant="ghost" size="sm" onClick={() => setConfirmAll(false)} disabled={busy}>
+              <NeonButton variant="ghost" size="sm" onClick={() => setConfirmAll(false)} disabled={busy} className="whitespace-nowrap">
                 Cancel
               </NeonButton>
-              <NeonButton variant="danger" size="sm" onClick={removeAll} disabled={busy}>
+              <NeonButton variant="danger" size="sm" onClick={removeAll} disabled={busy} className="whitespace-nowrap">
                 {busy ? "Removing…" : `Yes, remove all ${items.length}`}
               </NeonButton>
             </>
