@@ -7,6 +7,7 @@ import (
 
 	"github.com/Agentx-network/agentx/pkg/bus"
 	"github.com/Agentx-network/agentx/pkg/routing"
+	"github.com/Agentx-network/agentx/pkg/tools"
 )
 
 // handleCommand handles slash-commands (/show, /list, /switch) typed in chat.
@@ -68,6 +69,30 @@ func (al *AgentLoop) handleCommand(ctx context.Context, msg bus.InboundMessage) 
 		default:
 			return fmt.Sprintf("Unknown list target: %s", args[0]), true
 		}
+
+	case "/stop":
+		// Escape hatch: cancel every scheduled reminder/cron job at once. Used
+		// when something has run away and the user just wants the chat to stop.
+		defaultAgent := al.registry.GetDefaultAgent()
+		if defaultAgent == nil {
+			return "No agent available — can't cancel reminders.", true
+		}
+		cronTool, ok := defaultAgent.Tools.Get("cron")
+		if !ok {
+			return "Cron service isn't running — nothing to cancel.", true
+		}
+		ct, isCron := cronTool.(*tools.CronTool)
+		if !isCron {
+			return "Cron tool is unavailable.", true
+		}
+		n := ct.CancelAllJobs()
+		if n == 0 {
+			return "No active reminders to cancel.", true
+		}
+		if n == 1 {
+			return "Cancelled 1 reminder.", true
+		}
+		return fmt.Sprintf("Cancelled %d reminders.", n), true
 
 	case "/switch":
 		if len(args) < 3 || args[1] != "to" {

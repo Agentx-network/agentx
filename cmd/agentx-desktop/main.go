@@ -23,6 +23,7 @@ func main() {
 	agentSetup := NewAgentSetupService()
 	walletSvc := NewWalletService()
 	registrySvc := NewRegistryService()
+	schedulersSvc := NewSchedulersService()
 
 	err := wails.Run(&options.App{
 		Title:  "AgentX Desktop",
@@ -40,6 +41,7 @@ func main() {
 			agentSetup.startup(ctx)
 			walletSvc.startup(ctx)
 			registrySvc.startup(ctx)
+			schedulersSvc.startup(ctx)
 
 			// Auto-start gateway if it's not already running.
 			go func() {
@@ -63,6 +65,7 @@ func main() {
 			agentSetup,
 			walletSvc,
 			registrySvc,
+			schedulersSvc,
 		},
 	})
 	if err != nil {
