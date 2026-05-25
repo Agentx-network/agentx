@@ -19,6 +19,14 @@ function humanInterval(ms: number): string {
   return `${d} day${d === 1 ? "" : "s"}`;
 }
 
+// humanRelativePast turns a past timestamp into "X ago" phrasing.
+function humanRelativePast(ms: number): string {
+  const diff = Date.now() - ms;
+  if (diff < 0) return "just now";
+  if (diff < 45_000) return "just now";
+  return `${humanInterval(diff)} ago`;
+}
+
 // fireDescription summarises when a scheduled job will trigger, in plain English.
 function fireDescription(s: SchedulerInfo): string {
   switch (s.kind) {
@@ -64,7 +72,9 @@ export default function SchedulersPage({ showToast }: Props) {
     setLoading(true);
     try {
       const list = await window.go.main.SchedulersService.ListSchedulers();
-      setItems(list ?? []);
+      // Newest first — easier to spot what was just created.
+      const sorted = (list ?? []).slice().sort((a, b) => b.createdAtMs - a.createdAtMs);
+      setItems(sorted);
     } catch (e: any) {
       showToast(`Couldn't load schedulers: ${e}`, "error");
       setItems([]);
@@ -75,7 +85,6 @@ export default function SchedulersPage({ showToast }: Props) {
 
   useEffect(() => {
     load();
-    // Refresh every 8s so the list reflects newly-created or fired jobs.
     const t = setInterval(load, 8000);
     return () => clearInterval(t);
   }, [load]);
@@ -113,33 +122,39 @@ export default function SchedulersPage({ showToast }: Props) {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-end justify-between gap-6">
-        <div className="min-w-0 max-w-2xl">
-          <h1 className="text-3xl font-bold uppercase tracking-[0.2em] text-glow-pink">Schedulers</h1>
-          <p className="text-white/40 text-sm mt-2">
-            Every reminder and scheduled task currently active. Remove anything that's misbehaving — the change applies immediately.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <NeonButton variant="ghost" size="sm" onClick={load} disabled={loading || busy} className="whitespace-nowrap">
-            {loading ? "Refreshing" : "Refresh"}
-          </NeonButton>
-          {items.length > 0 && !confirmAll && (
-            <NeonButton variant="danger" size="sm" onClick={() => setConfirmAll(true)} disabled={busy} className="whitespace-nowrap">
-              Remove all
+    <div className="flex flex-col space-y-5 max-w-3xl bg-[#0a0a12]/80 -m-6 p-6 rounded-xl">
+      {/* Header — matches Chat/Config pattern: title left, status + actions right,
+          bottom border separating header from content. */}
+      <div className="flex items-center justify-between gap-4 pb-4 border-b border-neon-pink/15">
+        <h2 className="text-2xl font-bold uppercase tracking-[0.2em] text-glow-pink">
+          Schedulers
+        </h2>
+        <div className="flex items-center gap-3 shrink-0">
+          {items.length > 0 && (
+            <span className="text-[10px] uppercase tracking-widest font-bold text-neon-green/80 bg-neon-green/10 border border-neon-green/25 px-2.5 py-1 rounded-full">
+              {items.length} Active
+            </span>
+          )}
+          <div className="flex items-center gap-2">
+            <NeonButton variant="ghost" size="sm" onClick={load} disabled={loading || busy} className="whitespace-nowrap">
+              {loading ? "Refreshing" : "Refresh"}
             </NeonButton>
-          )}
-          {confirmAll && (
-            <>
-              <NeonButton variant="ghost" size="sm" onClick={() => setConfirmAll(false)} disabled={busy} className="whitespace-nowrap">
-                Cancel
+            {items.length > 0 && !confirmAll && (
+              <NeonButton variant="danger" size="sm" onClick={() => setConfirmAll(true)} disabled={busy} className="whitespace-nowrap">
+                Remove all
               </NeonButton>
-              <NeonButton variant="danger" size="sm" onClick={removeAll} disabled={busy} className="whitespace-nowrap">
-                {busy ? "Removing…" : `Yes, remove all ${items.length}`}
-              </NeonButton>
-            </>
-          )}
+            )}
+            {confirmAll && (
+              <>
+                <NeonButton variant="ghost" size="sm" onClick={() => setConfirmAll(false)} disabled={busy} className="whitespace-nowrap">
+                  Cancel
+                </NeonButton>
+                <NeonButton variant="danger" size="sm" onClick={removeAll} disabled={busy} className="whitespace-nowrap">
+                  {busy ? "Removing…" : `Yes, remove all ${items.length}`}
+                </NeonButton>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -186,6 +201,12 @@ export default function SchedulersPage({ showToast }: Props) {
                       <span className="text-neon-cyan">{fireDescription(s)}</span>
                       <span className="text-white/30 mx-2">·</span>
                       <span>to {destinationLabel(s)}</span>
+                      {s.createdAtMs > 0 && (
+                        <>
+                          <span className="text-white/30 mx-2">·</span>
+                          <span className="text-white/40">set {humanRelativePast(s.createdAtMs)}</span>
+                        </>
+                      )}
                     </p>
                     {s.command && (
                       <p className="text-[11px] text-white/40 mt-1 font-mono truncate">
@@ -210,12 +231,6 @@ export default function SchedulersPage({ showToast }: Props) {
           })}
         </div>
       )}
-
-      <p className="text-center text-[11px] text-white/25 uppercase tracking-widest pt-2">
-        {items.length === 0
-          ? ""
-          : `${items.length} scheduler${items.length === 1 ? "" : "s"} active`}
-      </p>
     </div>
   );
 }
