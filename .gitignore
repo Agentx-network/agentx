@@ -36,6 +36,11 @@ sessions/
 # Secrets & Config (keep templates, ignore actual secrets)
 .env
 config/config.json
+# Private keys / certificates — must never be committed
+*.pem
+*.key
+*.p12
+*.pfx
 
 # Test
 coverage.txt

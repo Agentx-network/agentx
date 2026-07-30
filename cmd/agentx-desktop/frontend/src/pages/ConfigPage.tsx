@@ -782,7 +782,12 @@ function AgentTab({
               <div className="flex-1">
                 <NeonInput
                   value={searchQuery}
-                  onChange={setSearchQuery}
+                  onChange={(v) => {
+                    setSearchQuery(v);
+                    // Clearing the box should clear stale results, not leave the
+                    // previous dropdown hanging around.
+                    if (!v.trim()) setSearchResults([]);
+                  }}
                   onKeyDown={handleSearchKeyDown}
                   placeholder="Search skills... (e.g. web search, docker)"
                 />

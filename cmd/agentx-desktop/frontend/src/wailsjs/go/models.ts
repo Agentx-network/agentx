@@ -1238,6 +1238,24 @@ export namespace main {
 	        this.configPath = source["configPath"];
 	    }
 	}
+	export class Attachment {
+	    path: string;
+	    name: string;
+	    size: number;
+	    kind: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Attachment(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.name = source["name"];
+	        this.size = source["size"];
+	        this.kind = source["kind"];
+	    }
+	}
 	export class BootstrapFile {
 	    name: string;
 	    path: string;
@@ -1373,6 +1391,52 @@ export namespace main {
 	    }
 	}
 	
+	export class RejectedAttachment {
+	    name: string;
+	    reason: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new RejectedAttachment(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.reason = source["reason"];
+	    }
+	}
+	export class PickAttachmentsResult {
+	    accepted: Attachment[];
+	    rejected: RejectedAttachment[];
+	
+	    static createFrom(source: any = {}) {
+	        return new PickAttachmentsResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.accepted = this.convertValues(source["accepted"], Attachment);
+	        this.rejected = this.convertValues(source["rejected"], RejectedAttachment);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class PlatformInfo {
 	    os: string;
 	    arch: string;
@@ -1445,6 +1509,7 @@ export namespace main {
 	        this.timestamp = source["timestamp"];
 	    }
 	}
+	
 	export class SchedulerInfo {
 	    id: string;
 	    name: string;

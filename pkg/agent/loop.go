@@ -17,6 +17,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/Agentx-network/agentx/pkg/attach"
 	"github.com/Agentx-network/agentx/pkg/bus"
 	"github.com/Agentx-network/agentx/pkg/channels"
 	"github.com/Agentx-network/agentx/pkg/config"
@@ -43,18 +44,20 @@ type AgentLoop struct {
 
 // processOptions configures how a message is processed
 type processOptions struct {
-	SessionKey         string // Session identifier for history/context
-	Channel            string // Target channel for tool execution
-	ChatID             string // Target chat ID for tool execution
-	UserMessage        string // User message content (may include prefix)
-	DefaultResponse    string // Response when LLM returns empty
-	EnableSummary      bool   // Whether to trigger summarization
-	SendResponse       bool   // Whether to send response via bus
-	NoHistory          bool   // If true, don't load session history (for heartbeat)
-	CompressionRetried bool   // Internal: true after one compression-retry to bound recursion
-	RateLimitRetried   bool   // Internal: true after one rate-limit auto-retry to bound recursion
-	WebSearchRetried   bool   // Internal: true after one auto-web-search fallback to bound recursion
-	ToolResultRetried  bool   // Internal: true after one recovered-tool-result re-prompt to bound recursion
+	SessionKey         string   // Session identifier for history/context
+	Channel            string   // Target channel for tool execution
+	ChatID             string   // Target chat ID for tool execution
+	UserMessage        string   // User message content (may include prefix)
+	DefaultResponse    string   // Response when LLM returns empty
+	EnableSummary      bool     // Whether to trigger summarization
+	SendResponse       bool     // Whether to send response via bus
+	NoHistory          bool     // If true, don't load session history (for heartbeat)
+	CompressionRetried bool     // Internal: true after one compression-retry to bound recursion
+	RateLimitRetried   bool     // Internal: true after one rate-limit auto-retry to bound recursion
+	WebSearchRetried   bool     // Internal: true after one auto-web-search fallback to bound recursion
+	SkillSearchRetried bool     // Internal: true after one auto-skill-search fallback to bound recursion
+	ToolResultRetried  bool     // Internal: true after one recovered-tool-result re-prompt to bound recursion
+	MediaFiles         []string // Image/audio attachment paths to send to the model as FileParts (current turn only)
 }
 
 const defaultResponse = "I've completed processing but have no response to give. Increase `max_tool_iterations` in config.json."
@@ -448,11 +451,25 @@ func (al *AgentLoop) ProcessDirectWithChannel(
 	ctx context.Context,
 	content, sessionKey, channel, chatID string,
 ) (string, error) {
+	return al.ProcessDirectWithMedia(ctx, content, sessionKey, channel, chatID, nil)
+}
+
+// ProcessDirectWithMedia is ProcessDirectWithChannel plus attachment paths.
+// media is a list of local file paths (documents, images, audio) — the same
+// contract channels use for bus.InboundMessage.Media. Documents are surfaced to
+// the model via the read_file tool; images/audio are attached to the model turn
+// directly (see processMessage / runFantasyIteration).
+func (al *AgentLoop) ProcessDirectWithMedia(
+	ctx context.Context,
+	content, sessionKey, channel, chatID string,
+	media []string,
+) (string, error) {
 	msg := bus.InboundMessage{
 		Channel:    channel,
 		SenderID:   "cron",
 		ChatID:     chatID,
 		Content:    content,
+		Media:      media,
 		SessionKey: sessionKey,
 	}
 
@@ -500,6 +517,42 @@ func attachedDocsNote(media []string) string {
 	return fmt.Sprintf("\n\n[The user attached %d document(s). Their contents are NOT shown above — "+
 		"call read_file on each path below to read them, then answer based on what you read:\n%s]",
 		len(docs), strings.Join(docs, "\n"))
+}
+
+// mediaFilesForModel returns the attachment paths that should be sent to the
+// model directly as FileParts — images and audio. Documents are excluded
+// (handled via attachedDocsNote + read_file), as is anything unclassifiable.
+func mediaFilesForModel(media []string) []string {
+	var out []string
+	for _, p := range media {
+		switch attach.Classify(p) {
+		case attach.KindImage, attach.KindAudio:
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// attachedProcessableNote surfaces attachments the agent should operate on with
+// tools rather than read as text or send to the model — currently videos. It
+// tells the model the on-disk paths and that ffmpeg/ffprobe (or a skill) can
+// process them (e.g. compress/convert). Returns "" when there are none.
+func attachedProcessableNote(media []string) string {
+	var files []string
+	for _, p := range media {
+		if attach.Classify(p) == attach.KindVideo {
+			files = append(files, p)
+		}
+	}
+	if len(files) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("\n\n[The user attached %d video/media file(s) at the path(s) below. "+
+		"They are NOT shown above and must NOT be read with read_file (they're binary). "+
+		"To work with them — compress, convert, resize, extract audio, get info — use the exec tool "+
+		"(ffmpeg and ffprobe are available) or an installed skill, operating on the path directly. "+
+		"Do not claim you processed a file unless a tool actually did:\n%s]",
+		len(files), strings.Join(files, "\n"))
 }
 
 func (al *AgentLoop) processMessage(ctx context.Context, msg bus.InboundMessage) (string, error) {
@@ -563,6 +616,20 @@ func (al *AgentLoop) processMessage(ctx context.Context, msg bus.InboundMessage)
 	if note := attachedDocsNote(msg.Media); note != "" {
 		userMessage += note
 	}
+	// Videos/other processable files: surface their paths so the agent can run
+	// ffmpeg / a skill on them (e.g. compress), rather than read or "see" them.
+	if note := attachedProcessableNote(msg.Media); note != "" {
+		userMessage += note
+	}
+
+	// Images/audio go to the model as FileParts (vision/audio input) rather than
+	// through read_file, which would only return binary garbage for them.
+	mediaFiles := mediaFilesForModel(msg.Media)
+
+	// Append a machine-readable attachment block so the desktop can re-render
+	// attachments after a reload (history is persisted as the message string).
+	// The runner strips this block before building the model prompt.
+	userMessage += attach.EncodeDisplayBlock(msg.Media)
 
 	return al.runAgentLoop(ctx, agent, processOptions{
 		SessionKey:      sessionKey,
@@ -572,6 +639,7 @@ func (al *AgentLoop) processMessage(ctx context.Context, msg bus.InboundMessage)
 		DefaultResponse: defaultResponse,
 		EnableSummary:   true,
 		SendResponse:    false,
+		MediaFiles:      mediaFiles,
 	})
 }
 
@@ -695,6 +763,12 @@ func (al *AgentLoop) runAgentLoop(ctx context.Context, agent *AgentInstance, opt
 
 	// 3. Save user message to session
 	agent.Sessions.AddMessage(opts.SessionKey, "user", opts.UserMessage)
+	// Mirror to the append-only display transcript (never summarized), so the
+	// chat UI keeps full history even after the session is compacted. Skip
+	// heartbeat (NoHistory), which isn't a real conversation.
+	if !opts.NoHistory {
+		agent.Sessions.AppendTranscript(opts.SessionKey, "user", opts.UserMessage)
+	}
 
 	// 4. Run LLM iteration loop
 	var finalContent string
@@ -768,6 +842,11 @@ func (al *AgentLoop) runAgentLoop(ctx context.Context, agent *AgentInstance, opt
 			}
 			agent.Sessions.AddMessage(opts.SessionKey, "assistant", historyContent)
 		}
+	}
+	// Mirror the FULL reply (not the context-truncated copy) to the display
+	// transcript so the chat UI shows complete assistant messages on reload.
+	if !opts.NoHistory && finalContent != "" {
+		agent.Sessions.AppendTranscript(opts.SessionKey, "assistant", finalContent)
 	}
 	if err := agent.Sessions.Save(opts.SessionKey); err != nil {
 		logger.ErrorCF("agent", "Failed to save session", map[string]any{

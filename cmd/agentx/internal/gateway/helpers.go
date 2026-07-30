@@ -14,6 +14,7 @@ import (
 
 	"github.com/Agentx-network/agentx/cmd/agentx/internal"
 	"github.com/Agentx-network/agentx/pkg/agent"
+	"github.com/Agentx-network/agentx/pkg/attach"
 	"github.com/Agentx-network/agentx/pkg/bus"
 	"github.com/Agentx-network/agentx/pkg/channels"
 	"github.com/Agentx-network/agentx/pkg/config"
@@ -212,19 +213,33 @@ func gatewayCmd(debug bool) error {
 			return
 		}
 		var req struct {
-			Message    string `json:"message"`
-			SessionKey string `json:"sessionKey"`
+			Message    string   `json:"message"`
+			SessionKey string   `json:"sessionKey"`
+			Media      []string `json:"media"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
 			return
 		}
-		if req.Message == "" {
+		if req.Message == "" && len(req.Media) == 0 {
 			http.Error(w, `{"error":"message is required"}`, http.StatusBadRequest)
 			return
 		}
 		if req.SessionKey == "" {
 			req.SessionKey = "desktop:chat"
+		}
+
+		// Confine every attachment path to <workspace>/uploads/ before it reaches
+		// the agent — a client must never be able to point the model at an
+		// arbitrary file by lying in the request body. Bad paths are dropped.
+		var media []string
+		for _, p := range req.Media {
+			if err := attach.ConfineToUploads(p, cfg.WorkspacePath()); err != nil {
+				logger.WarnCF("gateway", "Rejected attachment path",
+					map[string]any{"path": p, "error": err.Error()})
+				continue
+			}
+			media = append(media, p)
 		}
 
 		flusher, ok := w.(http.Flusher)
@@ -263,8 +278,8 @@ func gatewayCmd(debug bool) error {
 		}()
 
 		// Process the message (blocks until complete)
-		response, procErr := agentLoop.ProcessDirectWithChannel(
-			r.Context(), req.Message, req.SessionKey, "desktop", "chat",
+		response, procErr := agentLoop.ProcessDirectWithMedia(
+			r.Context(), req.Message, req.SessionKey, "desktop", "chat", media,
 		)
 
 		// Unsubscribe and wait for goroutine to drain

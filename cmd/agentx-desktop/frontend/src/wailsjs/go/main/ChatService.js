@@ -10,6 +10,10 @@ export function IsGatewayReachable() {
   return window['go']['main']['ChatService']['IsGatewayReachable']();
 }
 
+export function PickAttachments() {
+  return window['go']['main']['ChatService']['PickAttachments']();
+}
+
 export function PollNotifications() {
   return window['go']['main']['ChatService']['PollNotifications']();
 }
@@ -22,6 +26,6 @@ export function SaveImageAs(arg1) {
   return window['go']['main']['ChatService']['SaveImageAs'](arg1);
 }
 
-export function SendMessage(arg1, arg2) {
-  return window['go']['main']['ChatService']['SendMessage'](arg1, arg2);
+export function SendMessage(arg1, arg2, arg3) {
+  return window['go']['main']['ChatService']['SendMessage'](arg1, arg2, arg3);
 }

@@ -104,11 +104,21 @@ export interface SetupState {
   hasChannel: boolean;
 }
 
+export type AttachmentKind = "image" | "audio" | "doc" | "video";
+
+export interface Attachment {
+  path: string;
+  name: string;
+  kind: AttachmentKind;
+  size?: number;
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: number;
+  attachments?: Attachment[];
 }
 
 export type Page = "installer" | "onboard" | "channels" | "agent" | "dashboard" | "config" | "chat" | "schedulers" | "wallet";

@@ -42,7 +42,7 @@ func (t *FindSkillsTool) Parameters() map[string]any {
 			},
 			"limit": map[string]any{
 				"type":        "integer",
-				"description": "Maximum number of results to return (1-20, default 5)",
+				"description": "Maximum number of results to return (1-20, default 10)",
 				"minimum":     1.0,
 				"maximum":     20.0,
 			},
@@ -71,7 +71,7 @@ func (t *FindSkillsTool) Execute(ctx context.Context, args map[string]any) *Tool
 		)
 	}
 
-	limit := 5
+	limit := 10
 	if l, ok := args["limit"].(float64); ok {
 		li := int(l)
 		if li >= 1 && li <= 20 {
@@ -86,8 +86,11 @@ func (t *FindSkillsTool) Execute(ctx context.Context, args map[string]any) *Tool
 		}
 	}
 
-	// Search all registries.
-	results, err := t.registryMgr.SearchAll(ctx, query, limit)
+	// Search all registries. SearchBroadened retries with a stemmed/stopword-
+	// stripped variant when the raw query under-matches (the registry does
+	// prefix matching, so "video compression" finds ~1 skill but "video
+	// compress" finds ~9 — and a full-sentence query finds none).
+	results, err := skills.SearchBroadened(ctx, t.registryMgr.SearchAll, query, limit)
 	if err != nil {
 		return ErrorResult(fmt.Sprintf("skill search failed: %v", err))
 	}

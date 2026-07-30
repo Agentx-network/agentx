@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { ChatMessage } from "../lib/types";
+import type { ChatMessage, Attachment, AttachmentKind } from "../lib/types";
 import agentHero from "../assets/agent-hero.gif";
 
 interface Props {
@@ -17,6 +17,8 @@ export default function ChatPage({ showToast, messages, setMessages }: Props) {
   const [sending, setSending] = useState(false);
   const [connected, setConnected] = useState<boolean | null>(null);
   const [streamingText, setStreamingText] = useState("");
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [picking, setPicking] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -99,24 +101,57 @@ export default function ChatPage({ showToast, messages, setMessages }: Props) {
     };
   }, []);
 
+  const handleAttach = async () => {
+    if (picking || sending) return;
+    setPicking(true);
+    try {
+      const res = await window.go.main.ChatService.PickAttachments();
+      if (res.rejected?.length) {
+        showToast(
+          res.rejected.map((r) => `${r.name}: ${r.reason}`).join("  •  "),
+          "error"
+        );
+      }
+      if (res.accepted?.length) {
+        setAttachments((prev) =>
+          [...prev, ...(res.accepted as Attachment[])].slice(0, 8)
+        );
+      }
+    } catch (e: any) {
+      showToast(`${e}`, "error");
+    } finally {
+      setPicking(false);
+    }
+  };
+
+  const removeAttachment = (path: string) =>
+    setAttachments((prev) => prev.filter((a) => a.path !== path));
+
   const sendMessage = async () => {
     const text = input.trim();
-    if (!text || sending) return;
+    const atts = attachments;
+    if ((!text && atts.length === 0) || sending) return;
 
     const userMsg: ChatMessage = {
       id: `msg-${++messageIdCounter}`,
       role: "user",
       content: text,
       timestamp: Date.now(),
+      attachments: atts.length ? atts : undefined,
     };
 
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
+    setAttachments([]);
     setSending(true);
     setStreamingText("");
 
     try {
-      const resp = await window.go.main.ChatService.SendMessage(text, "");
+      const resp = await window.go.main.ChatService.SendMessage(
+        text,
+        "",
+        atts.map((a) => a.path)
+      );
       // Finalize: use the full response (streaming may have partial)
       const finalContent = resp.response || "";
       const assistantMsg: ChatMessage = {
@@ -225,7 +260,23 @@ export default function ChatPage({ showToast, messages, setMessages }: Props) {
 
       {/* Input Area */}
       <div className="pt-4 border-t border-neon-pink/15">
+        {/* Pending attachment chips */}
+        {attachments.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-3">
+            {attachments.map((a) => (
+              <PendingChip key={a.path} att={a} onRemove={() => removeAttachment(a.path)} />
+            ))}
+          </div>
+        )}
         <div className="flex gap-3">
+          <button
+            onClick={handleAttach}
+            disabled={sending || picking || connected === false}
+            title="Attach files (images, audio, documents)"
+            className="px-3 bg-white/[0.04] border-2 border-neon-purple/20 rounded-xl text-white/50 hover:text-neon-pink hover:border-neon-pink/40 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            <PaperclipIcon />
+          </button>
           <textarea
             ref={inputRef}
             value={input}
@@ -242,7 +293,7 @@ export default function ChatPage({ showToast, messages, setMessages }: Props) {
           />
           <button
             onClick={sendMessage}
-            disabled={!input.trim() || sending || connected === false}
+            disabled={(!input.trim() && attachments.length === 0) || sending || connected === false}
             className="px-5 bg-neon-pink text-white font-bold uppercase tracking-wider text-xs rounded-xl border border-neon-pink/60 hover:shadow-neon-pink active:scale-[0.97] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
           >
             {sending ? "..." : "Send"}
@@ -327,6 +378,131 @@ const ChatImage = React.memo(function ChatImage({ path }: { path: string }) {
     </div>
   );
 });
+
+// --- Attachments ---
+
+// ATTACH_MARKER mirrors attach.DisplayMarker (Go). A stored user message is
+// "<user text>[<docs note>]<ATTACH_MARKER><kind>|<path>|<name> lines". The
+// visible text is everything before the first metadata marker; the attachment
+// lines are parsed for re-render after a reload.
+const ATTACH_MARKER = "\n\n[[attachments]]\n";
+const DOCS_NOTE_MARKER = "\n\n[The user attached ";
+
+// splitStoredUserContent separates a persisted user message into its visible
+// text and its attachments (parsed from the marker block, if present).
+function splitStoredUserContent(content: string): { text: string; attachments: Attachment[] } {
+  let cut = content.length;
+  const ai = content.indexOf(ATTACH_MARKER);
+  const di = content.indexOf(DOCS_NOTE_MARKER);
+  if (ai >= 0) cut = Math.min(cut, ai);
+  if (di >= 0) cut = Math.min(cut, di);
+  const text = content.slice(0, cut);
+
+  const attachments: Attachment[] = [];
+  if (ai >= 0) {
+    const block = content.slice(ai + ATTACH_MARKER.length);
+    for (const line of block.split("\n")) {
+      if (!line.trim()) continue;
+      const bar1 = line.indexOf("|");
+      const bar2 = line.indexOf("|", bar1 + 1);
+      if (bar1 < 0 || bar2 < 0) continue;
+      const kind = line.slice(0, bar1) as AttachmentKind;
+      const path = line.slice(bar1 + 1, bar2);
+      const name = line.slice(bar2 + 1);
+      if (path) attachments.push({ kind, path, name: name || path });
+    }
+  }
+  return { text, attachments };
+}
+
+function KindIcon({ kind }: { kind: AttachmentKind }) {
+  if (kind === "audio") {
+    return (
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+        <path d="M9 3 5 6H2v4h3l4 3V3Z" /><path d="M11.5 5.5a3 3 0 0 1 0 5M13 4a5 5 0 0 1 0 8" />
+      </svg>
+    );
+  }
+  if (kind === "video") {
+    return (
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+        <rect x="1.5" y="3.5" width="9" height="9" rx="1.5" /><path d="M10.5 6.5 14.5 4v8l-4-2.5Z" />
+      </svg>
+    );
+  }
+  // doc
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M9 1.5H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5.5L9 1.5Z" /><path d="M9 1.5v4h4" />
+    </svg>
+  );
+}
+
+function PaperclipIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="mx-auto">
+      <path d="M13 6.5 7.5 12a2.5 2.5 0 0 1-3.5-3.5l6-6a1.7 1.7 0 0 1 2.4 2.4l-6 6a.8.8 0 0 1-1.2-1.2L10.5 6" />
+    </svg>
+  );
+}
+
+// AttachThumb renders a small image preview from a local path (reusing the same
+// data-URL binding + cache as ChatImage).
+const AttachThumb = React.memo(function AttachThumb({ path, name }: { path: string; name: string }) {
+  const [src, setSrc] = useState<string | null>(() => imageCache.get(path) ?? null);
+  useEffect(() => {
+    if (imageCache.has(path)) { setSrc(imageCache.get(path)!); return; }
+    let active = true;
+    window.go.main.ChatService.ReadImageDataURL(path)
+      .then((url) => { imageCache.set(path, url); if (active) setSrc(url); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [path]);
+  if (!src) {
+    return <div className="w-14 h-14 rounded-lg bg-white/[0.04] border border-white/10 animate-pulse" title={name} />;
+  }
+  return <img src={src} alt={name} title={name} className="w-14 h-14 object-cover rounded-lg border border-white/10" />;
+});
+
+// AttachmentList renders sent attachments inside a message bubble.
+function AttachmentList({ items }: { items: Attachment[] }) {
+  if (!items.length) return null;
+  return (
+    <div className="flex flex-wrap gap-2 mb-2">
+      {items.map((a) =>
+        a.kind === "image" ? (
+          <AttachThumb key={a.path} path={a.path} name={a.name} />
+        ) : (
+          <div key={a.path} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.05] border border-white/10 text-white/70 max-w-[200px]">
+            <KindIcon kind={a.kind} />
+            <span className="text-xs truncate">{a.name}</span>
+          </div>
+        )
+      )}
+    </div>
+  );
+}
+
+// PendingChip is an attachment queued in the composer (with a remove button).
+function PendingChip({ att, onRemove }: { att: Attachment; onRemove: () => void }) {
+  return (
+    <div className="flex items-center gap-1.5 pl-1 pr-2 py-1 rounded-lg bg-white/[0.05] border border-neon-purple/20 text-white/75">
+      {att.kind === "image" ? (
+        <AttachThumb path={att.path} name={att.name} />
+      ) : (
+        <span className="pl-1"><KindIcon kind={att.kind} /></span>
+      )}
+      <span className="text-xs truncate max-w-[140px]">{att.name}</span>
+      <button
+        onClick={onRemove}
+        title="Remove"
+        className="text-white/40 hover:text-neon-pink text-sm leading-none px-1"
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
 
 // isLocalImagePath reports whether a markdown image src points at a local file
 // (absolute path or file:// URL) rather than a remote http(s) URL or data URI.
@@ -432,6 +608,16 @@ function MarkdownContent({ content }: { content: string }) {
 // keystroke) does not re-render every existing bubble — each msg object is a
 // stable reference, so settled bubbles skip re-rendering entirely.
 const MessageBubble = React.memo(function MessageBubble({ msg }: { msg: ChatMessage }) {
+  // For user messages, prefer live attachments; otherwise parse the persisted
+  // marker block (reload path) and strip metadata from the visible text.
+  let userText = msg.content;
+  let userAtts = msg.attachments ?? [];
+  if (msg.role === "user") {
+    const parsed = splitStoredUserContent(msg.content);
+    userText = parsed.text;
+    if (userAtts.length === 0) userAtts = parsed.attachments;
+  }
+
   return (
     <div
       className={`flex items-end gap-2 ${
@@ -453,9 +639,14 @@ const MessageBubble = React.memo(function MessageBubble({ msg }: { msg: ChatMess
             <AssistantContent content={msg.content} />
           </div>
         ) : (
-          <div className="text-sm whitespace-pre-wrap break-words leading-relaxed">
-            {msg.content}
-          </div>
+          <>
+            <AttachmentList items={userAtts} />
+            {userText.trim() && (
+              <div className="text-sm whitespace-pre-wrap break-words leading-relaxed">
+                {userText}
+              </div>
+            )}
+          </>
         )}
         <div
           className={`text-[10px] mt-1.5 ${
