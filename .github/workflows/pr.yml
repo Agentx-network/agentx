@@ -11,6 +11,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      # The desktop app embeds the built frontend via `//go:embed all:frontend/dist`
+      # in cmd/agentx-desktop/main.go. dist/ is a build output (gitignored), so it
+      # must be produced before any Go step compiles that package — otherwise
+      # golangci-lint's typecheck fails with "pattern all:frontend/dist: no
+      # matching files found". Mirrors the release workflows.
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build desktop frontend (for go:embed)
+        working-directory: cmd/agentx-desktop/frontend
+        run: npm ci && npm run build
+
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
@@ -23,6 +37,11 @@ jobs:
         uses: golangci/golangci-lint-action@v9
         with:
           version: v2.10.1
+          # The repo has a pre-existing lint backlog that was hidden while the
+          # desktop package failed to compile. Report only issues introduced by
+          # the PR so new code stays clean without blocking on legacy debt
+          # (which can be cleaned up separately).
+          only-new-issues: true
 
   test:
     name: Tests
@@ -30,6 +49,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      # See the note in the lint job: the frontend must be built so the
+      # cmd/agentx-desktop go:embed pattern has files to match before `go test`
+      # compiles the package.
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build desktop frontend (for go:embed)
+        working-directory: cmd/agentx-desktop/frontend
+        run: npm ci && npm run build
 
       - name: Setup Go
         uses: actions/setup-go@v6

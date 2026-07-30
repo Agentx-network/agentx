@@ -456,8 +456,10 @@ func (c *ChatService) PickAttachments() (*PickAttachmentsResult, error) {
 	paths, err := wailsRuntime.OpenMultipleFilesDialog(c.ctx, wailsRuntime.OpenDialogOptions{
 		Title: "Attach files",
 		Filters: []wailsRuntime.FileFilter{
-			{DisplayName: "Supported files (images, audio, video, documents)",
-				Pattern: "*.png;*.jpg;*.jpeg;*.webp;*.gif;*.mp3;*.wav;*.m4a;*.ogg;*.flac;*.aac;*.mp4;*.mov;*.webm;*.mkv;*.avi;*.m4v;*.flv;*.wmv;*.mpeg;*.mpg;*.pdf;*.txt;*.md;*.markdown;*.csv;*.json;*.log;*.yaml;*.yml;*.xml;*.html;*.htm;*.tsv;*.ini;*.toml"},
+			{
+				DisplayName: "Supported files (images, audio, video, documents)",
+				Pattern:     "*.png;*.jpg;*.jpeg;*.webp;*.gif;*.mp3;*.wav;*.m4a;*.ogg;*.flac;*.aac;*.mp4;*.mov;*.webm;*.mkv;*.avi;*.m4v;*.flv;*.wmv;*.mpeg;*.mpg;*.pdf;*.txt;*.md;*.markdown;*.csv;*.json;*.log;*.yaml;*.yml;*.xml;*.html;*.htm;*.tsv;*.ini;*.toml",
+			},
 			{DisplayName: "All files", Pattern: "*.*"},
 		},
 	})
@@ -467,7 +469,7 @@ func (c *ChatService) PickAttachments() (*PickAttachmentsResult, error) {
 
 	result := &PickAttachmentsResult{Accepted: []Attachment{}, Rejected: []RejectedAttachment{}}
 	if len(paths) == 0 {
-		return result, nil // user cancelled
+		return result, nil // user canceled
 	}
 
 	cfg, err := config.LoadConfig(getConfigPath())

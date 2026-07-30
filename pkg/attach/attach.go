@@ -220,9 +220,9 @@ func ValidateAndStore(srcPath, workspace string) (*Stored, error) {
 	if info.IsDir() {
 		return nil, fmt.Errorf("%q: is a directory", name)
 	}
-	if cap := maxBytesFor(kind); info.Size() > cap {
+	if limit := maxBytesFor(kind); info.Size() > limit {
 		return nil, fmt.Errorf("%q is %s — over the %s limit for %ss",
-			name, humanSize(info.Size()), humanSize(cap), kind)
+			name, humanSize(info.Size()), humanSize(limit), kind)
 	}
 
 	src, err := os.Open(srcPath)
@@ -237,12 +237,12 @@ func ValidateAndStore(srcPath, workspace string) (*Stored, error) {
 	if !sniffMatchesKind(head[:n], kind) {
 		return nil, fmt.Errorf("%q doesn't look like a valid %s file", name, kind)
 	}
-	if _, err := src.Seek(0, io.SeekStart); err != nil {
+	if _, err = src.Seek(0, io.SeekStart); err != nil {
 		return nil, fmt.Errorf("%q: cannot read file", name)
 	}
 
 	uploadsDir := filepath.Join(workspace, UploadsDirName)
-	if err := os.MkdirAll(uploadsDir, 0o755); err != nil {
+	if err = os.MkdirAll(uploadsDir, 0o755); err != nil {
 		return nil, fmt.Errorf("could not create uploads directory: %w", err)
 	}
 

@@ -13,8 +13,8 @@ func TestStemWord(t *testing.T) {
 		"videos":      "video",
 		"video":       "video", // no over-stemming of short/plain words
 		"editing":     "edit",
-		"conversion":  "convers", // acceptable: still a prefix of "conversion"/"convert"-ish
-		"css":         "css",     // too short to strip
+		"testing":     "test", // -ing stripped
+		"css":         "css",  // too short to strip
 	}
 	for in, want := range cases {
 		if got := stemWord(in); got != want {

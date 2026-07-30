@@ -97,7 +97,9 @@ func SearchBroadened(ctx context.Context, search SearchFunc, query string, limit
 
 	extra, err := search(ctx, broad, limit)
 	if err != nil || len(extra) == 0 {
-		return primary, nil
+		// Broadening is best-effort: if the retry errors or finds nothing, keep
+		// the primary results rather than failing the whole search.
+		return primary, nil //nolint:nilerr
 	}
 
 	merged := mergeDedupBySlug(primary, extra)

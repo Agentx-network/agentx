@@ -815,7 +815,9 @@ const maxAttachmentBytes = 30 << 20 // 30 MB
 // FileParts for the current turn, honoring the resolved model's capabilities.
 // Modalities the model can't accept are skipped and summarized in the returned
 // note (folded into the prompt so the model tells the user to switch models).
-func (al *AgentLoop) buildAttachmentFileParts(model fantasy.LanguageModel, paths []string) ([]fantasy.FilePart, string) {
+func (al *AgentLoop) buildAttachmentFileParts(
+	model fantasy.LanguageModel, paths []string,
+) ([]fantasy.FilePart, string) {
 	if len(paths) == 0 {
 		return nil, ""
 	}
@@ -868,15 +870,23 @@ func (al *AgentLoop) buildAttachmentFileParts(model fantasy.LanguageModel, paths
 	// Build an accept-and-warn note for anything we couldn't send.
 	var note string
 	if len(skippedImages) > 0 {
-		note += fmt.Sprintf("\n\n[SYSTEM: The user attached %d image(s) (%s) but the current model (%s) can't view images. "+
-			"Tell the user their current model can't see images and to switch to a vision-capable model "+
-			"(e.g. Gemini or GPT-4o) in Config to analyze it. Do NOT pretend to see the image.]",
-			len(skippedImages), strings.Join(skippedImages, ", "), modelID)
+		note += fmt.Sprintf(
+			"\n\n[SYSTEM: The user attached %d image(s) (%s) but the current model (%s) can't view images. "+
+				"Tell the user their current model can't see images and to switch to a vision-capable model "+
+				"(e.g. Gemini or GPT-4o) in Config to analyze it. Do NOT pretend to see the image.]",
+			len(skippedImages),
+			strings.Join(skippedImages, ", "),
+			modelID,
+		)
 	}
 	if len(skippedAudio) > 0 {
-		note += fmt.Sprintf("\n\n[SYSTEM: The user attached %d audio file(s) (%s) but the current model (%s) can't process audio. "+
-			"Tell the user to switch to an audio-capable model (e.g. Gemini). Do NOT pretend to hear the audio.]",
-			len(skippedAudio), strings.Join(skippedAudio, ", "), modelID)
+		note += fmt.Sprintf(
+			"\n\n[SYSTEM: The user attached %d audio file(s) (%s) but the current model (%s) can't process audio. "+
+				"Tell the user to switch to an audio-capable model (e.g. Gemini). Do NOT pretend to hear the audio.]",
+			len(skippedAudio),
+			strings.Join(skippedAudio, ", "),
+			modelID,
+		)
 	}
 	return parts, note
 }

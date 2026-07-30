@@ -4,10 +4,15 @@ import "testing"
 
 func TestProviderSupportsVision(t *testing.T) {
 	yes := []struct{ p, m string }{
-		{"anthropic", "claude-3-5-sonnet"}, {"anthropic", "claude-sonnet-4"},
-		{"gemini", "gemini-2.5-flash"}, {"google", "gemini-1.5-pro"},
-		{"openai", "gpt-4o"}, {"openai", "gpt-4.1"}, {"openai", "gpt-5.2"},
-		{"openai", "o3"}, {"openrouter", "qwen2-vl-7b"},
+		{"anthropic", "claude-3-5-sonnet"},
+		{"anthropic", "claude-sonnet-4"},
+		{"gemini", "gemini-2.5-flash"},
+		{"google", "gemini-1.5-pro"},
+		{"openai", "gpt-4o"},
+		{"openai", "gpt-4.1"},
+		{"openai", "gpt-5.2"},
+		{"openai", "o3"},
+		{"openrouter", "qwen2-vl-7b"},
 		{"openrouter", "auto"}, // router selects a vision model per-request
 	}
 	for _, c := range yes {
@@ -17,9 +22,12 @@ func TestProviderSupportsVision(t *testing.T) {
 	}
 
 	no := []struct{ p, m string }{
-		{"anthropic", "claude-2.1"}, {"anthropic", "claude-instant-1"},
-		{"gemini", "gemini-pro"}, {"openai", "gpt-3.5-turbo"},
-		{"groq", "llama-3.3-70b"}, {"deepseek", "deepseek-chat"},
+		{"anthropic", "claude-2.1"},
+		{"anthropic", "claude-instant-1"},
+		{"gemini", "gemini-pro"},
+		{"openai", "gpt-3.5-turbo"},
+		{"groq", "llama-3.3-70b"},
+		{"deepseek", "deepseek-chat"},
 		{"cerebras", "llama3.1-8b"},
 	}
 	for _, c := range no {
