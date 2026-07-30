@@ -122,6 +122,44 @@ func (sm *SessionManager) SetSummary(key string, summary string) {
 	}
 }
 
+// TranscriptEntry is one line in a session's append-only display transcript.
+type TranscriptEntry struct {
+	Role      string `json:"role"`
+	Content   string `json:"content"`
+	Timestamp int64  `json:"ts"` // unix millis
+}
+
+// AppendTranscript appends one message to the session's append-only display
+// transcript (<key>.transcript.jsonl). Unlike the session .json — which gets
+// summarized and truncated to fit the model's context window — the transcript
+// is NEVER trimmed, so the chat UI can always show the full conversation even
+// after older messages have been compacted for the model. Best-effort: any
+// failure is swallowed so it can never block a reply.
+func (sm *SessionManager) AppendTranscript(key, role, content string) {
+	if sm.storage == "" || content == "" {
+		return
+	}
+	filename := sanitizeFilename(key)
+	if filename == "." || !filepath.IsLocal(filename) || strings.ContainsAny(filename, `/\`) {
+		return
+	}
+	line, err := json.Marshal(TranscriptEntry{
+		Role:      role,
+		Content:   content,
+		Timestamp: time.Now().UnixMilli(),
+	})
+	if err != nil {
+		return
+	}
+	path := filepath.Join(sm.storage, filename+".transcript.jsonl")
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	_, _ = f.Write(append(line, '\n'))
+}
+
 func (sm *SessionManager) TruncateHistory(key string, keepLast int) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()

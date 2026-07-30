@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AgentX — Knowledge Transfer Documentation</title>
+<style>
+  :root { --fg:#1a1a1a; --muted:#5a5a6a; --accent:#b4006e; --accent2:#6a2fb0; --line:#e2e2e8; --code-bg:#f5f5f8; --box:#f8f8fb; }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: var(--fg);
+         line-height: 1.55; max-width: 900px; margin: 0 auto; padding: 40px 48px; font-size: 15px; }
+  h1 { font-size: 30px; margin: 0 0 4px; letter-spacing: -0.5px; }
+  h2 { font-size: 22px; margin: 34px 0 10px; padding-bottom: 6px; border-bottom: 2px solid var(--accent);
+       color: var(--accent); page-break-after: avoid; }
+  h3 { font-size: 17px; margin: 22px 0 6px; color: var(--accent2); page-break-after: avoid; }
+  h4 { font-size: 15px; margin: 16px 0 4px; }
+  p, li { color: var(--fg); }
+  code { font-family: "SF Mono", Menlo, Consolas, monospace; background: var(--code-bg); padding: 1px 5px;
+         border-radius: 4px; font-size: 0.88em; }
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px;
+        overflow-x: auto; font-size: 12.5px; line-height: 1.45; page-break-inside: avoid; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 13.5px; page-break-inside: avoid; }
+  th, td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--box); font-weight: 600; }
+  a { color: var(--accent); }
+  .muted { color: var(--muted); }
+  .box { background: var(--box); border: 1px solid var(--line); border-left: 4px solid var(--accent2);
+         border-radius: 6px; padding: 12px 16px; margin: 14px 0; page-break-inside: avoid; }
+  .warn { border-left-color: #d08700; background: #fff9ec; }
+  .danger { border-left-color: #c0392b; background: #fdecea; }
+  .ok { border-left-color: #1e8e3e; background: #eafaef; }
+  .cover { text-align: center; padding: 60px 0 40px; border-bottom: 3px solid var(--accent); margin-bottom: 10px; }
+  .cover .sub { color: var(--muted); font-size: 17px; margin-top: 6px; }
+  .cover .meta { color: var(--muted); font-size: 13px; margin-top: 24px; line-height: 1.9; }
+  .tag { display:inline-block; background: var(--accent); color:#fff; font-size: 11px; padding: 2px 9px;
+         border-radius: 10px; margin: 2px; }
+  .tag.alt { background: var(--accent2); }
+  ol.toc { columns: 2; font-size: 14px; }
+  ol.toc li { margin: 3px 0; }
+  hr { border: none; border-top: 1px solid var(--line); margin: 26px 0; }
+  .kbd { font-family: monospace; background:#eee; border:1px solid #ccc; border-radius:4px; padding:1px 5px; font-size:12px; }
+  @media print {
+    body { padding: 0; max-width: none; font-size: 12px; }
+    h2 { page-break-before: auto; }
+    .page-break { page-break-before: always; }
+    a { color: var(--fg); text-decoration: none; }
+    pre, table, .box { page-break-inside: avoid; }
+  }
+  @page { margin: 16mm 14mm; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div style="font-size:13px;letter-spacing:3px;color:var(--accent2);font-weight:600;">KNOWLEDGE TRANSFER · HANDOVER</div>
+  <h1>AgentX — Desktop App &amp; Agent Runtime</h1>
+  <div class="sub">Technical documentation for the incoming engineer</div>
+  <div>
+    <span class="tag">Go 1.26</span><span class="tag alt">Wails v2</span><span class="tag">React + TS</span>
+    <span class="tag alt">Fantasy LLM SDK</span><span class="tag">ClawHub Skills</span><span class="tag alt">BSC Wallet</span>
+  </div>
+  <div class="meta">
+    Repository: <code>github.com/Agentx-network/agentx</code> (the "OpenClaw" Go runtime + desktop GUI)<br>
+    Version at handover: <b>v0.8.49</b> &nbsp;·&nbsp; Working branch: <code>fix/bug-fixes</code><br>
+    Scope: this repo only — <i>not</i> the separate <code>agentx-backend</code> website (see §12)
+  </div>
+</div>
+
+<h2 style="border:none;margin-top:18px;">Contents</h2>
+<ol class="toc">
+  <li><a href="#s1">Executive summary</a></li>
+  <li><a href="#s2">Technology stack</a></li>
+  <li><a href="#s3">High-level architecture</a></li>
+  <li><a href="#s4">The three runtimes</a></li>
+  <li><a href="#s5">Repository structure</a></li>
+  <li><a href="#s6">Core concepts</a></li>
+  <li><a href="#s7">How &amp; where it runs (deployment)</a></li>
+  <li><a href="#s8">Build &amp; run locally</a></li>
+  <li><a href="#s9">Config &amp; workspace (data on disk)</a></li>
+  <li><a href="#s10">Feature reference</a></li>
+  <li><a href="#s11">Work done during this handover</a></li>
+  <li><a href="#s12">Related projects &amp; boundaries</a></li>
+  <li><a href="#s13">Known issues, gotchas &amp; watch-outs</a></li>
+  <li><a href="#s14">Git, branches &amp; release flow</a></li>
+  <li><a href="#s15">Quick-reference cheat sheet</a></li>
+  <li><a href="#s16">Onboarding checklist</a></li>
+</ol>
+
+<h2 id="s1">1. Executive summary</h2>
+<p><b>AgentX</b> is a lightweight, self-hosted <b>AI agent runtime written in Go</b>, plus a cross-platform
+<b>desktop GUI</b>. It lets a user run a personal AI agent that can chat, use tools (shell, file I/O, web
+search, image generation), learn hot-loadable "skills", schedule tasks/reminders, talk over messaging
+channels (Telegram, Discord, etc.), and manage a BNB Smart Chain (BSC) crypto wallet.</p>
+<p>It is the client-side / runtime half of the broader <b>AgentX Network</b> product (a "decentralized AI agent
+economy"). This repository — internally nicknamed <b>"OpenClaw"</b> — contains the Go agent engine, the CLI,
+the background gateway service, and the Wails-based desktop application. The marketing site, the LaunchPad,
+and on-chain/economy pieces live in <i>other</i> repositories (see §12).</p>
+<div class="box ok"><b>One-line mental model:</b> A single Go binary (<code>agentx</code>) that runs an LLM
+tool-calling loop. It can run as a CLI, as a long-lived background <b>gateway</b> service, or be driven by a
+<b>desktop app</b>. All state lives in <code>~/.agentx/</code>.</div>
+
+<h2 id="s2">2. Technology stack</h2>
+<table>
+  <tr><th>Layer</th><th>Technology</th><th>Notes</th></tr>
+  <tr><td>Core language</td><td><b>Go 1.26</b></td><td>Single static binary, ~5&nbsp;MB RAM, CGO disabled for the CLI</td></tr>
+  <tr><td>LLM abstraction</td><td><b>Fantasy SDK</b> <code>charm.land/fantasy v0.11.0</code></td><td>Unified provider layer: Anthropic, OpenAI, Google/Gemini, OpenRouter, Groq, Cerebras, DeepSeek, Mistral, and more. Handles streaming, tool-calls, and multimodal (image/audio) input.</td></tr>
+  <tr><td>Desktop shell</td><td><b>Wails v2</b> <code>v2.11.0</code></td><td>Go backend + web frontend in a native window (WebKit on Linux/macOS, WebView2 on Windows)</td></tr>
+  <tr><td>Desktop frontend</td><td><b>React + TypeScript + TailwindCSS + Vite</b></td><td>In <code>cmd/agentx-desktop/frontend/</code>. Talks to Go via auto-generated Wails bindings.</td></tr>
+  <tr><td>CLI framework</td><td><b>Cobra</b> <code>spf13/cobra</code></td><td>Subcommands: gateway, wallet, skills, cron, agent, auth, onboard, status, migrate, version, uninstall</td></tr>
+  <tr><td>Service manager</td><td><b>systemd</b> (Linux), <b>launchd</b> (macOS), <b>Task Scheduler</b> (Windows)</td><td>Runs the gateway as a background service that auto-starts</td></tr>
+  <tr><td>Blockchain</td><td><b>BNB Smart Chain (BSC)</b></td><td>Wallet keygen + balances + token transfers via public JSON-RPC. ERC-8004 on-chain agent registry.</td></tr>
+  <tr><td>Skills</td><td><b>ClawHub</b> marketplace (<code>clawhub.ai</code>)</td><td>Markdown-based "SKILL.md" skills, searched/installed at runtime</td></tr>
+  <tr><td>Messaging</td><td>Telegram, Discord, Slack, WhatsApp, LINE, WeCom, DingTalk, Feishu, QQ, OneBot</td><td>~10 channels via <code>pkg/channels</code></td></tr>
+  <tr><td>Hardware I/O</td><td>I2C / SPI</td><td>For edge devices (e.g. Raspberry Pi, MaixCam)</td></tr>
+</table>
+
+<h2 id="s3" class="page-break">3. High-level architecture</h2>
+<pre>
+                         ┌──────────────────────────────────────────────┐
+                         │              User's machine                   │
+                         │                                              │
+   ┌───────────────┐     │   ┌──────────────────┐     ┌──────────────┐  │
+   │  Desktop App   │ HTTP│   │  Gateway service  │     │  Messaging    │  │
+   │ (Wails: Go +   │◄───────►│  `agentx gateway`  │◄───►│  channels     │  │
+   │  React/TS UI)  │ SSE │   │  127.0.0.1:18790  │     │ (Telegram …)  │  │
+   └───────────────┘     │   └────────┬─────────┘     └──────────────┘  │
+                         │            │                                 │
+                         │            ▼                                 │
+                         │   ┌──────────────────────────────────────┐   │
+                         │   │        pkg/agent — the Agent Loop      │   │
+                         │   │  build context → LLM (Fantasy SDK) →   │   │
+                         │   │  tool calls → repeat → final reply     │   │
+                         │   └───┬───────────┬──────────┬─────────────┘   │
+                         │       ▼           ▼          ▼                 │
+                         │   ┌───────┐  ┌─────────┐  ┌────────┐           │
+                         │   │ Tools │  │ Sessions │  │ Skills │  … etc.   │
+                         │   │ exec, │  │ + memory │  │ClawHub │           │
+                         │   │ web,  │  │ summary  │  │        │           │
+                         │   │ image │  └─────────┘  └────────┘           │
+                         │   └───────┘                                    │
+                         │                                              │
+                         │   All state on disk:  ~/.agentx/             │
+                         └──────────────────────────────────────────────┘
+                                          │
+                                          ▼
+                    LLM providers (OpenRouter / Anthropic / Gemini / …)
+</pre>
+<p><b>Key point:</b> The desktop app is a thin client. It does <u>not</u> run the agent itself — it sends
+messages to the <b>gateway</b> over HTTP (<code>POST /api/chat</code>, Server-Sent-Events streaming). The
+gateway hosts the actual agent loop, tools, memory, and channels. This separation matters for deployment
+(see §7 and §13).</p>
+
+<h2 id="s4">4. The three runtimes (one binary)</h2>
+<p>The same <code>agentx</code> binary behaves differently depending on how it is invoked:</p>
+<table>
+  <tr><th>Runtime</th><th>How it starts</th><th>Role</th></tr>
+  <tr><td><b>CLI</b></td><td><code>agentx &lt;command&gt;</code></td><td>One-off commands: wallet ops, skill install, cron, onboarding, status. Also how you chat in a terminal.</td></tr>
+  <tr><td><b>Gateway</b></td><td><code>agentx gateway</code> (run as a background service)</td><td>Long-lived process. Serves the HTTP API on <code>127.0.0.1:18790</code>, runs the agent loop, connects messaging channels, executes scheduled crons/heartbeats. <b>This is the "backend" the desktop chat talks to.</b></td></tr>
+  <tr><td><b>Desktop</b></td><td><code>agentx-desktop</code> (separate Wails binary)</td><td>Native GUI. Auto-starts the gateway if not running, then drives it over HTTP.</td></tr>
+</table>
+
+<h2 id="s5">5. Repository structure</h2>
+<pre>
+agentx/
+├── cmd/
+│   ├── agentx/                 ← the CLI + gateway (single binary)
+│   │   ├── main.go
+│   │   └── internal/           ← cobra subcommands
+│   │       ├── gateway/        ← HTTP API + agent wiring  (helpers.go = /api/chat etc.)
+│   │       ├── wallet/  skills/  cron/  agent/  auth/  onboard/
+│   │       ├── status/  migrate/  uninstall/  version/
+│   └── agentx-desktop/         ← the Wails desktop app
+│       ├── *.go                ← Go services bound to the UI
+│       │   ├── chat.go         ← chat + history + file attachments (SendMessage, PickAttachments)
+│       │   ├── agentsetup.go   ← skills search/install, bootstrap files
+│       │   ├── dashboard.go    ← gateway start/stop/status
+│       │   ├── service.go      ← installs the systemd/launchd service unit
+│       │   ├── wallet.go  configui.go  schedulers.go  installer*.go
+│       └── frontend/           ← React + TS + Tailwind (Vite)
+│           └── src/
+│               ├── App.tsx              ← window.go bindings + routing + history load
+│               ├── pages/ChatPage.tsx   ← chat UI, attachments, markdown/image render
+│               ├── pages/ConfigPage.tsx ← providers, models, skills search
+│               └── pages/{Dashboard,Wallet,Schedulers,Installer}Page.tsx
+│
+├── pkg/                        ← the reusable engine (imported by cmd/*)
+│   ├── agent/       ← THE CORE. Agent loop, context building, tool orchestration,
+│   │                  summarization, reminders. (loop.go, fantasy_runner.go, context.go, summarize.go)
+│   ├── providers/   ← Fantasy SDK bridge + provider config + capability maps
+│   ├── tools/       ← agent tools: exec, read_file, write_file, list_dir, web_search,
+│   │                  web_fetch, image_generate, find_skills, install_skill, cron, spawn, subagent, i2c, spi
+│   ├── session/     ← conversation persistence (sessions/*.json + *.transcript.jsonl)
+│   ├── skills/      ← ClawHub registry client, skill loader, search cache
+│   ├── channels/    ← Telegram, Discord, Slack, WhatsApp, LINE, WeCom, DingTalk, Feishu, QQ, OneBot
+│   ├── config/      ← config.json load/save + defaults
+│   ├── wallet/      ← BSC keygen, balances, token transfers (tx.go, wallet.go)
+│   ├── attach/      ← chat file-upload validation/storage  (ADDED THIS HANDOVER)
+│   ├── image/       ← image generation providers (Gemini, OpenAI, Replicate, Seedance)
+│   ├── cron/  heartbeat/  ← scheduled tasks + periodic self-checks
+│   ├── bus/         ← in-process message bus (inbound/outbound/stream deltas)
+│   ├── routing/     ← maps a channel+peer to an agent + session key
+│   ├── voice/       ← audio transcription (used by channels)
+│   ├── devices/  auth/  state/  migrate/  fileutil/  logger/  utils/  constants/  buildinfo/
+│
+├── Makefile         ← build/install targets
+├── install.sh / install.ps1
+├── docker/          ├── docs/          ├── config/
+└── go.mod           ← module github.com/Agentx-network/agentx, go 1.26
+</pre>
+
+<h2 id="s6" class="page-break">6. Core concepts</h2>
+
+<h3>6.1 The agent loop (<code>pkg/agent</code>)</h3>
+<p>The heart of the system. For each user message:</p>
+<ol>
+  <li><b>Build context</b> (<code>context.go</code>): system prompt (identity, rules, workspace info) + bootstrap
+      files + installed skills summary + memory + session history/summary.</li>
+  <li><b>Call the model</b> via the Fantasy SDK (<code>fantasy_runner.go</code> is the primary path;
+      <code>runLLMIteration</code> is a legacy path). The model streams text and may emit tool calls.</li>
+  <li><b>Execute tools</b> and feed results back; loop until the model produces a final answer or hits the
+      iteration cap.</li>
+  <li><b>Persist</b> the user + assistant messages, then maybe <b>summarize</b> (see 6.4).</li>
+</ol>
+<p><code>fantasy_runner.go</code> also contains resilience logic for weak models: recovering text-form tool
+calls, auto-running web search when the model "narrates" instead of acting, and (added this handover)
+auto-searching skills and attaching uploaded files.</p>
+
+<h3>6.2 Providers &amp; models (<code>pkg/providers</code>)</h3>
+<p>Model selection is config-driven. The default is <code>Auto (best available)</code>, which resolves to
+<code>openrouter/auto</code> — OpenRouter's router that picks a model per request. Provider protocol
+(anthropic/openai/gemini/openrouter/…) is chosen in <code>fantasy_bridge.go</code>. Capability maps
+(<code>imagecapability.go</code>, <code>visioncapability.go</code>) declare which models can generate images
+or accept image/audio input.</p>
+
+<h3>6.3 Tools (<code>pkg/tools</code>)</h3>
+<table>
+  <tr><th>Tool</th><th>What it does</th></tr>
+  <tr><td><code>exec</code></td><td>Run a shell command (e.g. ffmpeg, git). Powerful — the main way the agent "does" things.</td></tr>
+  <tr><td><code>read_file</code> / <code>write_file</code> / <code>list_dir</code></td><td>Sandboxed file I/O within the workspace (+ uploads dir).</td></tr>
+  <tr><td><code>web_search</code> / <code>web_fetch</code></td><td>Search the web / fetch a URL (Brave/Tavily/etc. per config).</td></tr>
+  <tr><td><code>image_generate</code> / <code>configure_image_provider</code></td><td>Create images (Gemini/OpenAI/Replicate/Seedance); manage the image provider + key.</td></tr>
+  <tr><td><code>find_skills</code> / <code>install_skill</code></td><td>Search ClawHub and install a skill into the workspace.</td></tr>
+  <tr><td><code>cron</code></td><td>Schedule reminders / recurring tasks.</td></tr>
+  <tr><td><code>spawn</code> / <code>subagent</code></td><td>Run background sub-agents for long tasks.</td></tr>
+  <tr><td><code>i2c</code> / <code>spi</code></td><td>Talk to hardware on edge devices.</td></tr>
+</table>
+
+<h3>6.4 Sessions &amp; memory (<code>pkg/session</code>)</h3>
+<p>Every conversation is a "session", keyed by channel+peer (the desktop chat resolves to
+<code>agent:main:main</code>). Two on-disk representations, <b>kept separate on purpose</b>:</p>
+<table>
+  <tr><th>File</th><th>Purpose</th><th>Trimmed?</th></tr>
+  <tr><td><code>sessions/&lt;key&gt;.json</code></td><td><b>Agent context</b> — what the model sees. Has <code>messages[]</code> + a text <code>summary</code>.</td><td><b>Yes</b> — when a chat exceeds ~20 messages or ~75% of the context window, older messages are summarized into <code>summary</code> and dropped (<code>summarize.go</code> → <code>TruncateHistory</code>).</td></tr>
+  <tr><td><code>sessions/&lt;key&gt;.transcript.jsonl</code></td><td><b>UI display history</b> — append-only, one JSON message per line. <i>(Added this handover.)</i></td><td><b>No</b> — never summarized. The desktop reads this so the chat window keeps full history even after the context is compacted.</td></tr>
+</table>
+<div class="box"><b>Why two files?</b> The model must stay within a token budget (so context is summarized), but a
+user expects their chat history to persist. The transcript decouples "what the agent remembers" from "what the
+UI shows." Before this, restarting the app made summarized-away messages disappear from the UI.</div>
+
+<h3>6.5 Skills (<code>pkg/skills</code>)</h3>
+<p>Skills are folders containing a <code>SKILL.md</code> (plus optional scripts) that teach the agent a
+capability. They live in <code>~/.agentx/workspace/skills/</code>. The agent can <code>find_skills</code>
+(search ClawHub) and <code>install_skill</code> (download+extract). A built-in <b>wallet</b> skill is
+auto-installed. Skill summaries are injected into the system prompt so the agent knows what it has.</p>
+
+<h3>6.6 Channels (<code>pkg/channels</code>)</h3>
+<p>Adapters that connect the agent to messaging platforms. Each channel receives messages, routes them
+(<code>pkg/routing</code>) to a session, runs the agent loop, and streams the reply back. Enabled/configured
+per-channel in <code>config.json</code>. Telegram is the one currently enabled in this environment.</p>
+
+<h2 id="s7" class="page-break">7. How &amp; where it runs (deployment)</h2>
+<h3>7.1 On this machine (Linux)</h3>
+<table>
+  <tr><th>Component</th><th>Where</th></tr>
+  <tr><td>Gateway service unit</td><td><code>~/.config/systemd/user/agentx-gateway.service</code> (a <b>systemd user service</b>, auto-starts)</td></tr>
+  <tr><td>Gateway process</td><td><code>agentx gateway</code> → listens on <code>127.0.0.1:18790</code></td></tr>
+  <tr><td>Installed binary</td><td><code>/usr/local/bin/agentx</code> (system-wide install) — <b>root-owned</b></td></tr>
+  <tr><td>Desktop-installed binary</td><td><code>~/.local/bin/agentx</code> (when installed via the desktop app)</td></tr>
+  <tr><td>Desktop app binary</td><td><code>cmd/agentx-desktop/build/bin/agentx-desktop</code></td></tr>
+  <tr><td>All user data</td><td><code>~/.agentx/</code> (config, workspace, wallet, logs)</td></tr>
+</table>
+
+<h3>7.2 The gateway lifecycle (important)</h3>
+<p>The desktop app <b>auto-starts the gateway</b> on launch if it isn't already reachable
+(<code>main.go</code> → <code>DashboardService.StartGateway</code>). It locates the binary with
+<code>exec.LookPath("agentx")</code>, which finds whatever <code>agentx</code> is first on <code>PATH</code>
+(normally <code>/usr/local/bin/agentx</code>), and installs/refreshes the systemd unit to point there. The
+Dashboard has <span class="kbd">RESTART</span> / <span class="kbd">STOP</span> buttons that drive the same
+service.</p>
+
+<h3>7.3 Manual gateway control (Linux)</h3>
+<pre><code>systemctl --user status  agentx-gateway.service
+systemctl --user restart agentx-gateway.service
+systemctl --user stop    agentx-gateway.service
+tail -f ~/.agentx/gateway.log        # runtime logs</code></pre>
+
+<h2 id="s8">8. Build &amp; run locally</h2>
+<h3>8.1 Prerequisites</h3>
+<p>Go 1.26+, Node.js + npm (for the desktop frontend), the Wails CLI (<code>go install github.com/wailsapp/wails/v2/cmd/wails@latest</code>), and on Linux the WebKit2GTK dev libs.</p>
+
+<h3>8.2 Build commands (Makefile)</h3>
+<pre><code># CLI + gateway binary  → build/agentx-linux-amd64
+make build
+
+# Desktop app  → cmd/agentx-desktop/build/bin/agentx-desktop
+make desktop-build       # (wails build -tags webkit2_41)
+
+# Desktop hot-reload dev mode
+make desktop-dev
+
+# Run the whole test suite
+make test        # or: go test ./...</code></pre>
+
+<h3>8.3 The redeploy loop (what you do after a backend change)</h3>
+<div class="box warn"><b>Critical:</b> Chat/schedulers/wallet all run in the <b>gateway</b>, not the desktop
+app. Rebuilding only the desktop app will <u>not</u> pick up backend changes. You must rebuild the
+<code>agentx</code> binary, replace the one the service runs, and restart the gateway.</div>
+<pre><code>make build
+systemctl --user stop agentx-gateway.service
+cp build/agentx-linux-amd64 ~/.local/bin/agentx      # or /usr/local/bin (needs sudo)
+systemctl --user start agentx-gateway.service
+# then, for UI changes:
+make desktop-build && ./cmd/agentx-desktop/build/bin/agentx-desktop</code></pre>
+
+<h3>8.4 Launching the desktop app from a terminal (Linux gotcha)</h3>
+<p>If you launch from a shell running inside a <b>snap</b> (e.g. the VS Code snap terminal), the snap injects
+library paths that crash the WebKit window (<code>undefined symbol: __libc_pthread_init</code>). Launch with a
+clean environment instead:</p>
+<pre><code>env -i HOME=$HOME USER=$USER \
+  PATH=/home/$USER/.local/bin:/usr/local/bin:/usr/bin:/bin \
+  DISPLAY=:0 XAUTHORITY=/run/user/$(id -u)/gdm/Xauthority \
+  DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus \
+  XDG_RUNTIME_DIR=/run/user/$(id -u) \
+  ./cmd/agentx-desktop/build/bin/agentx-desktop</code></pre>
+
+<h2 id="s9" class="page-break">9. Config &amp; workspace (data on disk)</h2>
+<h3>9.1 <code>~/.agentx/config.json</code></h3>
+<p>The master config: providers &amp; API keys, the model list, agent defaults (model, max tokens,
+temperature, max tool iterations, workspace path), channel settings, image providers, gateway host/port, and
+tool toggles. Edited via the desktop <b>Config</b> page or by hand. The default agent model is
+<code>Auto (best available)</code> = <code>openrouter/auto</code>.</p>
+
+<h3>9.2 <code>~/.agentx/workspace/</code></h3>
+<table>
+  <tr><th>Path</th><th>What</th></tr>
+  <tr><td><code>AGENTS.md, SOUL.md, USER.md, IDENTITY.md</code></td><td>"Bootstrap" identity files — persona, rules, user profile, capabilities. Injected into the system prompt. Editable in the Config page.</td></tr>
+  <tr><td><code>HEARTBEAT.md</code></td><td>Instructions for the periodic heartbeat self-check.</td></tr>
+  <tr><td><code>sessions/</code></td><td>Per-conversation history — <code>*.json</code> (summarized) + <code>*.transcript.jsonl</code> (full display).</td></tr>
+  <tr><td><code>skills/</code></td><td>Installed skills (each a folder with <code>SKILL.md</code>).</td></tr>
+  <tr><td><code>uploads/</code></td><td>Chat file attachments (images/audio/docs/video). <i>(Added this handover.)</i></td></tr>
+  <tr><td><code>memory/</code></td><td>Long-term memory notes (<code>MEMORY.md</code> + dated notes).</td></tr>
+  <tr><td><code>state/, cron/</code></td><td>Runtime state and scheduled jobs.</td></tr>
+</table>
+<h3>9.3 Wallet</h3>
+<p><code>~/.agentx/wallet.json</code> (encrypted key) + <code>tokens.json</code> (tracked tokens). BSC only.
+Balance/tx via the public RPC <code>https://bsc-dataseed.binance.org/</code> (hardcoded in
+<code>pkg/wallet/wallet.go</code> — no Infura here; see §12).</p>
+
+<h2 id="s10">10. Feature reference</h2>
+<table>
+  <tr><th>Feature</th><th>Where</th><th>Notes</th></tr>
+  <tr><td>Chat (streaming)</td><td>Desktop Chat page ↔ gateway <code>/api/chat</code> (SSE)</td><td>Word-by-word streaming via the message bus</td></tr>
+  <tr><td>File upload</td><td><code>pkg/attach</code>, <code>chat.go</code>, <code>ChatPage.tsx</code></td><td>Docs → read_file; images/audio → model vision/audio; video → ffmpeg via exec</td></tr>
+  <tr><td>Skills</td><td>Config page + <code>find_skills</code>/<code>install_skill</code></td><td>ClawHub search + install; agent proactively offers a skill when it lacks a capability</td></tr>
+  <tr><td>Image generation</td><td><code>pkg/image</code>, <code>image_generate</code> tool</td><td>Rendered inline in chat via an <code>IMAGE:&lt;path&gt;</code> marker</td></tr>
+  <tr><td>Schedulers / reminders</td><td>Schedulers page, <code>pkg/cron</code>, <code>/api/schedulers</code></td><td>"remind me in 10 min" → cron job; out-of-band escape for runaway crons</td></tr>
+  <tr><td>Wallet</td><td>Wallet page, <code>pkg/wallet</code>, <code>agentx wallet</code></td><td>Generate/import/export, balances, token tracking (BSC)</td></tr>
+  <tr><td>On-chain registry</td><td>Dashboard "Register Agent"</td><td>ERC-8004 agent identity on BSC (metadata pinned to IPFS)</td></tr>
+  <tr><td>Channels</td><td><code>pkg/channels</code></td><td>Telegram/Discord/Slack/… — configure keys in Config</td></tr>
+</table>
+
+<h2 id="s11" class="page-break">11. Work done during this handover</h2>
+<p>All on branch <code>fix/bug-fixes</code>. Confirm commit status with <code>git status</code> — some or all
+may still be uncommitted at handover.</p>
+
+<h3>11.1 Skill discovery fixes</h3>
+<ul>
+  <li><b>Proactive skill offer:</b> when the model says it "can't do X", the runner auto-runs
+      <code>find_skills</code> and offers to install a matching skill instead of dead-ending
+      (<code>fantasy_runner.go</code> <code>shouldAutoSkillSearch</code>; prompt rule in <code>context.go</code>).</li>
+  <li><b>Search recall:</b> the ClawHub search is prefix-matching, so "video compression" returned ~1 result
+      but "video compress" returned ~9. Added query broadening (stopword-strip + stemming) in
+      <code>pkg/skills/query_expand.go</code>, used by both the chat tool and the Config search.</li>
+  <li><b>UI:</b> clearing the Config search box now clears stale results.</li>
+</ul>
+
+<h3>11.2 Chat file upload (new feature)</h3>
+<ul>
+  <li>New <code>pkg/attach</code> package: classify (image/audio/doc/video), validate (type sniff, size caps,
+      count/total limits), store into <code>workspace/uploads/</code>, and confine paths (security).</li>
+  <li>Files flow through the existing <code>bus.InboundMessage.Media []string</code> (paths) contract.
+      <b>Documents</b> → <code>read_file</code>; <b>images/audio</b> → sent to the model as Fantasy
+      <code>FilePart</code>s (true vision/audio); <b>video</b> → path surfaced so the agent runs ffmpeg via
+      <code>exec</code> (e.g. compression).</li>
+  <li>New <code>pkg/providers/visioncapability.go</code> gates image/audio by model capability; if the model
+      can't see/hear, it <b>accepts + warns</b> rather than failing.</li>
+  <li>Desktop: paperclip picker (<code>PickAttachments</code>), attachment chips/thumbnails, inline render,
+      and a marker block so attachments survive reload.</li>
+</ul>
+
+<h3>11.3 Full chat transcript (new)</h3>
+<ul>
+  <li><code>SessionManager.AppendTranscript</code> writes an append-only <code>*.transcript.jsonl</code>;
+      the desktop <code>GetChatHistory</code> prefers it (falling back to the summarized <code>.json</code>).
+      Fixes chat history vanishing after restart once a conversation was summarized.</li>
+</ul>
+
+<h2 id="s12">12. Related projects &amp; boundaries</h2>
+<div class="box danger"><b>Read this to avoid the "Infura" confusion.</b> There is a <u>separate</u> repository,
+<code>agentx-backend</code> (Python, MongoDB), which powers the <b>website / LaunchPad</b>. That is where the
+<b>Infura</b> (Ethereum RPC) integration lives — its key is stored in MongoDB (<code>agent_mcp</code>
+collection), not in env. <b>This repo (the Go desktop app/runtime) has no Infura and no LaunchPad code</b> —
+"LaunchPad" here is only a roadmap item in the README. If asked to "update the Infura key," it is almost
+certainly about the <code>agentx-backend</code> / deployed website, not this project.</div>
+<table>
+  <tr><th>Repo</th><th>What</th><th>Stack</th></tr>
+  <tr><td><code>Agentx-network/agentx</code> (this)</td><td>Go agent runtime + CLI + gateway + desktop app</td><td>Go, Wails, React</td></tr>
+  <tr><td><code>agentx-backend</code></td><td>Website / LaunchPad / agent-creation backend</td><td>Python, MongoDB, MCP servers (incl. Infura Ethereum)</td></tr>
+</table>
+
+<h2 id="s13" class="page-break">13. Known issues, gotchas &amp; watch-outs</h2>
+<table>
+  <tr><th>Gotcha</th><th>Detail / mitigation</th></tr>
+  <tr><td><b>Backend changes need the gateway restarted</b></td><td>Rebuilding the desktop app alone does nothing for chat/tools/memory. Rebuild the <code>agentx</code> binary and restart <code>agentx-gateway.service</code> (see §8.3).</td></tr>
+  <tr><td><b>Gateway binary "reverts"</b></td><td>The desktop app rewrites the service unit to <code>exec.LookPath("agentx")</code> = <code>/usr/local/bin/agentx</code> on launch. If you deploy a new build to <code>~/.local/bin</code> but <code>/usr/local/bin</code> is on PATH, the desktop can point the service back at the old binary. <b>Clean fix:</b> install the new build to <code>/usr/local/bin/agentx</code> (<code>sudo</code>).</td></tr>
+  <tr><td><b><code>openrouter/auto</code> credits</b></td><td>The configured OpenRouter key was out of credits (HTTP 402 in <code>gateway.log</code>). Chat/vision can fail intermittently. Fund the key or set a concrete model (e.g. a Gemini/GPT-4o key) in Config.</td></tr>
+  <tr><td><b>Model is "Auto"</b></td><td>Vision/audio capability can't be known ahead of time; the code optimistically attaches media for the <code>auto</code> router and warns for known text-only models.</td></tr>
+  <tr><td><b>Snap-shell launch crash</b></td><td>Launch the desktop app with a sanitized <code>env -i …</code> (see §8.4) when starting from a snap terminal.</td></tr>
+  <tr><td><b>Old chat history not recoverable</b></td><td>The transcript feature records from its introduction onward; conversations summarized <i>before</i> it existed can't be restored.</td></tr>
+  <tr><td><b>Commit hygiene</b></td><td>Project preference: do <u>not</u> add "Generated with / Co-Authored-By" AI attribution to commits or PRs.</td></tr>
+</table>
+
+<h2 id="s14">14. Git, branches &amp; release flow</h2>
+<table>
+  <tr><th>Remote</th><th>URL</th><th>Meaning</th></tr>
+  <tr><td><code>origin</code> / <code>upstream</code></td><td><code>github.com/Agentx-network/agentx</code></td><td>The main project</td></tr>
+  <tr><td><code>myfork</code></td><td><code>github.com/AkshaySasi/agentx</code></td><td>The outgoing engineer's fork (PRs originate here)</td></tr>
+</table>
+<p>Working branch: <code>fix/bug-fixes</code>. Flow: branch off <code>main</code> → commit → push to the fork →
+open a PR into <code>Agentx-network/agentx:main</code>. (PR&nbsp;#17 from this fork was already merged; the
+tree of <code>origin/main</code> currently matches the last committed state here.)</p>
+<div class="box"><b>Version bump:</b> <code>make bump-version</code> updates the version; a
+<code>chore: bump version to x.y.z</code> commit + tag accompanies releases. Current: <b>v0.8.49</b>.</div>
+
+<h2 id="s15">15. Quick-reference cheat sheet</h2>
+<pre><code>PORT           127.0.0.1:18790            gateway HTTP API
+CHAT API       POST /api/chat             {message, sessionKey, media[]} → SSE stream
+OTHER APIs     /api/schedulers  /api/notifications  /api/reload  /health  /ready
+
+BINARY         /usr/local/bin/agentx  or  ~/.local/bin/agentx
+DESKTOP        cmd/agentx-desktop/build/bin/agentx-desktop
+SERVICE        systemctl --user {status|restart|stop} agentx-gateway.service
+LOGS           ~/.agentx/gateway.log
+
+CONFIG         ~/.agentx/config.json
+WORKSPACE      ~/.agentx/workspace/   (bootstrap md, sessions/, skills/, uploads/, memory/)
+WALLET         ~/.agentx/wallet.json
+
+BUILD          make build            → build/agentx-linux-amd64
+DESKTOP BUILD  make desktop-build    → cmd/agentx-desktop/build/bin/agentx-desktop
+TEST           go test ./...
+
+CORE CODE      pkg/agent/loop.go, fantasy_runner.go, context.go   (agent loop)
+               pkg/tools/*                                        (agent tools)
+               pkg/session/manager.go                             (memory)
+               cmd/agentx/internal/gateway/helpers.go             (HTTP API)
+               cmd/agentx-desktop/chat.go + frontend/src/pages/ChatPage.tsx  (desktop chat)</code></pre>
+
+<h2 id="s16">16. Onboarding checklist for the next engineer</h2>
+<ol>
+  <li>Install Go 1.26+, Node, the Wails CLI, and WebKit2GTK dev libs.</li>
+  <li>Clone <code>github.com/Agentx-network/agentx</code>; check out <code>fix/bug-fixes</code> (or main).</li>
+  <li><code>make build</code> and <code>make test</code> — confirm a green build.</li>
+  <li>Run <code>./build/agentx-linux-amd64 onboard</code> (or use the desktop Installer page) to create
+      <code>~/.agentx/config.json</code> and set a provider API key.</li>
+  <li><code>make desktop-build</code>, launch the desktop app (§8.4), and send a chat message — confirm the
+      gateway auto-starts and streams a reply.</li>
+  <li>Read, in order: <code>pkg/agent/loop.go</code> → <code>fantasy_runner.go</code> →
+      <code>context.go</code> → <code>cmd/agentx/internal/gateway/helpers.go</code>. That is the whole
+      request path.</li>
+  <li>Internalise §13 (gotchas) — especially the gateway-restart and binary-reversion issues.</li>
+  <li>Skim §11 for the most recent changes and where they live.</li>
+</ol>
+
+<hr>
+<p class="muted" style="text-align:center;font-size:12px;">
+  AgentX Knowledge Transfer · prepared for the incoming engineer ·
+  repository <code>github.com/Agentx-network/agentx</code> · v0.8.49.<br>
+  Verify anything security- or money-related (wallet keys, provider keys, on-chain actions) against the live
+  code before acting.
+</p>
+
+</body>
+</html>

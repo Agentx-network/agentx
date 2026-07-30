@@ -64,11 +64,15 @@ declare global {
           RemoveImageProvider(provider: string): Promise<void>;
         };
         ChatService: {
-          SendMessage(message: string, sessionKey: string): Promise<{ response: string }>;
+          SendMessage(message: string, sessionKey: string, media: string[]): Promise<{ response: string }>;
           IsGatewayReachable(): Promise<boolean>;
           GetChatHistory(sessionKey: string): Promise<{ role: string; content: string; timestamp: number }[]>;
           ReadImageDataURL(path: string): Promise<string>;
           SaveImageAs(srcPath: string): Promise<string>;
+          PickAttachments(): Promise<{
+            accepted: { path: string; name: string; size: number; kind: string }[];
+            rejected: { name: string; reason: string }[];
+          }>;
           PollNotifications(): Promise<string[]>;
         };
         AgentSetupService: {

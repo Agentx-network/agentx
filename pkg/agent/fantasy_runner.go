@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -12,6 +14,7 @@ import (
 	"time"
 
 	"charm.land/fantasy"
+	"github.com/Agentx-network/agentx/pkg/attach"
 	"github.com/Agentx-network/agentx/pkg/bus"
 	"github.com/Agentx-network/agentx/pkg/logger"
 	"github.com/Agentx-network/agentx/pkg/providers"
@@ -301,7 +304,21 @@ func (al *AgentLoop) runFantasyIteration(
 		}
 	}
 
+	// Strip the machine-readable attachment display block — it's persisted in
+	// history for the UI to re-render, but the model should see clean text
+	// (images/audio arrive as FileParts below; docs via the read_file note).
+	prompt = attach.StripDisplayBlock(prompt)
+
 	fantasyMessages := providers.AgentXToFantasyMessages(historyMessages)
+
+	// Build image/audio attachments for THIS turn as Fantasy FileParts. The
+	// capability guard skips modalities the resolved model can't accept and
+	// returns a note we fold into the prompt so the model tells the user
+	// (accept-and-warn, enforced in code rather than prompt-only).
+	fileParts, attachNote := al.buildAttachmentFileParts(model, opts.MediaFiles)
+	if attachNote != "" {
+		prompt += attachNote
+	}
 
 	// Wrap tools
 	forUserSink := func(content string) {
@@ -355,6 +372,7 @@ func (al *AgentLoop) runFantasyIteration(
 	// Run with streaming
 	result, err := fantasyAgent.Stream(ctx, fantasy.AgentStreamCall{
 		Prompt:   prompt,
+		Files:    fileParts,
 		Messages: fantasyMessages,
 
 		OnTextDelta: func(id, text string) error {
@@ -718,7 +736,159 @@ func (al *AgentLoop) runFantasyIteration(
 		}
 	}
 
+	// Auto-skill-search fallback. When the user asks for a capability the agent
+	// doesn't have built-in, models frequently just deflect ("I can't do that, my
+	// tools don't have that capability") and stop — instead of checking whether an
+	// installable skill would add it. Detect that deflection, run find_skills
+	// ourselves, and re-prompt the model with the results so it OFFERS to install a
+	// matching skill rather than dead-ending the user. Bounded to one retry.
+	if !opts.SkillSearchRetried && agent.Tools != nil && shouldAutoSkillSearch(finalContent) {
+		if _, ok := agent.Tools.Get("find_skills"); ok && strings.TrimSpace(opts.UserMessage) != "" {
+			logger.InfoCF("agent", "Auto skill-search fallback triggered",
+				map[string]any{"agent_id": agent.ID, "query": utils.Truncate(opts.UserMessage, 120)})
+
+			searchRes := agent.Tools.Execute(ctx, "find_skills", map[string]any{"query": opts.UserMessage})
+			// Only re-prompt when the search actually surfaced candidate skills.
+			// A blocked (vague query) or empty result would just make the model
+			// apologize twice, so leave the original honest reply in place.
+			if searchRes != nil && !searchRes.IsError &&
+				strings.TrimSpace(searchRes.ForLLM) != "" &&
+				!strings.Contains(searchRes.ForLLM, "No skills found") {
+				augmented := append(messages, providers.Message{
+					Role: "user",
+					Content: fmt.Sprintf(
+						"[SYSTEM: The user asked for a capability you said you can't do. A find_skills "+
+							"search was already run to look for an installable skill that adds it. Results below.]\n\n%s\n\n"+
+							"If one of these skills matches what the user needs, DON'T say you can't help — tell them "+
+							"you found a skill that can do it and offer to install it (they must confirm first, then you "+
+							"call install_skill with the exact slug and registry). If none genuinely match, tell the user "+
+							"honestly that no suitable skill is available. Do NOT claim you already installed anything.",
+						searchRes.ForLLM,
+					),
+				})
+				opts.SkillSearchRetried = true
+				return al.runFantasyIteration(ctx, agent, augmented, opts)
+			}
+			logger.InfoCF("agent", "Auto skill-search found no candidate skills",
+				map[string]any{"agent_id": agent.ID})
+		}
+	}
+
 	return finalContent, stepCount, nil
+}
+
+// shouldAutoSkillSearch reports whether the model's reply is a capability-gap
+// deflection ("I can't do that, my tools don't have that capability") rather
+// than a real answer — the signal to run find_skills ourselves and re-prompt so
+// the agent can offer an installable skill. Matched case-insensitively. Kept
+// narrow: bare refusals ("I can't help with that request") must NOT match, only
+// tool/capability-shaped language where a skill could plausibly fill the gap.
+func shouldAutoSkillSearch(response string) bool {
+	r := strings.ToLower(response)
+	triggers := []string{
+		"tools don't have that capability", "tools don't have the capability",
+		"don't have that capability", "don't have the capability",
+		"my current tools don't", "my tools don't have",
+		"i don't have a tool", "i don't have the tools",
+		"i don't have a skill", "i don't have any skill",
+		"i can't directly", "i cannot directly",
+		"i'm not able to do that", "i am not able to do that",
+		"not something i can do", "outside my current capabilities",
+		"beyond my current capabilities", "outside my capabilities",
+		"i lack the capability", "i'm not equipped to", "not equipped to",
+		"i don't have the ability to", "i do not have the ability to",
+	}
+	for _, t := range triggers {
+		if strings.Contains(r, t) {
+			return true
+		}
+	}
+	return false
+}
+
+// maxAttachmentBytes caps how large an image/audio file we'll load into memory
+// to send to the model. Files are already size-checked at upload time; this is
+// a defensive backstop.
+const maxAttachmentBytes = 30 << 20 // 30 MB
+
+// buildAttachmentFileParts converts image/audio attachment paths into Fantasy
+// FileParts for the current turn, honoring the resolved model's capabilities.
+// Modalities the model can't accept are skipped and summarized in the returned
+// note (folded into the prompt so the model tells the user to switch models).
+func (al *AgentLoop) buildAttachmentFileParts(
+	model fantasy.LanguageModel, paths []string,
+) ([]fantasy.FilePart, string) {
+	if len(paths) == 0 {
+		return nil, ""
+	}
+	provider, modelID := model.Provider(), model.Model()
+	canVision := providers.ProviderSupportsVision(provider, modelID)
+	canAudio := providers.ProviderSupportsAudioInput(provider, modelID)
+
+	var parts []fantasy.FilePart
+	var skippedImages, skippedAudio []string
+
+	for _, p := range paths {
+		kind := attach.Classify(p)
+		// Only images/audio are ever sent to the model. Anything else (video,
+		// docs) is handled by tools and must not be embedded as bytes.
+		if kind != attach.KindImage && kind != attach.KindAudio {
+			continue
+		}
+		if kind == attach.KindImage && !canVision {
+			skippedImages = append(skippedImages, filepath.Base(p))
+			continue
+		}
+		if kind == attach.KindAudio && !canAudio {
+			skippedAudio = append(skippedAudio, filepath.Base(p))
+			continue
+		}
+
+		info, err := os.Stat(p)
+		if err != nil || info.Size() > maxAttachmentBytes {
+			logger.WarnCF("agent", "Skipping unreadable/oversized attachment",
+				map[string]any{"path": p, "error": fmt.Sprintf("%v", err)})
+			continue
+		}
+		data, err := os.ReadFile(p)
+		if err != nil {
+			logger.WarnCF("agent", "Failed to read attachment", map[string]any{"path": p, "error": err.Error()})
+			continue
+		}
+		parts = append(parts, fantasy.FilePart{
+			Filename:  filepath.Base(p),
+			Data:      data,
+			MediaType: attach.MimeForPath(p, data),
+		})
+	}
+
+	if len(parts) > 0 {
+		logger.InfoCF("agent", "Attached files to model turn",
+			map[string]any{"count": len(parts), "provider": provider, "model": modelID})
+	}
+
+	// Build an accept-and-warn note for anything we couldn't send.
+	var note string
+	if len(skippedImages) > 0 {
+		note += fmt.Sprintf(
+			"\n\n[SYSTEM: The user attached %d image(s) (%s) but the current model (%s) can't view images. "+
+				"Tell the user their current model can't see images and to switch to a vision-capable model "+
+				"(e.g. Gemini or GPT-4o) in Config to analyze it. Do NOT pretend to see the image.]",
+			len(skippedImages),
+			strings.Join(skippedImages, ", "),
+			modelID,
+		)
+	}
+	if len(skippedAudio) > 0 {
+		note += fmt.Sprintf(
+			"\n\n[SYSTEM: The user attached %d audio file(s) (%s) but the current model (%s) can't process audio. "+
+				"Tell the user to switch to an audio-capable model (e.g. Gemini). Do NOT pretend to hear the audio.]",
+			len(skippedAudio),
+			strings.Join(skippedAudio, ", "),
+			modelID,
+		)
+	}
+	return parts, note
 }
 
 // shouldAutoWebSearch reports whether the model's reply is a search-narration

@@ -14,13 +14,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Agentx-network/agentx/pkg/attach"
 	"github.com/Agentx-network/agentx/pkg/config"
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type ChatRequest struct {
-	Message    string `json:"message"`
-	SessionKey string `json:"sessionKey"`
+	Message    string   `json:"message"`
+	SessionKey string   `json:"sessionKey"`
+	Media      []string `json:"media,omitempty"`
 }
 
 type ChatResponse struct {
@@ -43,7 +45,7 @@ func (c *ChatService) startup(ctx context.Context) {
 // SendMessage sends a message to the gateway's SSE chat endpoint,
 // emits "chat:delta" Wails events as tokens arrive, and returns the
 // final response.
-func (c *ChatService) SendMessage(message string, sessionKey string) (*ChatResponse, error) {
+func (c *ChatService) SendMessage(message string, sessionKey string, media []string) (*ChatResponse, error) {
 	cfg, err := config.LoadConfig(getConfigPath())
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config: %w", err)
@@ -58,6 +60,7 @@ func (c *ChatService) SendMessage(message string, sessionKey string) (*ChatRespo
 	reqBody, err := json.Marshal(ChatRequest{
 		Message:    message,
 		SessionKey: sessionKey,
+		Media:      media,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
@@ -143,7 +146,7 @@ func (c *ChatService) GetChatHistory(sessionKey string) ([]HistoryMessage, error
 	// If a specific key is given, look for that file directly
 	if sessionKey != "" {
 		filename := strings.ReplaceAll(sessionKey, ":", "_") + ".json"
-		return readSessionFile(filepath.Join(sessionsDir, filename))
+		return readHistoryForSession(filepath.Join(sessionsDir, filename))
 	}
 
 	// Otherwise load the desktop's own conversation. The desktop chat persists
@@ -182,7 +185,53 @@ func (c *ChatService) GetChatHistory(sessionKey string) ([]HistoryMessage, error
 		return []HistoryMessage{}, nil
 	}
 
-	return readSessionFile(bestPath)
+	return readHistoryForSession(bestPath)
+}
+
+// readHistoryForSession returns the display history for a session, preferring
+// the append-only transcript (<key>.transcript.jsonl) — which is never
+// summarized, so it holds the full conversation — and falling back to the
+// session .json (summarized/truncated) for sessions created before transcripts
+// existed.
+func readHistoryForSession(sessionJSONPath string) ([]HistoryMessage, error) {
+	transcriptPath := strings.TrimSuffix(sessionJSONPath, ".json") + ".transcript.jsonl"
+	if msgs, err := readTranscriptFile(transcriptPath); err == nil && len(msgs) > 0 {
+		return msgs, nil
+	}
+	return readSessionFile(sessionJSONPath)
+}
+
+// readTranscriptFile reads an append-only JSONL transcript into display history.
+// Malformed lines are skipped rather than failing the whole load.
+func readTranscriptFile(path string) ([]HistoryMessage, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var history []HistoryMessage
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		var e struct {
+			Role      string `json:"role"`
+			Content   string `json:"content"`
+			Timestamp int64  `json:"ts"`
+		}
+		if err := json.Unmarshal([]byte(line), &e); err != nil {
+			continue
+		}
+		if (e.Role != "user" && e.Role != "assistant") || e.Content == "" {
+			continue
+		}
+		history = append(history, HistoryMessage{
+			Role:      e.Role,
+			Content:   e.Content,
+			Timestamp: e.Timestamp,
+		})
+	}
+	return history, nil
 }
 
 func readSessionFile(path string) ([]HistoryMessage, error) {
@@ -376,6 +425,87 @@ func (c *ChatService) SaveImageAs(srcPath string) (string, error) {
 		return "", fmt.Errorf("save image: %w", err)
 	}
 	return dest, nil
+}
+
+// Attachment describes a validated, stored upload returned to the frontend.
+type Attachment struct {
+	Path string `json:"path"` // absolute path under <workspace>/uploads
+	Name string `json:"name"`
+	Size int64  `json:"size"`
+	Kind string `json:"kind"` // image | audio | doc
+}
+
+// RejectedAttachment describes a file the user picked that was not accepted.
+type RejectedAttachment struct {
+	Name   string `json:"name"`
+	Reason string `json:"reason"`
+}
+
+// PickAttachmentsResult is returned by PickAttachments.
+type PickAttachmentsResult struct {
+	Accepted []Attachment         `json:"accepted"`
+	Rejected []RejectedAttachment `json:"rejected"`
+}
+
+// PickAttachments opens a native multi-file picker, validates each selection,
+// and copies the accepted ones into <workspace>/uploads/. Returns accepted
+// attachments (with their stored paths) plus any rejections with reasons.
+// Enforces the per-message file-count and total-size limits so the user gets
+// immediate feedback before sending.
+func (c *ChatService) PickAttachments() (*PickAttachmentsResult, error) {
+	paths, err := wailsRuntime.OpenMultipleFilesDialog(c.ctx, wailsRuntime.OpenDialogOptions{
+		Title: "Attach files",
+		Filters: []wailsRuntime.FileFilter{
+			{
+				DisplayName: "Supported files (images, audio, video, documents)",
+				Pattern:     "*.png;*.jpg;*.jpeg;*.webp;*.gif;*.mp3;*.wav;*.m4a;*.ogg;*.flac;*.aac;*.mp4;*.mov;*.webm;*.mkv;*.avi;*.m4v;*.flv;*.wmv;*.mpeg;*.mpg;*.pdf;*.txt;*.md;*.markdown;*.csv;*.json;*.log;*.yaml;*.yml;*.xml;*.html;*.htm;*.tsv;*.ini;*.toml",
+			},
+			{DisplayName: "All files", Pattern: "*.*"},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	result := &PickAttachmentsResult{Accepted: []Attachment{}, Rejected: []RejectedAttachment{}}
+	if len(paths) == 0 {
+		return result, nil // user canceled
+	}
+
+	cfg, err := config.LoadConfig(getConfigPath())
+	workspace := filepath.Join(os.Getenv("HOME"), ".agentx", "workspace")
+	if err == nil {
+		workspace = cfg.WorkspacePath()
+	}
+
+	if len(paths) > attach.MaxFiles {
+		return nil, fmt.Errorf("you can attach at most %d files at a time", attach.MaxFiles)
+	}
+
+	var total int64
+	for _, p := range paths {
+		stored, verr := attach.ValidateAndStore(p, workspace)
+		if verr != nil {
+			result.Rejected = append(result.Rejected, RejectedAttachment{
+				Name:   filepath.Base(p),
+				Reason: verr.Error(),
+			})
+			continue
+		}
+		total += stored.Size
+		if total > attach.MaxTotalBytes {
+			result.Rejected = append(result.Rejected, RejectedAttachment{
+				Name:   stored.Name,
+				Reason: "skipped — total attachment size limit reached",
+			})
+			_ = os.Remove(stored.Path)
+			continue
+		}
+		result.Accepted = append(result.Accepted, Attachment{
+			Path: stored.Path, Name: stored.Name, Size: stored.Size, Kind: string(stored.Kind),
+		})
+	}
+	return result, nil
 }
 
 func (c *ChatService) IsGatewayReachable() bool {

@@ -322,7 +322,10 @@ func (a *AgentSetupService) InstallSkill(repo string) error {
 // SearchSkills searches the ClawHub registry for skills matching the query.
 func (a *AgentSetupService) SearchSkills(query string) ([]SkillSearchResult, error) {
 	registry := skills.NewClawHubRegistry(skills.ClawHubConfig{Enabled: true})
-	results, err := registry.Search(context.Background(), query, 20)
+	// SearchBroadened retries with a stemmed/stopword-stripped variant when the
+	// raw query under-matches the prefix-based registry search (e.g. "video
+	// compression" → 1 result, but "video compress" → 9).
+	results, err := skills.SearchBroadened(context.Background(), registry.Search, query, 20)
 	if err != nil {
 		return nil, fmt.Errorf("search failed: %w", err)
 	}
